@@ -207,7 +207,7 @@ publishing {
     }
     repositories {//real publishing -> otherwise
         maven {
-            url = uri("https://maven.pkg.github.com//RealAntEngineer/creating_space")
+            url = uri("https://maven.pkg.github.com/RealAntEngineer/Formic_API")
             credentials {
                 username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
                 password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
