@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "priority": 900,
+  "package": "com.rae.formicapi.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "formicapi.refmap.json",
+  "mixins" : [],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
