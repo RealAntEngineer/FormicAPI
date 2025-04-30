@@ -13,6 +13,23 @@ plugins {
     id 'org.spongepowered.mixin' version '0.7.+'
 }
 
+import java.nio.file.Files
+import java.nio.file.Paths
+
+def loadEnv() {
+    def envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.eachLine { line ->
+            def matcher = line =~ /^\s*([\w\.]+)\s*=\s*(.*)\s*$/
+            if (matcher.matches()) {
+                def key = matcher[0][1]
+                def value = matcher[0][2]
+                System.setProperty(key, value)
+            }
+        }
+    }
+}
+loadEnv()
 version = mod_version
 group = mod_group_id
 
@@ -65,7 +82,6 @@ minecraft {
         gameTestServer {
             property 'forge.enabledGameTestNamespaces', mod_id
         }
-
         data {
             // example of overriding the workingDirectory set in configureEach above
             workingDirectory project.file('run-data')
@@ -136,10 +152,8 @@ dependencies {
     annotationProcessor "org.spongepowered:mixin:${mixin_version}:processor"
 
     //worldgen tool
-    //worldgen-devtools:4rikEHY9
-    //runtimeOnly fg.deobf("maven.modrinth:worldgen-devtools:1.0.0-bata.2+1.20.5") -> dependent on minecraft too high use it for 1.21.1
-    //runtimeOnly fg.deobf("maven.modrinth:connector:1.0.0-beta.46+1.20.1")
-    //runtimeOnly fg.deobf("maven.modrinth:forgified-fabric-api:0.92.2+1.11.12+1.20.1")
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
 
 
 }
@@ -188,6 +202,9 @@ tasks.named('jar', Jar).configure {
     finalizedBy 'reobfJar'
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
 // However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
 // tasks.named('publish').configure {
 //     dependsOn 'reobfJar'
@@ -209,8 +226,8 @@ publishing {
         maven {
             url = uri("https://maven.pkg.github.com/RealAntEngineer/Formic_API")
             credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
-                password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
+                username = System.getProperty("USERNAME")
+                password = System.getProperty("TOKEN")
             }
         }
     }

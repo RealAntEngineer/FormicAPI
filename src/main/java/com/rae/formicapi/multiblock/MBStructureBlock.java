@@ -143,7 +143,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         Direction direction = state.getValue(FACING);
         BlockPos targetedPos = pos.relative(direction);
         BlockState targetedState = level.getBlockState(targetedPos);
-        return targetedState.getBlock() instanceof MBStructureBlock ||
+        return //targetedState.getBlock() instanceof MBStructureBlock ||
                 (targetedState.getBlock() instanceof MBController mb && state.is(mb.getStructure()));
     }
 

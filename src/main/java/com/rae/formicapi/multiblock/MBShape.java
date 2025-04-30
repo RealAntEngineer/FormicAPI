@@ -15,7 +15,7 @@ import java.util.Map;
 
 public class MBShape {
     //make functions for every sizes
-    public static MBShape make3x1x1(DirectionalBlock structure){
+    public static MBShape make3x1x1(MBStructureBlock structure){
         return new MBShape(structure, new Vec3i(3, 1,1), new Vec3i(1,0,0),
                 new HashMap<>(Map.of(
                         Direction.UP, List.of(List.of(List.of(Direction.UP),List.of(),List.of(Direction.DOWN))),
@@ -27,7 +27,7 @@ public class MBShape {
                 )
                 ));
     }
-    public static MBShape make2x1x1(DirectionalBlock structure){
+    public static MBShape make2x1x1(MBStructureBlock structure){
         return new MBShape(structure, new Vec3i(2, 1,1), new Vec3i(1,0,0),
                 new HashMap<>(Map.of(
                         Direction.UP, List.of(List.of(List.of(Direction.UP))),
@@ -39,12 +39,12 @@ public class MBShape {
                 ));
     }
     //default is north
-    private final DirectionalBlock structure;
+    private final MBStructureBlock structure;
     private final HashMap<Direction, List<List<List<Direction>>>> shapes;// X, Y, Z
     private final Vec3i defaultOffset;
     private final Vec3i defaultSize;
 
-    public MBShape(DirectionalBlock structure,  Vec3i defaultSize,  Vec3i defaultOffset,HashMap<Direction, List<List<List<Direction>>>> shapes) {
+    public MBShape(MBStructureBlock structure,  Vec3i defaultSize,  Vec3i defaultOffset,HashMap<Direction, List<List<List<Direction>>>> shapes) {
         this.structure = structure;
         this.defaultOffset = defaultOffset;
         this.defaultSize = defaultSize;
@@ -96,7 +96,7 @@ public class MBShape {
                                                 negative?-y:y,
                                                 negative?-z:z),
 
-                                        Blocks.DISPENSER.defaultBlockState().setValue(DirectionalBlock.FACING, shape.get(x + off.getX()).get(y + off.getY()).get(z + off.getZ()))
+                                        structure.defaultBlockState().setValue(DirectionalBlock.FACING, shape.get(x + off.getX()).get(y + off.getY()).get(z + off.getZ()))
                                 );
                             }
                         }
