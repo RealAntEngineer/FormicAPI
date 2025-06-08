@@ -35,6 +35,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
+/**
+ * Structure Block for a MultiBlock, it always as a full hit-box
+ */
 public class MBStructureBlock extends DirectionalBlock implements IWrenchable, IProxyHoveringInformation {
     protected MBStructureBlock(Properties properties) {
         super(properties);

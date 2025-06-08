@@ -13,6 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * define how the multiblock structure is made : define the offset of the MBController and the direction
+ * of each MBStructureBlock.
+ */
 public class MBShape {
     //make functions for every sizes
     public static MBShape make3x1x1(MBStructureBlock structure){

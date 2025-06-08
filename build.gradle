@@ -128,7 +128,7 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-
+    //TODO make sure we only depend on catnip
     implementation(fg.deobf("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false })
     implementation(fg.deobf("net.createmod.ponder:Ponder-Forge-${minecraft_version}:${ponder_version}"))
     compileOnly(fg.deobf("dev.engine-room.flywheel:flywheel-forge-api-${minecraft_version}:${flywheel_version}"))
@@ -151,7 +151,7 @@ dependencies {
 
     annotationProcessor "org.spongepowered:mixin:${mixin_version}:processor"
 
-    //worldgen tool
+    //unit test tool
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
 
@@ -222,7 +222,7 @@ publishing {
 
         }
     }
-    repositories {//real publishing -> otherwise
+    repositories {//TODO use a more practical
         maven {
             url = uri("https://maven.pkg.github.com/RealAntEngineer/Formic_API")
             credentials {

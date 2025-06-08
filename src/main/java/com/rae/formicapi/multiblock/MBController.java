@@ -16,6 +16,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
+/**
+ * the main block for the multiblock, this the block that is used for the model, to make the model work you will need
+ * to look at the default offset given in the MBShape for the size chosen
+ */
 public abstract class MBController extends DirectionalBlock {
     protected final MBShape shape;
     final DirectionalBlock structure;
