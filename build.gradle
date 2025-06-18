@@ -116,7 +116,9 @@ repositories {
         name = "Modrinth"
         url = "https://api.modrinth.com/maven"
     }
-
+    maven {
+        url = "https://mvnrepository.com"
+    }
     //curios
     maven {
         url = "https://maven.theillusivec4.top/"
@@ -154,7 +156,8 @@ dependencies {
     //unit test tool
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
-
+    //x chart to plot things
+    implementation("org.knowm.xchart:xchart:3.2.2")
 
 }
 mixin {
@@ -204,6 +207,7 @@ tasks.named('jar', Jar).configure {
 
 tasks.test {
     useJUnitPlatform()
+    debug = true;
 }
 // However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
 // tasks.named('publish').configure {
