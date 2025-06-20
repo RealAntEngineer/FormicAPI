@@ -141,7 +141,7 @@ public class MakeCharts {
 
         return PCoexistence;*/
 
-        return eos.computeCoexistencePressure(T);
+        return eos.computeSaturationPressure(T);
     }
 
 
@@ -149,7 +149,7 @@ public class MakeCharts {
         PengRobinsonEOS waterPrEOS = EOSLibrary.getPRWaterEOS();
         //VanDerWaalsEOS water2EOS = EOSLibrary.getVanDerWaalsWaterEOS();
 
-        double[] temperatures = new double[]{450,500,550,580,600,610,620,630,640,650}; // Kelvin
+        double[] temperatures = new double[]{300, 480}; // Kelvin
         double vMin = 2.5e-5;      // m³/mol
         double vMax = 2e-2;      // m³/mol
         double Pc = 22e6;

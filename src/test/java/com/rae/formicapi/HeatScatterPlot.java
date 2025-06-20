@@ -16,16 +16,16 @@ public class HeatScatterPlot {
     public static final PengRobinsonEOS PR_WATER_EOS = EOSLibrary.getPRWaterEOS();
 
     public static void main(String[] args) {
-        plotEntropyTV();
+        plotTemperaturePH2();
     }
 
     private static void plotTemperaturePH() {
         // Define ranges for P and H
-        double pMin = 1.0, pMax = 10.0;
-        double hMin = 1e3, hMax = 1e6;
+        double pMin = 1e5, pMax = 1e7;
+        double hMin = -1e4, hMax = 1e4;
 
-        int pSteps = 20;
-        int hSteps = 20;
+        int pSteps = 50;
+        int hSteps = 50;
 
         // Collect all T values to normalize for color gradient
         List<PointData> points = new ArrayList<>();
@@ -40,9 +40,10 @@ public class HeatScatterPlot {
         }
 
         // Find min/max T for color scaling
-        double minT = 0;
-        double maxT = 800;
-
+        double minT = points.stream().map(p -> p.Z).min(Double::compareTo).get();
+        double maxT = points.stream().map(p -> p.Z).max(Double::compareTo).get();
+        System.out.println("minT: " + minT);
+        System.out.println("maxT: " + maxT);
         // Create chart
         XYChart chart = new XYChartBuilder().width(800).height(600).title("Temperature Heatmap Scatter Plot").xAxisTitle("Pressure (P)").yAxisTitle("Enthalpy (H)").build();
         chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
@@ -62,35 +63,35 @@ public class HeatScatterPlot {
         // Show chart
         new SwingWrapper<>(chart).displayChart();
     }
-    private static void plotEntropyTV(){
+    private static void plotEntropyPV(){
         // Define ranges for P and H
-        double TMin = 100, TMax = 630;
+        double TMin = 273, TMax = 1000;
 
-        double vMin = PR_WATER_EOS.getB()*1.01, vMax = 5e-3;
+        double vMin = 2e-5, vMax = 5e-4;
 
-        int TSteps = 100;
-        int vSteps = 50;
+        int TSteps = 500;
+        int vSteps = 200;
 
         // Collect all T values to normalize for color gradient
         List<PointData> SPoints = new ArrayList<>();
         List<PointData> XPoints = new ArrayList<>();
-        List<PointData> SaturationPoints = new ArrayList<>();
 
         for (int i = 0; i <= TSteps; i++) {
             double T = TMin + i * (TMax - TMin) / TSteps;
             Couple<Double> Vs = PR_WATER_EOS.getSaturationVolumes(T);
-            SaturationPoints.add(new PointData(Vs.getFirst(), PR_WATER_EOS.pressure(T, Vs.getFirst()), 0));
-            SaturationPoints.add(new PointData(Vs.getSecond(), PR_WATER_EOS.pressure(T, Vs.getSecond()), 1));
             for (int j = 0; j <= vSteps; j++) {
                 double V = vMin + j * (vMax - vMin) / vSteps;
                 double P = PR_WATER_EOS.pressure(T, V);
+                if (V > Vs.getFirst() && V < Vs.getSecond()) {
+                    P = PR_WATER_EOS.computeSaturationPressure(T);
+
+                }
                 double S = PR_WATER_EOS.totalEntropy((float) T, (float) V);
                 double x = WaterCubicEOSTransformationHelper.get_x_from_entropy((float) S, (float) T);
                 SPoints.add(new PointData(V, P, S));
                 XPoints.add(new PointData(V, P, x));
             }
         }
-        System.out.println(SaturationPoints);
         // Find min/max T for color scaling
         XYChart chart1 = new XYChartBuilder().width(800).height(600)
                 .title("Entropy Plot")
@@ -98,10 +99,10 @@ public class HeatScatterPlot {
         chart1.getStyler().setXAxisLogarithmic(true);
         chart1.getStyler().setXAxisMin(vMin);
         chart1.getStyler().setXAxisMax(vMax);
-        chart1.getStyler().setYAxisMin(-10e6);
+        chart1.getStyler().setYAxisMin(1d);
         chart1.getStyler().setYAxisMax(30e6);
-        plotWithColor(SPoints, chart1, "pt");
-        plotWithColor(SaturationPoints, chart1, "sat");
+        plotWithColor(SPoints, chart1, "pt", 0d,20d);
+
         new SwingWrapper<>(chart1).displayChart();
 
         XYChart chart2 = new XYChartBuilder().width(800).height(600)
@@ -110,29 +111,58 @@ public class HeatScatterPlot {
         chart2.getStyler().setXAxisLogarithmic(true);
         chart2.getStyler().setXAxisMin(vMin);
         chart2.getStyler().setXAxisMax(vMax);
-        chart2.getStyler().setYAxisMin(-10e6);
+        chart2.getStyler().setYAxisMin(1d);
         chart2.getStyler().setYAxisMax(30e6);
-        plotWithColor(XPoints, chart2, "pt");
-        plotWithColor(SaturationPoints, chart2, "sat");
+        plotWithColor(XPoints, chart2, "pt", 0d, 1d);
+
         new SwingWrapper<>(chart2).displayChart();
 
+    }
+    private static void plotTemperaturePH2(){
+        // Define ranges for P and H
+        double TMin = 273 + 50, TMax = 650;
 
-        XYChart chart3 = new XYChartBuilder().width(800).height(600)
-                .title("Saturation Plot")
-                .yAxisTitle("Pressure (Pa)").xAxisTitle("Molar Volume (V)").build();
-        chart3.getStyler().setXAxisLogarithmic(true);
-        chart3.getStyler().setXAxisMin(vMin);
-        chart3.getStyler().setXAxisMax(vMax);
-        chart3.getStyler().setYAxisMin(-10e6);
-        chart3.getStyler().setYAxisMax(30e6);
-        plotWithColor(SaturationPoints, chart3, "sat");
+        double vMin = 1.9e-5, vMax = 1e-2;
 
-        new SwingWrapper<>(chart3).displayChart();
+        int TSteps = 30;
+        int vSteps = 10000;
+
+        // Collect all T values to normalize for color gradient
+        List<PointData> HPoints = new ArrayList<>();
+
+        for (int i = 0; i <= TSteps; i++) {
+            double T = TMin + i * (TMax - TMin) / TSteps;
+            Couple<Double> Vs = PR_WATER_EOS.getSaturationVolumes(T);
+            for (int j = 0; j <= vSteps; j++) {
+                double V = vMin + j * (vMax - vMin) / vSteps;
+                double P = PR_WATER_EOS.pressure(T, V);
+                if (V > Vs.getFirst() && V < Vs.getSecond()) {
+                    P = PR_WATER_EOS.computeSaturationPressure(T);
+
+                }
+                double S = PR_WATER_EOS.totalEntropy((float) T, (float) V);
+                double H = PR_WATER_EOS.totalEnthalpy((float) T, (float) V);
+                HPoints.add(new PointData(H/1e3,P/1e5, S));
+
+            }
+        }
+
+        double minT = HPoints.stream().map(p -> p.Z).min(Double::compareTo).get();
+        double maxT = HPoints.stream().map(p -> p.Z).max(Double::compareTo).get();
+        System.out.println("minT: " + minT);
+        System.out.println("maxT: " + maxT);
+        // Find min/max T for color scaling
+        XYChart chart1 = new XYChartBuilder().width(800).height(600)
+                .title("Entropy Plot")
+                .xAxisTitle("Enthalpy (KJ/Kg)").yAxisTitle("Pressure (bar)").build();
+        chart1.getStyler().setYAxisLogarithmic(true);
+        chart1.getStyler().setYAxisMax(300d);
+        chart1.getStyler().setXAxisMax(45d);
+        plotWithColor(HPoints, chart1, "pt", 0d,maxT);
+        new SwingWrapper<>(chart1).displayChart();
     }
 
-    private static void plotWithColor(List<PointData> points, XYChart chart, String seriesName) {
-        double minT = points.stream().map(pt -> pt.Z).min(Double::compareTo).orElse(0.0);
-        double maxT = points.stream().map(pt -> pt.Z).max(Double::compareTo).orElse(1.0);
+    private static void plotWithColor(List<PointData> points, XYChart chart, String seriesName, Double minT1, Double maxT1) {
         // Create chart
         chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
         chart.getStyler().setMarkerSize(6);
@@ -141,7 +171,7 @@ public class HeatScatterPlot {
         // Add one series per point (to assign different color)
         int pointIndex = 0;
         for (PointData pt : points) {
-            Color color = getColorFromValue(pt.Z, minT, maxT);
+            Color color = getColorFromValue(pt.Z, minT1, maxT1);
             XYSeries series = chart.addSeries(seriesName + (pointIndex++), new double[]{pt.X}, new double[]{pt.Y});
             series.setMarker(SeriesMarkers.CIRCLE);
             series.setMarkerColor(color);
@@ -265,7 +295,7 @@ public class HeatScatterPlot {
         // Find min/max T for color scaling
         plotWithColor(points, new XYChartBuilder().width(800).height(600)
                 .title("Pressure Heatmap Scatter Plot")
-                .xAxisTitle("Temperature (T)").yAxisTitle("Molar Volume (H)").build(), "pt");
+                .xAxisTitle("Temperature (T)").yAxisTitle("Molar Volume (H)").build(), "pt", points.stream().map(pt -> pt.Z).min(Double::compareTo).orElse(0.0), points.stream().map(pt -> pt.Z).max(Double::compareTo).orElse(1.0));
     }
 
     // Normalize value between min and max and map to gradient blue->red

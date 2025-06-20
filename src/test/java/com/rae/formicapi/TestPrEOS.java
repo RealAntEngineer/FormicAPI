@@ -10,7 +10,7 @@ public class TestPrEOS {
 
         double T = 500;
         Couple<Double> V = EOS.getSaturationVolumes(T);
-
+        System.out.println(V);
         double s_liq = EOS.totalEntropy(T, V.get(true));
         double s_vap = EOS.totalEntropy(T, V.get(false));
 
@@ -18,8 +18,8 @@ public class TestPrEOS {
         System.out.println("s_vap = " + s_vap);
 
 
-        for (T = 0 ; T < 1000 ; T++) {
-            System.out.println(EOS.getSaturationVolumes(T));
+        for (T = 100 ; T < 640 ; T++) {
+            System.out.println("at T = "+ T + " "+ EOS.computeSaturationPressure(T)/1e6);
         }
     }
 }
