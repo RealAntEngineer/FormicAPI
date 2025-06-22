@@ -141,7 +141,7 @@ public class MakeCharts {
 
         return PCoexistence;*/
 
-        return eos.computeSaturationPressure(T);
+        return eos.saturationPressure(T);
     }
 
 

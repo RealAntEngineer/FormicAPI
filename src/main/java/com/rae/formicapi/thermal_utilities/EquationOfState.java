@@ -1,6 +1,7 @@
 package com.rae.formicapi.thermal_utilities;
 
 public interface EquationOfState {
+    double R = 8.314462618; // [J/mol·K]
     //TODO we only wants to use the
     /**
      * @param temperature temperature in Kelvin

@@ -1,0 +1,10 @@
+{
+  "comment": "this is a exemple of an isentropic table. don't generate it by hand",
+  "-30": [{
+    "T": 300,
+    "P": 10e5
+  },
+    {}
+
+  ]
+}

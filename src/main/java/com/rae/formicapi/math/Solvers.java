@@ -16,54 +16,51 @@ public class Solvers {
      * @return the Solution if there is one or 0.
      */
     public static float dichotomy(Function<Float, Float> function, float a, float b, float epsilon) {
-        try {
-            float fa = function.apply(a);
-            float fb = function.apply(b);
+        float fa = function.apply(a);
+        float fb = function.apply(b);
 
-            if (Float.isNaN(fa) || Float.isNaN(fb)) {
-                throw new RuntimeException("Initial values are NaN: f(a)=" + fa + ", f(b)=" + fb);
-            }
-
-            if (fa * fb > 0) {
-                throw new RuntimeException("Wrong boundaries in dichotomy solver: a=" + a + " f(a)=" + fa + " | b=" + b + " f(b)=" + fb);
-            }
-
-            float m = (a + b) / 2f;
-            float fm = function.apply(m);
-
-            while (Math.abs(b - a) > epsilon) {
-                // Check for NaN
-                if (Float.isNaN(fm)) {
-                    // Try to adjust toward the better side
-                    float testA = function.apply(a);
-                    float testB = function.apply(b);
-
-                    if (!Float.isNaN(testA)) {
-                        b = m;
-                    } else if (!Float.isNaN(testB)) {
-                        a = m;
-                    } else {
-                        throw new RuntimeException("Function returned NaN across entire interval: a=" + a + ", b=" + b);
-                    }
-                } else if (fm == 0.0f) {
-                    return m;
-                } else if (fa * fm > 0) {
-                    a = m;
-                    fa = fm;
-                } else {
-                    b = m;
-                    fb = fm;
-                }
-
-                m = (a + b) / 2f;
-                fm = function.apply(m);
-            }
-
-            return m;
-        } catch (RuntimeException e) {
-            FormicAPI.LOGGER.error("Dichotomy solver error: " + e);
-            return 0;
+        if (Float.isNaN(fa) || Float.isNaN(fb)) {
+            throw new RuntimeException("Initial values are NaN: f(a)=" + fa + ", f(b)=" + fb);
         }
+
+        if (fa * fb > 0) {
+            throw new RuntimeException("Wrong boundaries in dichotomy solver: a=" + a + " f(a)=" + fa + " | b=" + b + " f(b)=" + fb);
+        }
+
+        float m = (a + b) / 2f;
+        float fm = function.apply(m);
+        int maxIterations = 10000;
+        int i = 0;
+        while (Math.abs(b - a) > epsilon && i < maxIterations) {
+            // Check for NaN
+            i++;
+            if (Float.isNaN(fm)) {
+                // Try to adjust toward the better side
+                float testA = function.apply(a);
+                float testB = function.apply(b);
+
+                if (!Float.isNaN(testA)) {
+                    b = m;
+                } else if (!Float.isNaN(testB)) {
+                    a = m;
+                } else {
+                    throw new RuntimeException("Function returned NaN across entire interval: a=" + a + ", b=" + b);
+                }
+            } else if (fm == 0.0f) {
+                return m;
+            } else if (fa * fm > 0) {
+                a = m;
+                fa = fm;
+            } else {
+                b = m;
+                fb = fm;
+            }
+
+            m = (a + b) / 2f;
+            fm = function.apply(m);
+        }
+
+        return m;
     }
     //TODO complete a naive approach first
 

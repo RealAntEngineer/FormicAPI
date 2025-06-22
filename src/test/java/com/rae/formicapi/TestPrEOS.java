@@ -2,24 +2,14 @@ package com.rae.formicapi;
 
 import com.rae.formicapi.thermal_utilities.EOSLibrary;
 import com.rae.formicapi.thermal_utilities.PengRobinsonEOS;
+import com.rae.formicapi.thermal_utilities.WaterCubicEOSTransformationHelper;
 import net.createmod.catnip.data.Couple;
 
 public class TestPrEOS {
     public static void main(String[] args) {
         PengRobinsonEOS EOS = EOSLibrary.getPRWaterEOS();
 
-        double T = 500;
-        Couple<Double> V = EOS.getSaturationVolumes(T);
-        System.out.println(V);
-        double s_liq = EOS.totalEntropy(T, V.get(true));
-        double s_vap = EOS.totalEntropy(T, V.get(false));
-
-        System.out.println("s_liq = " + s_liq);
-        System.out.println("s_vap = " + s_vap);
-
-
-        for (T = 100 ; T < 640 ; T++) {
-            System.out.println("at T = "+ T + " "+ EOS.computeSaturationPressure(T)/1e6);
-        }
+        System.out.println("pressure limit : "+
+                WaterCubicEOSTransformationHelper.isentropicPressureChange2(600, 5e6f, 1f, 1e4f));
     }
 }

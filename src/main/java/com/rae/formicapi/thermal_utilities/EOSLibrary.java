@@ -6,7 +6,8 @@ public class EOSLibrary {
         double Tc = 647.1;//critical temperature in Kelvin
         double Pc = 22.064e6;//critical pressure in Pascals
         double omega = 0.344;//omega.... What is it exactly ?
-        return new PengRobinsonEOS(Tc, Pc, omega);
+        double M = 18.01528e-3f;
+        return new PengRobinsonEOS(Tc, Pc, omega, M);
     }
 
     public static VanDerWaalsEOS getVanDerWaalsWaterEOS() {
