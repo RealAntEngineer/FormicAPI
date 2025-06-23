@@ -1,9 +1,9 @@
 package com.rae.formicapi;
 
 import com.rae.formicapi.thermal_utilities.EOSLibrary;
-import com.rae.formicapi.thermal_utilities.EquationOfState;
+import com.rae.formicapi.thermal_utilities.eos.EquationOfState;
 
-import com.rae.formicapi.thermal_utilities.PengRobinsonEOS;
+import com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS;
 import net.createmod.catnip.data.Couple;
 import org.knowm.xchart.*;
 import org.knowm.xchart.style.lines.SeriesLines;

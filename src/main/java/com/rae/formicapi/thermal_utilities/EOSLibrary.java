@@ -1,5 +1,8 @@
 package com.rae.formicapi.thermal_utilities;
 
+import com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS;
+import com.rae.formicapi.thermal_utilities.eos.VanDerWaalsEOS;
+
 public class EOSLibrary {
     //you can find a,b values at https://en.wikipedia.org/wiki/Van_der_Waals_constants_(data_page)
     public static PengRobinsonEOS getPRWaterEOS() {

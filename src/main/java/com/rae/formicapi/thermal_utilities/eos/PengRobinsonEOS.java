@@ -1,7 +1,9 @@
-package com.rae.formicapi.thermal_utilities;
+package com.rae.formicapi.thermal_utilities.eos;
 
 
 import com.rae.formicapi.math.Solvers;
+import com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction;
+import com.rae.formicapi.math.data.StepMode;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -9,65 +11,20 @@ import java.util.function.Function;
 
 public class PengRobinsonEOS extends CubicEOS{
 
-    private final double omega; // Acentric factor
     private final double kappa;
     private final double a0;
     private final double b;
-    private final TreeMap<Float, Float> saturationTemperature = new TreeMap<>();
-    private final TreeMap<Float, Float> saturationPressure = new TreeMap<>(); // Sorted by T
-
-    private final float PressureLogStep = 0.01f;
-    private final float TemperatureStep = 0.05f;
+    private final ReversibleOneDTabulatedFunction saturation;
     //TODO convert everything to float
-    //TODO add molar weight to transform molar
     public PengRobinsonEOS(double Tc, double Pc, double omega, double M) {
         super(M, Tc,Pc);
-        this.omega = omega;
+        // Acentric factor
         this.kappa = 0.37464 + 1.54226 * omega - 0.26992 * omega * omega;
         this.a0 = 0.45724 * EquationOfState.R * EquationOfState.R * Tc * Tc / Pc;
         this.b = 0.07780 * EquationOfState.R * Tc / Pc;
 
-
-        //make some precomputed things
-
-        // Step 1: Compute (T, P) pairs
-        for (float T = 0; T < Tc; T+=TemperatureStep) {
-            try {
-                float P = (float)computeSaturationPressure(T);
-                saturationPressure.put((float) T, P);
-            } catch (Exception ignored) {
-            }
-        }
-
-        // Step 2: Build regular grid in log(P) space
-        List<Map.Entry<Float, Float>> entries = new ArrayList<>(saturationPressure.entrySet());
-
-        // Determine the log pressure range
-        float logP_start = (float) Math.log(entries.get(0).getValue());
-        float logP_end = (float) Math.log(entries.get(entries.size() - 1).getValue());
-        int numSteps = (int) ((logP_end - logP_start) / PressureLogStep);
-
-
-        for (int i = 0; i < numSteps; i++) {
-            float targetLogP = logP_start + i * PressureLogStep;
-
-            // Find where targetLogP fits between logP1 and logP2
-            for (int j = 0; j < entries.size() - 1; j++) {
-                float T1 = entries.get(j).getKey();
-                float T2 = entries.get(j + 1).getKey();
-                float logP1 = (float) Math.log(entries.get(j).getValue());
-                float logP2 = (float) Math.log(entries.get(j + 1).getValue());
-
-                if (targetLogP >= logP1 && targetLogP <= logP2 && logP1 != logP2) {
-                    // Linear interpolation in logP
-                    float t = (targetLogP - logP1) / (logP2 - logP1);
-                    float T_interp = T1 + t * (T2 - T1);
-
-                    saturationTemperature.put((float) Math.exp(targetLogP), T_interp);
-                    break;
-                }
-            }
-        }
+        this.saturation = new ReversibleOneDTabulatedFunction((T) -> (float) computeSaturationPressure(T), 100F,
+                (float)Tc, StepMode.LINEAR, (float) (Tc/1e4f), StepMode.LOGARITHMIC, 0.01f);
     }
 
     public double alpha(double T) {
@@ -101,30 +58,6 @@ public class PengRobinsonEOS extends CubicEOS{
         if (T >= Tc) return List.of();
 
         return findSpinodalPoints(T, b * 1.001f, 1e6);
-    }
-    @Override
-    public List<Double> findSpinodalPoints(double T, double vMin, double vMax) {
-        List<java.lang.Double> spinodals = new ArrayList<>();
-
-        double previousV = vMin;
-        double previousP = pressure(T, previousV);
-        double previousSlope = java.lang.Double.NaN;
-
-        for (double V = vMin; V <= vMax; V *= 1.05) {
-            double P = pressure(T, V);
-            double slope = (P - previousP) / (V - previousV);
-
-            if (!java.lang.Double.isNaN(previousSlope) && previousSlope * slope <= 0) {
-                // slope changed sign → inflection/spinodal
-                spinodals.add(V);
-            }
-
-            previousV = V;
-            previousP = P;
-            previousSlope = slope;
-            if (spinodals.size() == 2) break;
-        }
-        return spinodals;
     }
 
     /**
@@ -173,6 +106,7 @@ public class PengRobinsonEOS extends CubicEOS{
 
         return Math.exp(lnPhi);
     }
+    @Override
     public double saturationPressure(double T) {
         if (T >= Tc) {
             throw new IllegalArgumentException("T must be lower than the critical temperature to compute a coexistence pressure");
@@ -181,44 +115,7 @@ public class PengRobinsonEOS extends CubicEOS{
             throw new IllegalArgumentException("Temperature must be positive");
         }
 
-        // Clamp below/above known range
-        if (T <= saturationPressure.firstKey()) {
-            return saturationPressure.get(saturationPressure.firstKey());
-        }
-        if (T >= saturationPressure.lastKey()) {
-            return saturationPressure.get(saturationPressure.lastKey());
-        }
-
-        double index = T / TemperatureStep;
-        int lowerIndex = (int) Math.floor(index);
-        double frac = index - lowerIndex;
-
-        float T1 = lowerIndex * TemperatureStep;
-        float T2 = (lowerIndex + 1) * TemperatureStep;
-
-        // Safeguard in case floating-point precision causes a missing key
-        if (!saturationPressure.containsKey(T1) || !saturationPressure.containsKey(T2)) {
-            Map.Entry<Float, Float> lower = ((TreeMap<Float, Float>) saturationPressure).floorEntry((float) T);
-            Map.Entry<Float, Float> upper = ((TreeMap<Float, Float>) saturationPressure).ceilingEntry((float) T);
-
-            if (lower == null || upper == null) {
-                return saturationPressure.get(saturationPressure.firstKey());
-            }
-
-            float T_lower = lower.getKey();
-            float T_upper = upper.getKey();
-            if (T_lower == T_upper) {
-                return saturationPressure.get(T_lower);
-            }
-            float fracAlt = (float)((T - T_lower) / (T_upper - T_lower));
-
-            return lower.getValue() * (1 - fracAlt) + upper.getValue() * fracAlt;
-        }
-
-        double P1 = saturationPressure.get(T1);
-        double P2 = saturationPressure.get(T2);
-
-        return P1 * (1 - frac) + P2 * frac;
+        return saturation.getF((float) T);
     }
     private double computeSaturationPressure(double T) {
         if (T >= Tc) {
@@ -277,54 +174,10 @@ public class PengRobinsonEOS extends CubicEOS{
         if (P <= 0) {
             throw new IllegalArgumentException("Pressure must be positive");
         }
-
-        double logP = Math.log(P);
-        double scaledLogP = logP / PressureLogStep;
-        int lowerIndex = (int) Math.floor(scaledLogP);
-        double frac = scaledLogP - lowerIndex;
-
-        float P1 = (float) Math.exp(lowerIndex * PressureLogStep);
-        float P2 = (float) Math.exp((lowerIndex + 1) * PressureLogStep);
-
-        if (P <= saturationTemperature.firstKey()) {
-            return saturationTemperature.get(saturationTemperature.firstKey());
-        }
-        if (P >= saturationTemperature.lastKey()) {
-            return saturationTemperature.get(saturationTemperature.lastKey());
-        }
-
-        // Safeguard against missing keys due to floating point precision
-        if (!saturationTemperature.containsKey(P1) || !saturationTemperature.containsKey(P2)) {
-            // Optionally, search for closest keys using ceiling/floor from TreeMap
-            Map.Entry<Float, Float> lower = saturationTemperature.floorEntry(P);
-            Map.Entry<Float, Float> upper = saturationTemperature.ceilingEntry(P);
-            if (lower == null || upper == null) {
-                return saturationTemperature.get(saturationTemperature.firstKey());
-            }
-
-            float logP1 = (float) Math.log(lower.getKey());
-            float logP2 = (float) Math.log(upper.getKey());
-            float fracAlt = (float)((logP - logP1) / (logP2 - logP1));
-            return lower.getValue() * (1 - fracAlt) + upper.getValue() * fracAlt;
-        }
-
-        float T1 = saturationTemperature.get(P1);
-        float T2 = saturationTemperature.get(P2);
-
-        return (float) (T1 * (1 - frac) + T2 * frac);
+        return saturation.getInverseF(P);
     }
-
+    @Override
     protected  double residualEntropy(double T, double P, double Z) {
-        /*double B = b * P / (R * T);
-        double sqrt2 = Math.sqrt(2);
-        double log1 = Math.log((Z - B) / Z);
-        double log2 = Math.log((Z + (1 + sqrt2) * B) / (Z + (1 - sqrt2) * B));
-        double da_dT = da_dT(T);
-
-        double term1 = R * log1;
-        double term2 = (1.0 / (2 * sqrt2 * b)) * da_dT * log2;
-
-        return (term1 - term2)/M;*/
         double a = a(T);
         double sqrt2 = Math.sqrt(2);
         double B = b * P / (R * T);
@@ -333,7 +186,7 @@ public class PengRobinsonEOS extends CubicEOS{
         double term2 = (a / (2 * sqrt2 * b * R * T)) *
                 Math.log((Z + (1 + sqrt2) * B) / (Z + (1 - sqrt2) * B));
 
-        return (term1 - term2)/M; // [J/mol·K]
+        return (term1 - term2)/M; // [J/Kg·K]
     }
 
     @Override
@@ -347,17 +200,15 @@ public class PengRobinsonEOS extends CubicEOS{
         double term1 = R * T * (Z - 1);
         double term2 = (T * da_dT - a) / (2 * sqrt2 * b) * logTerm;
 
-        return (term1 + term2)/M; // [J/mol]
+        return (term1 + term2)/M; // [J/Kg]
     }
 
     public double getB() {
         return b;
     }//this should be the starting point for plotting
-    @Override
-    public double minZ(float T, float P) {
+    private double minZ(float T, float P) {
         return (b *1.001f) * P / (EquationOfState.R * T); // Minimum physically valid Z
     }
-
     @Override
     public double volumeMolar(double T, double P, double vaporFraction) {
         try {

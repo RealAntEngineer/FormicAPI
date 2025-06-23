@@ -1,15 +1,17 @@
-package com.rae.formicapi.thermal_utilities;
+package com.rae.formicapi.thermal_utilities.helper;
 
 import com.rae.formicapi.math.Solvers;
+import com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS;
+import com.rae.formicapi.thermal_utilities.SpecificRealGazState;
 import net.createmod.catnip.data.Couple;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
-import static com.rae.formicapi.thermal_utilities.EquationOfState.R;
+import static com.rae.formicapi.thermal_utilities.eos.EquationOfState.R;
 
 //TODO make an interface.
-public class WaterCubicEOSTransformationHelper {
+public class WaterCubicEOS {
     private static final PengRobinsonEOS EOS = new PengRobinsonEOS(647.1, 22.064e6,0.344,18.01528e-3f);
 
     public static final SpecificRealGazState DEFAULT_STATE = new SpecificRealGazState(300f, 101300f, (float) EOS.getEnthalpy(300f,101300f,0f),0f);

@@ -1,4 +1,4 @@
-package com.rae.formicapi.thermal_utilities;
+package com.rae.formicapi.thermal_utilities.eos;
 
 public class VanDerWaalsEOS implements EquationOfState {
     // Constants specific to the substance (e.g., water)
