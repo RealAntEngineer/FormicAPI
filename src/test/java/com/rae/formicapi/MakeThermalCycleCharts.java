@@ -18,7 +18,7 @@ public class MakeThermalCycleCharts {
 
 
     public static void main(String[] args) {
-        cycle();
+        //cycle();
         //smallTest();
 
     }

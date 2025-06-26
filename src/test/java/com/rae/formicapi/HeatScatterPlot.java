@@ -18,7 +18,7 @@ public class HeatScatterPlot {
     public static final PengRobinsonEOS PR_WATER_EOS = EOSLibrary.getPRWaterEOS();
 
     public static void main(String[] args) {
-        plotEntropyPH();
+        //plotEntropyPH();
     }
 
     private static void plotTemperaturePH() {

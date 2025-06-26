@@ -146,15 +146,15 @@ public class MakeCharts {
 
 
     public static void main(String[] args) {
-        PengRobinsonEOS waterPrEOS = EOSLibrary.getPRWaterEOS();
+        //PengRobinsonEOS waterPrEOS = EOSLibrary.getPRWaterEOS();
         //VanDerWaalsEOS water2EOS = EOSLibrary.getVanDerWaalsWaterEOS();
 
-        double[] temperatures = new double[]{300, 480}; // Kelvin
+        /*double[] temperatures = new double[]{300, 480}; // Kelvin
         double vMin = 2.5e-5;      // m³/mol
         double vMax = 2e-2;      // m³/mol
         double Pc = 22e6;
         plotIsotherms(waterPrEOS,"Peng-Robinson", temperatures,-Pc*1f,Pc * 1.5, vMin, vMax);
-        plotSaturation();
+        plotSaturation();*/
     }
 
     private static void plotSaturation() {

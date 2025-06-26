@@ -12,7 +12,7 @@ import java.util.List;
 
 public class TestSaturationPressure {
     public static void main(String[] args) {
-        plotSaturationPressure();
+        //plotSaturationPressure();
     }
     private static void plotPressureAndSpinodals(){
         double TMin = 273.15;
