@@ -11,6 +11,8 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '6.+'
     id 'org.spongepowered.mixin' version '0.7.+'
+    id 'org.jreleaser' version '1.17.0'
+
 }
 
 import java.nio.file.Files
@@ -24,11 +26,12 @@ def loadEnv() {
             if (matcher.matches()) {
                 def key = matcher[0][1]
                 def value = matcher[0][2]
-                System.setProperty(key, value)
+                System.setProperty(key as String, value as String)
             }
         }
     }
 }
+
 loadEnv()
 version = mod_version
 group = mod_group_id
@@ -215,26 +218,59 @@ tasks.test {
 // }
 
 // Example configuration to allow publishing using the maven-publish plugin
-publishing {
-    publications {
-        register('mavenJava', MavenPublication) {
-            artifactId = 'formic-api-'+ minecraft_version // <-- valid Maven ID (no spaces)
-            groupId = 'com.rae.formicapi' // <-- choose your group
-            version = mod_version // <-- version of your mod/library
 
-            artifact jar
+//def reobfJarFile = tasks.named('jar').get().archiveFile.get().asFile.absolutePath
 
+jreleaser {
+    project {
+        name = 'FormicAPI'
+        version = mod_version
+        description = 'A Minecraft modding API for the Engineer Colony'
+        authors = ['RealAntEngineer']
+        license = 'MIT'
+        // Project homepage
+        java {
+            version = '17'
         }
+        website = 'https://github.com/RealAntEngineer/FormicAPI'
     }
-    repositories {//TODO use a more practical
+
+    deploy {
         maven {
-            url = uri("https://maven.pkg.github.com/RealAntEngineer/Formic_API")
-            credentials {
-                username = System.getProperty("USERNAME")
-                password = System.getProperty("TOKEN")
+            mavenCentral {
+                main {
+                    active = 'ALWAYS'
+                    url = 'https://s01.oss.sonatype.org/services/staging/deploy/maven2/' // new token-based endpoint
+
+                    username = System.getProperty('SONATYPE_USERNAME')
+                    password = System.getProperty('SONATYPE_TOKEN')
+                }
             }
         }
     }
+    signing {
+        //active = 'ALWAYS'
+        //armored = true
+        //mode = 'MEMORY'
+        secretKey = System.getProperty('SONATYPE_USERNAME')
+        passphrase = System.getProperty('SONATYPE_TOKEN')
+    }
+
+    distributions {
+        main {
+            artifact {
+                path = "$buildDir/libs/formic-api-${minecraft_version}.jar"
+            }
+            extraProperties.put('groupId', 'io.github.realantengineer.formicapi')
+            extraProperties.put('artifactId', "formic-api-${minecraft_version}")
+            extraProperties.put('version', mod_version)
+        }
+    }
+    /*release {
+        github {
+            active = 'NEVER'
+        }
+    }*/
 }
 
 tasks.withType(JavaCompile).configureEach {

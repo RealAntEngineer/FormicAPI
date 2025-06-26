@@ -1,0 +1,25 @@
+project:
+  name: FormicAPI
+  version: 1.3.0
+  description: A Minecraft modding API for the Engineer Colony
+  authors:
+    - RealAntEngineer
+  license: MIT
+  website: https://github.com/RealAntEngineer/FormicAPI
+  vcs:
+    url: https://github.com/RealAntEngineer/FormicAPI
+    tag: v1.3.0
+
+signing:
+  active: ALWAYS
+  armored: true
+
+deploy:
+  maven:
+    central:
+      active: ALWAYS
+      url: https://s01.oss.sonatype.org/service/local/
+      snapshotUrl: https://s01.oss.sonatype.org/content/repositories/snapshots/
+      stagingUrl: https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/
+      sign: true
+      autoRelease: true
