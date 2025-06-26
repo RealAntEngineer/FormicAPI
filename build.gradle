@@ -221,6 +221,16 @@ tasks.test {
 
 //def reobfJarFile = tasks.named('jar').get().archiveFile.get().asFile.absolutePath
 
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+//the jreleaser doesn't work
+//todo find why and fix it
 jreleaser {
     project {
         name = 'FormicAPI'
