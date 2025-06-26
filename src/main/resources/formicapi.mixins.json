@@ -2,7 +2,7 @@
   "required": false,
   "minVersion": "0.8",
   "priority": 900,
-  "package": "io.github.realantengineer.formicapi.mixin",
+  "package": "com.rae.formicapi.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "formicapi.refmap.json",
   "mixins" : [],
