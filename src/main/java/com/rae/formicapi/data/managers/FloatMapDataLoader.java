@@ -37,7 +37,7 @@ public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager, ProfilerFiller profiler) {
+    protected void apply(Map<ResourceLocation, JsonElement> map, @NotNull ResourceManager resourceManager, @NotNull ProfilerFiller profiler) {
         LOGGER.info("Reloading FloatMapDataLoader for: {}", FILE_NAME);
         boolean replace = false;
         Map<ResourceLocation, Float> newValues = new HashMap<>();

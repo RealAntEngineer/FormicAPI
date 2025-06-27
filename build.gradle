@@ -33,7 +33,7 @@ def loadEnv() {
 }
 
 loadEnv()
-version = mod_version
+version = minecraft_version + "-" + mod_version
 group = mod_group_id
 
 base {
@@ -210,7 +210,7 @@ tasks.named('jar', Jar).configure {
 
 tasks.test {
     useJUnitPlatform()
-    debug = true;
+    //debug = true;
 }
 // However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
 // tasks.named('publish').configure {
