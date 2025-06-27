@@ -5,7 +5,7 @@ import com.rae.formicapi.units.RadiationFlux;
 import com.rae.formicapi.units.Temperature;
 import net.createmod.catnip.config.ConfigBase;
 
-public class CROWNSUnits extends ConfigBase {
+public class FormicAPIUnits extends ConfigBase {
     public final ConfigEnum<Temperature> temperature = e(Temperature.CELSIUS,"temperature", Comments.temperature);
     public final ConfigEnum<Pressure> pressure = e(Pressure.ATMOSPHERES,"pressure", Comments.pressure);
     public final ConfigEnum<RadiationFlux> radiationFlux = e(RadiationFlux.MEGA_BECQUERELS,"radiation_flux", Comments.radiationFlux);

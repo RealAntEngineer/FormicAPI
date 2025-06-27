@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
 public class FormicAPICfgClient extends ConfigBase {
 
 
-    public final CROWNSUnits units = nested(0, CROWNSUnits::new, Comments.units);
+    public final FormicAPIUnits units = nested(0, FormicAPIUnits::new, Comments.units);
     @Override
     public @NotNull String getName() {
         return FormicAPI.MODID +".client";

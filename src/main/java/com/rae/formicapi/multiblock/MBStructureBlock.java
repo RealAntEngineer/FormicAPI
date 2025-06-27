@@ -1,5 +1,6 @@
 package com.rae.formicapi.multiblock;
 
+import com.mojang.serialization.MapCodec;
 import com.simibubi.create.api.equipment.goggles.IProxyHoveringInformation;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.foundation.block.render.MultiPosDestructionHandler;
@@ -23,9 +24,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.extensions.common.IClientBlockExtensions;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.NonnullDefault;
@@ -42,6 +43,12 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     protected MBStructureBlock(Properties properties) {
         super(properties);
     }
+
+    @Override
+    protected MapCodec<? extends DirectionalBlock> codec() {
+        return null;
+    }
+
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> pBuilder) {
         super.createBlockStateDefinition(pBuilder.add(FACING));
@@ -82,14 +89,15 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     @NonnullDefault
-    public void playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
+    public BlockState playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
         if (stillValid(pLevel, pPos, pState)) {
             BlockPos masterPos = getMaster(pLevel, pPos, pState);
             pLevel.destroyBlockProgress(masterPos.hashCode(), masterPos, -1);
             if (!pLevel.isClientSide() && pPlayer.isCreative())
                 pLevel.destroyBlock(masterPos, false);
         }
-        super.playerWillDestroy(pLevel, pPos, pState, pPlayer);
+
+        return super.playerWillDestroy(pLevel, pPos, pState, pPlayer);
     }
 
     @Override
