@@ -225,64 +225,12 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-        }
-    }
-}
-
-//the jreleaser doesn't work
-//todo find why and fix it
-jreleaser {
-    project {
-        name = 'FormicAPI'
-        version = mod_version
-        description = 'A Minecraft modding API for the Engineer Colony'
-        authors = ['RealAntEngineer']
-        license = 'MIT'
-        // Project homepage
-        java {
-            version = '17'
-        }
-        website = 'https://github.com/RealAntEngineer/FormicAPI'
-    }
-
-    deploy {
-        maven {
-            mavenCentral {
-                main {
-                    active = 'ALWAYS'
-                    url = 'https://s01.oss.sonatype.org/services/staging/deploy/maven2/' // new token-based endpoint
-
-                    username = System.getProperty('SONATYPE_USERNAME')
-                    password = System.getProperty('SONATYPE_TOKEN')
-                }
+            artifact(tasks.jar) {
+                classifier = "all"
             }
         }
     }
-    signing {
-        //active = 'ALWAYS'
-        //armored = true
-        //mode = 'MEMORY'
-        secretKey = System.getProperty('SONATYPE_USERNAME')
-        passphrase = System.getProperty('SONATYPE_TOKEN')
-    }
-
-    distributions {
-        main {
-            artifact {
-                path = "$buildDir/libs/formic-api-${minecraft_version}.jar"
-            }
-            extraProperties.put('groupId', 'io.github.realantengineer.formicapi')
-            extraProperties.put('artifactId', "formic-api-${minecraft_version}")
-            extraProperties.put('version', mod_version)
-        }
-    }
-    /*release {
-        github {
-            active = 'NEVER'
-        }
-    }*/
 }
-
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
 }
