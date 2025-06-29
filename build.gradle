@@ -224,13 +224,14 @@ tasks.test {
 // Example configuration to allow publishing using the maven-publish plugin
 
 //def reobfJarFile = tasks.named('jar').get().archiveFile.get().asFile.absolutePath
-
+tasks.remapJar {
+    archiveClassifier.set("mapped_official_${minecraft_version}")
+}
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            from components.java
-            artifact(tasks.jar) {
-                classifier = "all"
+            artifact(tasks.remapJar) {
+                classifier = tasks.remapJar.archiveClassifier.get()
             }
         }
     }
