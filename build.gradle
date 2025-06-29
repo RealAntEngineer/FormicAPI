@@ -224,15 +224,15 @@ tasks.test {
 // Example configuration to allow publishing using the maven-publish plugin
 
 //def reobfJarFile = tasks.named('jar').get().archiveFile.get().asFile.absolutePath
-tasks.remapJar {
+/*tasks.remapJar {
     archiveClassifier.set("mapped_official_${minecraft_version}")
-}
+}*/
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifact(tasks.remapJar) {
-                classifier = tasks.remapJar.archiveClassifier.get()
-            }
+            from components.java
+            //artifactId = "FormicAPI" // ✅ no spaces or invalid chars
         }
     }
 }
