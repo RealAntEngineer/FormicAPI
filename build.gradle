@@ -217,9 +217,10 @@ tasks.test {
     //debug = true;
 }
 // However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
-// tasks.named('publish').configure {
-//     dependsOn 'reobfJar'
-// }
+
+tasks.named('publish').configure {
+     dependsOn 'reobfJar'
+}
 
 // Example configuration to allow publishing using the maven-publish plugin
 
@@ -232,7 +233,45 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            //artifactId = "FormicAPI" // ✅ no spaces or invalid chars
+            artifactId = "FormicAPI" // ✅ no spaces or invalid chars
+        }
+    }
+}
+tasks.register("fixModuleMetadata") {
+    dependsOn("publishMavenJavaPublicationToMavenLocal")
+    doLast {
+        def moduleFile = file("$buildDir/publications/mavenJava/module.json")
+        if (moduleFile.exists()) {
+            def text = moduleFile.text
+            def cleaned = text.replaceAll(/_mapped_official_\d+\.\d+\.\d+/, '')
+            if (text != cleaned) {
+                println "Fixing module metadata versions in ${moduleFile}"
+                moduleFile.text = cleaned
+            }
+        } else {
+            println "Module metadata file not found: ${moduleFile}"
+        }
+    }
+}
+afterEvaluate {
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                pom.withXml {
+                    asNode().dependencies?.dependency?.each { dep ->
+                        def versionNodes = dep.version
+                        if (versionNodes != null && versionNodes.size() > 0) {
+                            def versionNode = versionNodes[0]  // get first Node from NodeList
+                            def versionText = versionNode.text()
+                            def cleaned = versionText.replaceAll(/_mapped_official_\d+\.\d+\.\d+/, '')
+                            if (versionText != cleaned) {
+                                println "Cleaning version: ${versionText} -> ${cleaned}"
+                                versionNode.setValue(cleaned)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

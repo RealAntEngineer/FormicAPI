@@ -208,6 +208,14 @@ public class WaterCubicEOS {
         double sTarget = EOS.getEntropy(T1, P1, x1);
 
         // Step 2: Set parameters for stepping pressure
+        float Tcurrent = getT(T1, x1, finalPressure, sTarget);
+        float xcurrent = get_x_from_entropy(sTarget, Tcurrent, finalPressure);
+        // Step 3: Compute final enthalpy
+        float hFinal = get_h(xcurrent, Tcurrent, finalPressure);
+        return new SpecificRealGazState(Tcurrent, finalPressure, hFinal, xcurrent);
+    }
+
+    public static float getT(float T1, float x1, float finalPressure, double sTarget) {
         float Tcurrent = T1;
         float xcurrent = x1;
         // Gradient descent to update T so that s(T, Pcurrent, x) ≈ sTarget
@@ -243,12 +251,9 @@ public class WaterCubicEOS {
         }
 
         Tcurrent = Tguess;
-
-        xcurrent = get_x_from_entropy(sTarget, Tcurrent, finalPressure);
-        // Step 3: Compute final enthalpy
-        float hFinal = get_h(xcurrent, Tcurrent, finalPressure);
-        return new SpecificRealGazState(Tcurrent, finalPressure, hFinal, xcurrent);
+        return Tcurrent;
     }
+
     public static @NotNull SpecificRealGazState isentropicPressureChange2(float T1, float P1, float x1, float finalPressure) {
         // Step 1: Compute constant entropy from initial state
         double sTarget = EOS.getEntropy(T1, P1, x1);
@@ -337,7 +342,7 @@ public class WaterCubicEOS {
 
     //TODO -> it seems to not be working when amount are too low -> protection against 0 values ?
     public static SpecificRealGazState mix(SpecificRealGazState first, float firstAmount, SpecificRealGazState second, float secondAmount){
-        System.out.println("first "+first+ " second"+second);
+        //System.out.println("first "+first+ " second"+second);
         if (firstAmount == 0) return second;
         if (secondAmount == 0) return first;
         float P = first.pressure()*firstAmount/(firstAmount+ secondAmount) + second.pressure()*secondAmount/(firstAmount+ secondAmount);

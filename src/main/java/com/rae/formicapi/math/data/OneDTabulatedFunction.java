@@ -31,11 +31,11 @@ public class OneDTabulatedFunction {
         int lowerIndex = (int) Math.floor(index);
         float frac = index - lowerIndex;
 
-        float T1 = (float) mode.inverse.applyAsDouble(lowerIndex * step);
-        float T2 = (float) mode.inverse.applyAsDouble((lowerIndex + 1) * step);
+        float X1 = (float) mode.inverse.applyAsDouble(lowerIndex * step);
+        float X2 = (float) mode.inverse.applyAsDouble((lowerIndex + 1) * step);
 
         // Safeguard in case floating-point precision causes a missing key
-        if (!table.containsKey(T1) || !table.containsKey(T2)) {
+        if (!table.containsKey(X1) || !table.containsKey(X2)) {
             Map.Entry<Float, Float> lower = table.floorEntry((float) input);
             Map.Entry<Float, Float> upper = table.ceilingEntry((float) input);
 
@@ -53,8 +53,8 @@ public class OneDTabulatedFunction {
             return lower.getValue() * (1 - fracAlt) + upper.getValue() * fracAlt;
         }
 
-        float P1 = table.get(T1);
-        float P2 = table.get(T2);
+        float P1 = table.get(X1);
+        float P2 = table.get(X2);
 
         return P1 * (1 - frac) + P2 * frac;
     }
