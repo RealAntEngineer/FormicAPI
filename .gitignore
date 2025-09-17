@@ -27,3 +27,4 @@ forge*changelog.txt
 # personnal info
 .env
 /logs/
+/run-data/

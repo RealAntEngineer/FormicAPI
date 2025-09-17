@@ -22,11 +22,29 @@ public class OneDTabulatedFunction {
         this.clamp = clamp;
     }
 
-    private float evaluate(double input, TreeMap<Float, Float> table) {
+    public float evaluate(float input) {
         if (table.isEmpty()) {
             throw new IllegalStateException("Function table is empty");
         }
 
+        // Handle out-of-bounds
+        if (input <= table.firstKey()) {
+            if (clamp) {
+                return table.firstEntry().getValue();
+            }
+            return extrapolateBelow(input);
+        } else if (input >= table.lastKey()) {
+            if (clamp) {
+                return table.lastEntry().getValue();
+            }
+            return extrapolateAbove(input);
+        }
+
+        // Interpolation inside the range
+        return interpolate(input);
+    }
+
+    private float interpolate(double input) {
         float index = (float) (mode.forward.applyAsDouble(input) / step);
         int lowerIndex = (int) Math.floor(index);
         float frac = index - lowerIndex;
@@ -40,16 +58,15 @@ public class OneDTabulatedFunction {
             Map.Entry<Float, Float> upper = table.ceilingEntry((float) input);
 
             if (lower == null || upper == null) {
-                return table.get(table.firstKey());
+                return table.get(table.firstKey()); // fallback
             }
 
             float T_lower = lower.getKey();
             float T_upper = upper.getKey();
             if (T_lower == T_upper) {
-                return table.get(T_lower);
+                return lower.getValue();
             }
             float fracAlt = (float) ((input - T_lower) / (T_upper - T_lower));
-
             return lower.getValue() * (1 - fracAlt) + upper.getValue() * fracAlt;
         }
 
@@ -59,33 +76,27 @@ public class OneDTabulatedFunction {
         return P1 * (1 - frac) + P2 * frac;
     }
 
-    public float evaluate(float output) {
-        return evaluate(output, table);
+    private float extrapolateBelow(float query) {
+        Map.Entry<Float, Float> lower = table.firstEntry();
+        Map.Entry<Float, Float> upper = table.higherEntry(lower.getKey());
+        if (upper == null) return lower.getValue(); // only one point in table
+        return linear(query, lower, upper);
     }
 
-    private float extrapolateBelow(TreeMap<Float, Float> searchMap) {
-        Map.Entry<Float, Float> lower = searchMap.firstEntry();
-        Map.Entry<Float, Float> upper = searchMap.higherEntry(lower.getKey());
-        if (upper == null) return lower.getValue();
-        return linear(searchMap, lower, upper);
+    private float extrapolateAbove(float query) {
+        Map.Entry<Float, Float> upper = table.lastEntry();
+        Map.Entry<Float, Float> lower = table.lowerEntry(upper.getKey());
+        if (lower == null) return upper.getValue(); // only one point in table
+        return linear(query, lower, upper);
     }
 
-    private float extrapolateAbove(TreeMap<Float, Float> searchMap) {
-        Map.Entry<Float, Float> upper = searchMap.lastEntry();
-        Map.Entry<Float, Float> lower = searchMap.lowerEntry(upper.getKey());
-        if (lower == null) return upper.getValue();
-        return linear(searchMap, lower, upper);
-    }
-
-    private float linear(TreeMap<Float, Float> map, Map.Entry<Float, Float> a, Map.Entry<Float, Float> b) {
+    private float linear(float query, Map.Entry<Float, Float> a, Map.Entry<Float, Float> b) {
         float x1 = a.getKey();
         float x2 = b.getKey();
         float y1 = a.getValue();
         float y2 = b.getValue();
-        float query = map.firstKey(); // doesn't matter in this context
         float t = (query - x1) / (x2 - x1);
         return y1 * (1 - t) + y2 * t;
     }
-
-
 }
+

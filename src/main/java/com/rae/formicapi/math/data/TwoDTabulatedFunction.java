@@ -31,16 +31,6 @@ public class TwoDTabulatedFunction {
             Codec.BOOL.fieldOf("clamp").forGetter(f -> f.clamp)
     ).apply(instance, TwoDTabulatedFunction::new));
 
-    // StreamCodec example (Fabric API style)
-    /*public static final StreamCodec<TwoDTabulatedFunction> STREAM_CODEC = StreamCodec.composite(
-            StreamCodec.map(StreamCodec.FLOAT, StreamCodec.map(StreamCodec.FLOAT, StreamCodec.FLOAT)).fieldOf(TwoDTabulatedFunction::getTable),
-            StreamCodec.FLOAT.fieldOf(f -> f.xStep),
-            StreamCodec.FLOAT.fieldOf(f -> f.yStep),
-            StepMode.STREAM_CODEC.fieldOf(f -> f.xMode),
-            StepMode.STREAM_CODEC.fieldOf(f -> f.yMode),
-            StreamCodec.BOOL.fieldOf(f -> f.clamp),
-            TwoDTabulatedFunction::new
-    );*/
     public TwoDTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, float xStep, float yStep, StepMode xMode, StepMode yMode, boolean clamp) {
         this.table = table;
         this.xStep = xStep;
