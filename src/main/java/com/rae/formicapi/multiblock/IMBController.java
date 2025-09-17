@@ -1,6 +1,6 @@
 package com.rae.formicapi.multiblock;
 
-import com.rae.crowns.CROWNS;
+import com.rae.formicapi.FormicAPI;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
@@ -79,7 +79,7 @@ public interface IMBController {
             }
             i++;
             if (i > 100) {
-                CROWNS.LOGGER.warn("More than 100 blocks");
+                FormicAPI.LOGGER.warn("More than 100 blocks");
                 break;
             }
         }
