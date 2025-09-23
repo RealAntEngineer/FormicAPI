@@ -74,31 +74,32 @@ public class TwoDTabulatedFunction {
             throw new IllegalStateException("Function table is empty");
         }
 
-        float xIndex = (float) (xMode.forward.applyAsDouble(xInput) / xStep);
-        int xLowerIndex = (int) Math.floor(xIndex);
-        float xFrac = xIndex - xLowerIndex;
+        // Get nearest X bounds
+        Map.Entry<Float, TreeMap<Float, Float>> lowerX = table.floorEntry(xInput);
+        Map.Entry<Float, TreeMap<Float, Float>> upperX = table.ceilingEntry(xInput);
 
-        float X1 = (float) xMode.inverse.applyAsDouble(xLowerIndex * xStep);
-        float X2 = (float) xMode.inverse.applyAsDouble((xLowerIndex + 1) * xStep);
-
-        TreeMap<Float, Float> row1 = table.get(X1);
-        TreeMap<Float, Float> row2 = table.get(X2);
-
-        if (row1 == null || row2 == null) {
-            if (clamp) {
-                Map.Entry<Float, TreeMap<Float, Float>> nearest = table.floorEntry(xInput);
-                if (nearest == null) nearest = table.ceilingEntry(xInput);
-                if (nearest == null) return table.firstEntry().getValue().firstEntry().getValue();
-                return evaluate1D(yInput, nearest.getValue());
-            } else {
-                return extrapolateZ(xInput, yInput);
-            }
+        if (lowerX == null && upperX == null) {
+            throw new IllegalStateException("No data in table at all");
+        }
+        if (lowerX == null) {
+            return clamp ? evaluate1D(yInput, upperX.getValue())
+                    : extrapolateZ(xInput, yInput);
+        }
+        if (upperX == null) {
+            return clamp ? evaluate1D(yInput, lowerX.getValue())
+                    : extrapolateZ(xInput, yInput);
+        }
+        if (lowerX.getKey().equals(upperX.getKey())) {
+            return evaluate1D(yInput, lowerX.getValue());
         }
 
-        float v1 = evaluate1D(yInput, row1);
-        float v2 = evaluate1D(yInput, row2);
-
-        return v1 * (1 - xFrac) + v2 * xFrac;
+        // Interpolate across X
+        float x1 = lowerX.getKey();
+        float x2 = upperX.getKey();
+        float v1 = evaluate1D(yInput, lowerX.getValue());
+        float v2 = evaluate1D(yInput, upperX.getValue());
+        float t = (xInput - x1) / (x2 - x1);
+        return v1 * (1 - t) + v2 * t;
     }
 
     private float evaluate1D(float yInput, TreeMap<Float, Float> row) {
@@ -106,37 +107,62 @@ public class TwoDTabulatedFunction {
             throw new IllegalStateException("Row table is empty");
         }
 
-        float yIndex = (float) (yMode.forward.applyAsDouble(yInput) / yStep);
-        int yLowerIndex = (int) Math.floor(yIndex);
-        float yFrac = yIndex - yLowerIndex;
+        // Find nearest Y bounds
+        Map.Entry<Float, Float> lowerY = row.floorEntry(yInput);
+        Map.Entry<Float, Float> upperY = row.ceilingEntry(yInput);
 
-        float Y1 = (float) yMode.inverse.applyAsDouble(yLowerIndex * yStep);
-        float Y2 = (float) yMode.inverse.applyAsDouble((yLowerIndex + 1) * yStep);
-
-        Float Z1 = row.get(Y1);
-        Float Z2 = row.get(Y2);
-
-        if (Z1 == null || Z2 == null) {
-            Map.Entry<Float, Float> lower = row.floorEntry(yInput);
-            Map.Entry<Float, Float> upper = row.ceilingEntry(yInput);
-
-            if (lower == null || upper == null) {
-                return row.firstEntry().getValue();
-            }
-
-            float T_lower = lower.getKey();
-            float T_upper = upper.getKey();
-            if (T_lower == T_upper) {
-                return lower.getValue();
-            }
-            float fracAlt = (yInput - T_lower) / (T_upper - T_lower);
-
-            return lower.getValue() * (1 - fracAlt) + upper.getValue() * fracAlt;
+        if (lowerY == null && upperY == null) {
+            throw new IllegalStateException("No data in row at all");
+        }
+        if (lowerY == null) {
+            return clamp ? upperY.getValue() : extrapolateY(yInput, row);
+        }
+        if (upperY == null) {
+            return clamp ? lowerY.getValue() : extrapolateY(yInput, row);
+        }
+        if (lowerY.getKey().equals(upperY.getKey())) {
+            return lowerY.getValue();
         }
 
-        return Z1 * (1 - yFrac) + Z2 * yFrac;
+        // Interpolate across Y
+        float y1 = lowerY.getKey();
+        float y2 = upperY.getKey();
+        float v1 = lowerY.getValue();
+        float v2 = upperY.getValue();
+        float t = (yInput - y1) / (y2 - y1);
+        return v1 * (1 - t) + v2 * t;
     }
 
+    private float extrapolateY(float yInput, TreeMap<Float, Float> row) {
+        Map.Entry<Float, Float> lower = row.floorEntry(yInput);
+        Map.Entry<Float, Float> upper = row.ceilingEntry(yInput);
+
+        if (lower == null) {
+            // extrapolate below using first two points
+            Map.Entry<Float, Float> first = row.firstEntry();
+            Map.Entry<Float, Float> next = row.higherEntry(first.getKey());
+            if (next == null) return first.getValue();
+            return linear(yInput, first, next);
+        }
+        if (upper == null) {
+            // extrapolate above using last two points
+            Map.Entry<Float, Float> last = row.lastEntry();
+            Map.Entry<Float, Float> prev = row.lowerEntry(last.getKey());
+            if (prev == null) return last.getValue();
+            return linear(yInput, prev, last);
+        }
+        // Already handled in evaluate1D, should not reach here
+        return lower.getValue();
+    }
+
+    private float linear(float query, Map.Entry<Float, Float> a, Map.Entry<Float, Float> b) {
+        float x1 = a.getKey();
+        float x2 = b.getKey();
+        float y1 = a.getValue();
+        float y2 = b.getValue();
+        float t = (query - x1) / (x2 - x1);
+        return y1 * (1 - t) + y2 * t;
+    }
     private float extrapolateZ(float xInput, float yInput) {
         Map.Entry<Float, TreeMap<Float, Float>> lower = table.floorEntry(xInput);
         Map.Entry<Float, TreeMap<Float, Float>> upper = table.ceilingEntry(xInput);
