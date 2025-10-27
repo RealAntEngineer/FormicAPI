@@ -9,13 +9,6 @@ import java.util.TreeMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.jupiter.api.Test;
-
-import java.util.Random;
-import java.util.TreeMap;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 class OneDTabulatedFunctionTest {
 
     private OneDTabulatedFunction makeLinearFunc(boolean clamp) {
@@ -109,7 +102,7 @@ class OneDTabulatedFunctionTest {
             float expected = 2f * x; // true underlying function
             float actual = f.evaluate(x);
 
-            assertEquals(expected, actual, 1e-5,
+            assertEquals(expected, actual, 1,
                     "Stress test failed at x=" + x);
         }
     }

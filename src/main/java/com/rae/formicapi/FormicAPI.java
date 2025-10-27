@@ -75,7 +75,7 @@ public class FormicAPI {
                             float x = WaterCubicEOS.get_x(P, initialH, initialT);
                             return WaterCubicEOS.getT(initialT, x, P, S);
                         }
-                        ,1e2f,1e-3f, 2e7f, 10e3f,300,1000,StepMode.LOGARITHMIC, StepMode.LINEAR, true
+                        ,1e2f,1e-3f, 2e7f, 10e3f,300,1000,StepMode.LOGARITHMIC, StepMode.LINEAR, false
                 )
         );
         /*generator.addProvider(event.includeServer(), new TwoDTabulatedFunctionProvider(
