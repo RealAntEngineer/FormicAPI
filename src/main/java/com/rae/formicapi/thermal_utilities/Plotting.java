@@ -1,10 +1,7 @@
 package com.rae.formicapi.thermal_utilities;
 
 import com.rae.formicapi.FormicAPI;
-import com.rae.formicapi.new_thermalmodels.FullTableBased;
 import com.rae.formicapi.plotting.SimplePlot;
-import com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS;
-import com.rae.formicapi.thermal_utilities.helper.WaterTableBased;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 

@@ -1,21 +1,15 @@
 package com.rae.formicapi;
 
 import com.rae.formicapi.config.FormicAPIConfigs;
-import com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader;
-import com.rae.formicapi.data.providers.TwoDTabulatedFunctionProvider;
-import com.rae.formicapi.math.data.StepMode;
-import com.rae.formicapi.new_thermalmodels.FullTableBased;
-import com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS;
+import com.rae.formicapi.thermal_utilities.FullTableBased;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -26,8 +20,6 @@ import org.apache.logging.log4j.Logger;
 public class FormicAPI {
     public static final String MODID = "formicapi";
     public static final Logger LOGGER = LogManager.getLogger(MODID);
-    public static final TwoDTabulatedFunctionLoader WATER_PH_T = new TwoDTabulatedFunctionLoader(MODID,"water/pressure_enthalpy_to_temperature");
-    public static final TwoDTabulatedFunctionLoader WATER_PS_T = new TwoDTabulatedFunctionLoader(MODID,"water/pressure_entropy_to_temperature");
 
     public FormicAPI() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -42,8 +34,6 @@ public class FormicAPI {
 
     public static void onAddReloadListeners(AddReloadListenerEvent event)
     {
-        event.addListener(FormicAPI.WATER_PH_T);
-        event.addListener(FormicAPI.WATER_PS_T);
         FullTableBased.addReloadListeners(event);
     }
 
