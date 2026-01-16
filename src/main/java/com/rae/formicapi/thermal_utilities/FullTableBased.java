@@ -6,7 +6,7 @@ import net.minecraftforge.event.AddReloadListenerEvent;
 import org.jetbrains.annotations.NotNull;
 
 public class FullTableBased {
-    public static final SpecificRealGazState DEFAULT_STATE = new SpecificRealGazState(getT(112e3f, 101300f), 101300f, 112e3f,0f);
+    public static final SpecificRealGazState DEFAULT_STATE = new SpecificRealGazState(300f, 101300f, 112665f,0f);
 
     private static final TwoDSparceTabulatedFunctionLoader WATER_HP_T = new TwoDSparceTabulatedFunctionLoader(FormicAPI.MODID,"water/hp_to_t");
     private static final TwoDSparceTabulatedFunctionLoader WATER_HP_S = new TwoDSparceTabulatedFunctionLoader(FormicAPI.MODID,"water/hp_to_s");
