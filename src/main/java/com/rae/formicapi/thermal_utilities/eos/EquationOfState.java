@@ -9,16 +9,5 @@ public interface EquationOfState {
      */
     double pressure(double temperature, double volumeMolar);
 
-    /**
-     * @param temperature temperature in Kelvin
-     * @param pressure pressure in Pascals
-     * @param vaporFraction fraction of vapor bwn 0 and 1
-     * @return molar volume in [m^3/mol]
-     */
-    default double volumeMolar(double temperature, double pressure, double vaporFraction) {
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-
 
 }

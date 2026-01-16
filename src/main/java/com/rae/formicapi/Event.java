@@ -1,9 +1,11 @@
-package com.rae.formicapi.data;
+package com.rae.formicapi;
 
+import com.rae.formicapi.data.managers.FloatMapDataLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -20,6 +22,7 @@ public class Event {
     public static void onServerStarted(ServerStartedEvent event) {
         LOGGER.info("getting the server registry access");
         registryAccess = event.getServer().registryAccess();
+        FloatMapDataLoader.reloadRegistry();
     }
 
     public static <T> Registry<T> getSideAwareRegistry(ResourceKey<Registry<T>> registryKey) {
@@ -32,5 +35,10 @@ public class Event {
                     .orElseThrow();
         }
     }
+    @SubscribeEvent
+    public static void onRegisterCommands(RegisterCommandsEvent event) {
+        CommandsInit.register(event.getDispatcher());
+    }
+
 
 }

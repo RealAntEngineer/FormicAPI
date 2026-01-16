@@ -25,12 +25,18 @@ public abstract class CubicEOS implements EquationOfState{
         this.Tc = Tc;
         this.Pc = Pc;
     }
-    @Override
-    public double volumeMolar(double T, double P, double vaporFraction) {
-        double[] roots = getZFactors(T, P);
+
+    /**
+     * @param temperature temperature in Kelvin
+     * @param pressure pressure in Pascals
+     * @param vaporFraction fraction of vapor bwn 0 and 1
+     * @return molar volume in [m^3/mol]
+     */
+    public double volumeMolar(double temperature, double pressure, double vaporFraction) {
+        double[] roots = getZFactors(temperature, pressure);
 
         if (roots.length == 0) {
-            throw new IllegalStateException("No valid real roots for Z at T = "+ T+ " P = "+ P);
+            throw new IllegalStateException("No valid real roots for Z at T = "+ temperature+ " P = "+ pressure);
         }
 
         double Z;
@@ -39,19 +45,19 @@ public abstract class CubicEOS implements EquationOfState{
         } else if (vaporFraction >= 1.0) {
             Z = roots[roots.length - 1]; // Vapor-like root
         } else if (roots.length >= 2) {
-            double saturationPressure = saturationPressure(T);
+            double saturationPressure = saturationPressure(temperature);
             // Interpolate molar volume, not Z
             double Zl = roots[0];
             double Zv = roots[roots.length - 1];
-            double Vl = Zl * R * T / saturationPressure;
-            double Vv = Zv * R * T / saturationPressure;
+            double Vl = Zl * R * temperature / saturationPressure;
+            double Vv = Zv * R * temperature / saturationPressure;
             return (1 - vaporFraction) * Vl + vaporFraction * Vv;
         } else {
             // Fallback for single phase
             Z = roots[0];
         }
 
-        return Z * R * T / P;
+        return Z * R * temperature / pressure;
     }
     /**
      * guaranties that the protected version :  findSpinodalPoints(double T, double vMin, double vMax)
@@ -109,6 +115,9 @@ public abstract class CubicEOS implements EquationOfState{
      */
     public Couple<Double> getSaturationVolumes(double T) {
         try {
+            if (T <= 0){
+
+            }
             if (T < Tc ) {
                 double PSat = saturationPressure(T); // try normal coexistence
                 double[] roots = getZFactors(T, PSat);
@@ -131,8 +140,8 @@ public abstract class CubicEOS implements EquationOfState{
                 return Couple.create(VmInflection, VmInflection);
             }
         } catch (RuntimeException e) {
-            FormicAPI.LOGGER.debug("Unexpectedly found outside LV phase {}", T);
-            FormicAPI.LOGGER.debug(e);
+            FormicAPI.LOGGER.warn("Unexpectedly found outside LV phase {}", T);
+            FormicAPI.LOGGER.warn(e);
             // Fall back to inflection point
             return Couple.create(Double.NaN, Double.NaN);
         }

@@ -17,23 +17,29 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
-import static com.rae.formicapi.data.Event.getSideAwareRegistry;
+import static com.rae.formicapi.Event.getSideAwareRegistry;
 
 public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
     private static final Gson GSON = new Gson();
     private static final String FOLDER = "float_map";
+    private static final Set<FloatMapDataLoader<?>> VALUES = new HashSet<>();
     private final ResourceKey<Registry<T>> registryKey;
     private final ResourceLocation FILE_NAME;
     private final HashMap<ResourceLocation, Float> FLOAT_MAP = new HashMap<>();
     public static final Logger LOGGER = LogUtils.getLogger();
     private final HashMap<TagKey<T>, Float> TAG_FLOAT_MAP = new HashMap<>();
     private boolean tagLoaded = false;
+    Registry<T> registry = null;
+
     public FloatMapDataLoader(String modId, String fileName, ResourceKey<Registry<T>> registryKey) {
         super(GSON, FOLDER);
         FILE_NAME = new ResourceLocation(modId, fileName);
         this.registryKey = registryKey;
+        VALUES.add(this);
     }
 
     @Override
@@ -75,9 +81,17 @@ public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
         TAG_FLOAT_MAP.putAll(newTagValues);
     }
 
+    @SuppressWarnings("unchecked")
+    public static void reloadRegistry() {
+        for (FloatMapDataLoader<?> dataLoader : VALUES) {
+            // Unsafe cast, but safe in practice if your code is consistent
+            ((FloatMapDataLoader<Object>) dataLoader).registry =
+                    (Registry<Object>) getSideAwareRegistry(dataLoader.registryKey);
+        }
+    }
+
     public float getValue(@NotNull T registryEntry, float defaultValue)
     {
-        Registry<T> registry = getSideAwareRegistry(registryKey);
         if (!tagLoaded){
             for (Map.Entry<TagKey<T>, Float> entry : TAG_FLOAT_MAP.entrySet()){
                 for (Holder<T>holder : registry.getTagOrEmpty(entry.getKey())){

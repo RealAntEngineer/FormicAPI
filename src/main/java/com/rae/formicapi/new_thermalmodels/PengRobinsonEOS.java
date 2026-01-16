@@ -1,63 +1,131 @@
-package com.rae.formicapi.thermal_utilities.eos;
-
+package com.rae.formicapi.new_thermalmodels;
 
 import com.rae.formicapi.math.Solvers;
 import com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction;
 import com.rae.formicapi.math.data.StepMode;
+import com.rae.formicapi.thermal_utilities.eos.EquationOfState;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
-import java.util.function.Function;
+import java.util.Arrays;
+import java.util.List;
 
-public class PengRobinsonEOS extends CubicEOS{
+public class PengRobinsonEOS extends CubicEOS {
 
-    private final double kappa;
-    private final double a0;
-    private final double b;
+    private final double kappa, a0, b;
     private final ReversibleOneDTabulatedFunction saturationPressure;
-    //TODO convert everything to float
+
     public PengRobinsonEOS(double Tc, double Pc, double omega, double M) {
-        super(M, Tc,Pc);
-        // Acentric factor
-        this.kappa = 0.37464 + 1.54226 * omega - 0.26992 * omega * omega;
-        this.a0 = 0.45724 * EquationOfState.R * EquationOfState.R * Tc * Tc / Pc;
-        this.b = 0.07780 * EquationOfState.R * Tc / Pc;
+        super(M, Tc, Pc);
+        this.kappa = 0.37464 + 1.54226*omega - 0.26992*omega*omega;
+        this.a0 = 0.45724 * R * R * Tc * Tc / Pc;
+        this.b = 0.07780 * R * Tc / Pc;
 
         this.saturationPressure = new ReversibleOneDTabulatedFunction((T) -> (float) computeSaturationPressure(T), 100F,
                 (float)Tc, StepMode.LINEAR, (float) (Tc/1e4f), StepMode.LOGARITHMIC, 0.01f);
+
     }
 
-    public double alpha(double T) {
+    private double alpha(double T) {
         double Tr = T / Tc;
-        return Math.pow(1 + kappa * (1 - Math.sqrt(Tr)), 2);
+        return Math.pow(1 + kappa*(1-Math.sqrt(Tr)), 2);
     }
 
-    private double dAlpha_dT(double T) {
-        double sqrtTr = Math.sqrt(T / Tc);
-        return -kappa * (1 + kappa * (1 - sqrtTr)) / (Tc * sqrtTr);
-    }
+    private double a(double T) { return a0 * alpha(T); }
 
     private double da_dT(double T) {
-        return a0 * dAlpha_dT(T); // ac is the "a" at critical temperature
-    }
-
-    public double a(double T) {
-        return a0 * alpha(T);
+        double sqrtTr = Math.sqrt(T/Tc);
+        return -a0 * kappa*(1+kappa*(1-sqrtTr))/(Tc*sqrtTr);
     }
 
     @Override
-    public double pressure(double T, double Vm) {
-        double a = a(T);
-        double term1 = EquationOfState.R * T / (Vm - b);
-        double term2 = a / (Vm * (Vm + b) + b * (Vm - b));
+    public double pressure(double T, double Vm_mass) {
+        double Vm = Vm_mass * M;
+        double aT = a(T);
+        double term1 = R*T/(Vm - b);
+        double term2 = aT / (Vm*(Vm+b) + b*(Vm-b));
         return term1 - term2;
     }
+
+    @Override
+    public double dPdV(double T, double Vm_mass) {
+        double Vm = Vm_mass * M;
+        double aT = a(T);
+        double denom = Math.pow(Vm*(Vm+b)+b*(Vm-b),2);
+        return -R*T/Math.pow(Vm-b,2) + aT*(2*Vm + b)*(Vm - b)/denom;
+    }
+
+    @Override
+    public double dPdT(double T, double Vm_mass) {
+        double Vm = Vm_mass * M;
+        double daT_dT = da_dT(T);
+        return R/(Vm-b) - daT_dT / (Vm*(Vm+b) + b*(Vm-b));
+    }
+
+    @Override
+    public double helmholtzFreeEnergy(double T, double Vm_mass) {
+        double Vm = Vm_mass * M;
+        double sqrt2 = Math.sqrt(2);
+        double aT = a(T);
+        double term1 = Math.log(Vm/(Vm-b));
+        double term2 = Math.log((Vm + (1+sqrt2)*b)/(Vm + (1-sqrt2)*b));
+        return (R*T*(term1 - aT/(2*sqrt2*b*R*T)*term2))/M;
+    }
+
+    @Override
+    public double getM() { return M; }
+
+    // ---------- ResidualProperties ----------
+    @Override
+    public double residualEntropy(double T, double Vm_mass) {
+        double Vm_mol = Vm_mass * M;
+        double sqrt2 = Math.sqrt(2);
+        double daT_dT = da_dT(T);
+
+        double logTerm = Math.log((Vm_mol + (1 + sqrt2) * b) / (Vm_mol + (1 - sqrt2) * b));
+        double term1 = R * Math.log(Vm_mol / (Vm_mol - b));
+        double term2 = daT_dT / (2 * sqrt2 * b) * logTerm;
+
+        return (term1 - term2) / M;
+    }
+
+    @Override
+    public double residualEnthalpy(double T, double Vm_mass) {
+        double Vm_mol = Vm_mass * M;
+        double sqrt2 = Math.sqrt(2);
+        double aT = a(T);
+        double daT_dT = da_dT(T);
+
+        double logTerm = Math.log((Vm_mol + (1 + sqrt2) * b) / (Vm_mol + (1 - sqrt2) * b));
+        double term1 = R * T * (Vm_mol / (Vm_mol - b) - 1);
+        double term2 = (T * daT_dT - aT) / (2 * sqrt2 * b) * logTerm;
+
+        return (term1 + term2) / M;
+    }
+
+    // ---------- Fugacity coefficient ----------
+    @Override
+    public double fugacityCoefficient(double T, double P, double Vm_mass) {
+        double Vm = Vm_mass * M;
+        double aT = a(T);
+        double sqrt2 = Math.sqrt(2);
+        double A = aT * P / (R * R * T * T);
+        double B = b * P / (R * T);
+
+        double term1 = Vm / (Vm - b) - Math.log(Vm / (Vm - b));
+        double term2 = A / (2 * sqrt2 * B) * Math.log((Vm + (1 + sqrt2) * b) / (Vm + (1 - sqrt2) * b));
+
+        return Math.exp(term1 - term2);
+    }
+
+    public double getB() {
+        return b;
+    }//this should be the starting point for plotting
 
     @Override
     public List<Double> findSpinodalPoints(double T) {
         if (T >= Tc) return List.of();
 
-        return findSpinodalPoints(T, b * 1.001f, 1e6);
+        return findSpinodalPoints(T, b * 1.001f / M, 1e6/M);
     }
 
     /**
@@ -70,7 +138,7 @@ public class PengRobinsonEOS extends CubicEOS{
     public double @NotNull [] getZFactors(double T, double P) {
         assert T > 0;
         assert P > 0;
-        double A = a(T) * P / (EquationOfState.R * EquationOfState.R * T * T);
+        double A = a(T) * P / (com.rae.formicapi.thermal_utilities.eos.EquationOfState.R * com.rae.formicapi.thermal_utilities.eos.EquationOfState.R * T * T);
         double B = b * P / (EquationOfState.R * T);
 
         // Coefficients of the cubic in Z
@@ -85,38 +153,7 @@ public class PengRobinsonEOS extends CubicEOS{
                 .sorted()
                 .toArray();
     }
-    //not robust at low pressure
-    public double fugacityCoefficient(double T, double P, double Z) {
-        double R = EquationOfState.R;
-        double a = a(T); // temperature-dependent 'a'
-        double A = a * P / (R * R * T * T);
-        double B = b * P / (R * T);
-        double epsilon = 1e-9;
-        if (B < epsilon) return 1.0; // Fugacity coefficient approaches 1 for ideal gas
-        if (Math.abs(Z - B) < epsilon) return Double.NaN;
 
-        double sqrt2 = Math.sqrt(2);
-
-        double term1 = Z - 1 - Math.log(Z - B);
-        double term2 = A / (2 * sqrt2 * B);
-        double logArgument = (Z + (1 + sqrt2) * B) / (Z + (1 - sqrt2) * B);
-        double term3 = term2 * Math.log(logArgument);
-
-        double lnPhi = term1 - term3;
-
-        return Math.exp(lnPhi);
-    }
-    @Override
-    public double saturationPressure(double T) {
-        if (T >= Tc) {
-            throw new IllegalArgumentException("T must be lower than the critical temperature to compute a coexistence pressure was "+ T + " Tc is "+ Tc);
-        }
-        if (T <= 0) {
-            throw new IllegalArgumentException("Temperature must be strictly positive was " + T+ " did you sent a non kelvin temperature ?");
-        }
-
-        return saturationPressure.getF((float) T);
-    }
     private double computeSaturationPressure(double T) {
         if (T >= Tc) {
             throw new IllegalArgumentException("T must be lower than the critical temperature to compute a coexistence pressure");
@@ -183,7 +220,17 @@ public class PengRobinsonEOS extends CubicEOS{
         return Math.max(P, 1e-6);
     }
 
+    @Override
+    public double saturationPressure(double T) {
+        if (T >= Tc) {
+            throw new IllegalArgumentException("T must be lower than the critical temperature to compute a coexistence pressure was "+ T + " Tc is "+ Tc);
+        }
+        if (T <= 0) {
+            throw new IllegalArgumentException("Temperature must be strictly positive was " + T+ " did you sent a non kelvin temperature ?");
+        }
 
+        return saturationPressure.getF((float) T);
+    }
 
     public float saturationTemperature(float P) {
         if (P >= Pc) {
@@ -194,46 +241,4 @@ public class PengRobinsonEOS extends CubicEOS{
         }
         return saturationPressure.getInverseF(P);
     }
-    @Override
-    protected  double residualEntropy(double T, double P, double Z) {
-        double a = a(T);
-        double sqrt2 = Math.sqrt(2);
-        double B = b * P / (R * T);
-
-        double term1 = R * Math.log(Z - B);
-        double term2 = (a / (2 * sqrt2 * b * R * T)) *
-                Math.log((Z + (1 + sqrt2) * B) / (Z + (1 - sqrt2) * B));
-
-        return (term1 - term2) / M; // [J/kg·K]
-    }
-
-    @Override
-    public double residualEnthalpy(double T, double P, double Z) {
-        double a = a(T);
-        double da_dT = da_dT(T); // must be implemented
-        double B = b * P / (R * T);
-        double sqrt2 = Math.sqrt(2);
-
-        double logTerm = Math.log((Z + (1 + sqrt2) * B) / (Z + (1 - sqrt2) * B));
-        double term1 = R * T * (Z - 1);
-        double term2 = (T * da_dT - a) / (2 * sqrt2 * b) * logTerm;
-
-        return (term1 + term2)/M; // [J/Kg]
-    }
-
-    public double getB() {
-        return b;
-    }//this should be the starting point for plotting
-    private double minZ(float T, float P) {
-        return (b * 1.001f) * P / (EquationOfState.R * T); // Minimum physically valid Z
-    }
-    @Override
-    public double volumeMolar(double temperature, double pressure, double vaporFraction) {
-        try {
-            return super.volumeMolar(temperature, pressure, vaporFraction);
-        } catch (RuntimeException e) {
-            return getB() * 1.001f;
-        }
-    }
 }
-

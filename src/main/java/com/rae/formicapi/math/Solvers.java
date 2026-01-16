@@ -60,7 +60,6 @@ public class Solvers {
 
         return m;
     }
-    //TODO complete a naive approach first
 
     /**
      * Uses gradient descent to find the minimum of a given function, with adaptive step size.

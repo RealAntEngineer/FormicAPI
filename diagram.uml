@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>JAVA</ID>
+  <OriginalElement>com.rae.formicapi.multiblock</OriginalElement>
+  <nodes>
+    <node x="704.0" y="325.5">com.rae.formicapi.thermal_utilities.helper.WaterAsRealGaz</node>
+    <node x="2425.0" y="705.5">com.rae.formicapi.config.UnitConfig</node>
+    <node x="2910.0" y="565.5">com.rae.formicapi.FormicApiLang</node>
+    <node x="3305.0" y="445.5">com.rae.formicapi.data.providers.TwoDTabulatedFunctionProvider</node>
+    <node x="-164.0" y="445.5">com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS</node>
+    <node x="3298.5" y="-14.5">com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction</node>
+    <node x="2928.0" y="745.5">net.minecraft.world.item.BlockItem</node>
+    <node x="2416.5" y="625.5">com.rae.formicapi.units.Temperature</node>
+    <node x="2655.5" y="865.5">com.rae.formicapi.multiblock.MBController</node>
+    <node x="507.5" y="105.5">com.rae.formicapi.thermal_utilities.eos.CubicEOS</node>
+    <node x="-197.5" y="1165.5">com.rae.formicapi.math.DerivationHelper</node>
+    <node x="280.5" y="165.5">com.rae.formicapi.thermal_utilities.eos.VanDerWaalsEOS</node>
+    <node x="3386.5" y="45.5">com.rae.formicapi.math.data.StepMode</node>
+    <node x="995.0" y="1125.5">com.rae.formicapi.data.managers.FloatMapDataLoader</node>
+    <node x="2139.0" y="505.5">com.rae.formicapi.config.FormicAPIConfigs</node>
+    <node x="1200.0" y="445.5">com.rae.formicapi.thermal_utilities.helper.WaterTableBased</node>
+    <node x="336.0" y="225.5">com.rae.formicapi.math.Solvers</node>
+    <node x="103.5" y="165.5">com.rae.formicapi.thermal_utilities.EOSLibrary</node>
+    <node x="3636.5" y="-14.5">com.rae.formicapi.math.data.OneDTabulatedFunction</node>
+    <node x="2595.0" y="705.5">com.rae.formicapi.units.RadiationFlux</node>
+    <node x="2266.0" y="565.5">net.createmod.catnip.lang.Lang</node>
+    <node x="3635.5" y="445.5">com.rae.formicapi.math.data.TwoDTabulatedFunction</node>
+    <node x="1726.5" y="445.5">com.rae.formicapi.FormicAPI</node>
+    <node x="1913.0" y="765.5">com.rae.formicapi.config.FormicAPICfgClient</node>
+    <node x="1411.0" y="1025.5">com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader</node>
+    <node x="1063.0" y="1065.5">com.rae.formicapi.data.Event</node>
+    <node x="2851.0" y="985.5">com.rae.formicapi.multiblock.MBKineticController</node>
+    <node x="3209.0" y="805.5">com.rae.formicapi.multiblock.MBShape</node>
+    <node x="927.0" y="385.5">com.rae.formicapi.thermal_utilities.SpecificRealGazState</node>
+    <node x="2453.5" y="925.5">com.rae.formicapi.multiblock.IMBController</node>
+    <node x="2750.5" y="625.5">com.rae.formicapi.units.Pressure</node>
+    <node x="2858.5" y="865.5">com.rae.formicapi.multiblock.MBStructureBlock</node>
+    <node x="3083.5" y="805.5">net.minecraft.world.level.block.Block</node>
+    <node x="486.5" y="285.5">com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS</node>
+    <node x="2476.0" y="805.5">com.rae.formicapi.multiblock.MBItem</node>
+    <node x="1394.0" y="1125.5">net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener</node>
+    <node x="2162.0" y="705.5">net.createmod.catnip.config.ConfigBase</node>
+    <node x="1193.0" y="1065.5">net.minecraftforge.event.server.ServerStartedEvent</node>
+    <node x="285.5" y="105.5">com.rae.formicapi.thermal_utilities.eos.EquationOfState</node>
+    <node x="2626.5" y="625.5">com.rae.formicapi.units.IUnit</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS" target="com.rae.formicapi.thermal_utilities.eos.CubicEOS" relationship="DEPENDENCY">
+      <point x="81.5" y="-4.5" />
+      <point x="659.5" y="294.5" />
+      <point x="659.5" y="142.5" />
+      <point x="497.5" y="142.5" />
+      <point x="497.5" y="123.5" />
+      <point x="-60.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.EOSLibrary" target="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" relationship="TO_ONE">
+      <point x="-0.0" y="13.5" />
+      <point x="168.0" y="450.90000000000003" />
+      <point x="92.0" y="-8.099999999999966" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterTableBased" target="com.rae.formicapi.FormicAPI" relationship="DEPENDENCY">
+      <point x="88.0" y="4.5" />
+      <point x="-61.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS" target="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" relationship="CREATE">
+      <point x="-5.0" y="-13.5" />
+      <point x="563.0" y="275.5" />
+      <point x="-174.0" y="275.5" />
+      <point x="-174.0" y="454.5" />
+      <point x="-92.0" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.data.managers.FloatMapDataLoader" target="net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener" relationship="GENERALIZATION">
+      <point x="113.0" y="0.0" />
+      <point x="-154.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader" target="net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener" relationship="GENERALIZATION">
+      <point x="0.0" y="13.5" />
+      <point x="0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBItem" target="net.minecraft.world.level.block.Block" relationship="DEPENDENCY">
+      <point x="52.0" y="0.0" />
+      <point x="-44.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicApiLang" target="net.minecraft.world.level.block.Block" relationship="DEPENDENCY">
+      <point x="78.0" y="4.5" />
+      <point x="3133.0" y="583.5" />
+      <point x="5.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicAPI" target="com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader" relationship="CREATE">
+      <point x="-15.0" y="13.5" />
+      <point x="1773.0" y="482.5" />
+      <point x="1548.0" y="482.5" />
+      <point x="0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.data.managers.FloatMapDataLoader" target="com.rae.formicapi.data.Event" relationship="DEPENDENCY">
+      <point x="0.0" y="-13.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.config.UnitConfig" target="net.createmod.catnip.config.ConfigBase" relationship="GENERALIZATION">
+      <point x="-63.0" y="0.0" />
+      <point x="66.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" target="com.rae.formicapi.thermal_utilities.eos.EquationOfState" relationship="DEPENDENCY">
+      <point x="10.0" y="-13.5" />
+      <point x="-62.0" y="119.0" />
+      <point x="-82.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicAPI" target="com.rae.formicapi.math.data.StepMode" relationship="DEPENDENCY">
+      <point x="5.0" y="-13.5" />
+      <point x="1793.0" y="59.0" />
+      <point x="-61.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.config.UnitConfig" target="com.rae.formicapi.units.RadiationFlux" relationship="DEPENDENCY">
+      <point x="63.0" y="0.0" />
+      <point x="2561.0" y="719.0" />
+      <point x="2561.0" y="742.5" />
+      <point x="2668.0" y="742.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.config.FormicAPICfgClient" target="net.createmod.catnip.config.ConfigBase" relationship="GENERALIZATION">
+      <point x="5.0" y="-13.5" />
+      <point x="2013.0" y="719.0" />
+      <point x="-66.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" target="com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction" relationship="CREATE">
+      <point x="-92.0" y="4.5" />
+      <point x="-184.0" y="463.5" />
+      <point x="-184.0" y="-24.5" />
+      <point x="3448.0" y="-24.5" />
+      <point x="-0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicApiLang" target="com.rae.formicapi.units.Pressure" relationship="DEPENDENCY">
+      <point x="-78.0" y="8.099999999999909" />
+      <point x="2808.0" y="587.0999999999999" />
+      <point x="-0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.units.Pressure" target="com.rae.formicapi.FormicApiLang" relationship="DEPENDENCY">
+      <point x="57.5" y="0.0" />
+      <point x="2983.0" y="639.0" />
+      <point x="-5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBKineticController" target="com.rae.formicapi.multiblock.IMBController" relationship="REALIZATION">
+      <point x="-97.0" y="0.0" />
+      <point x="2523.0" y="999.0" />
+      <point x="-5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicApiLang" target="com.rae.formicapi.units.Temperature" relationship="DEPENDENCY">
+      <point x="-5.0" y="-13.5" />
+      <point x="2983.0" y="555.5" />
+      <point x="2488.0" y="555.5" />
+      <point x="0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.units.Temperature" target="com.rae.formicapi.FormicApiLang" relationship="DEPENDENCY">
+      <point x="71.5" y="-4.5" />
+      <point x="2569.5" y="634.5" />
+      <point x="2569.5" y="576.3" />
+      <point x="-78.0" y="-2.7000000000000455" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicAPI" target="com.rae.formicapi.data.providers.TwoDTabulatedFunctionProvider" relationship="CREATE">
+      <point x="61.5" y="-8.099999999999966" />
+      <point x="-143.0" y="-8.099999999999966" />
+    </edge>
+    <edge source="com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction" target="com.rae.formicapi.math.data.OneDTabulatedFunction" relationship="TO_ONE">
+      <point x="149.5" y="-4.5" />
+      <point x="-111.5" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicApiLang" target="com.rae.formicapi.FormicAPI" relationship="DEPENDENCY">
+      <point x="5.0" y="-13.5" />
+      <point x="2993.0" y="461.7" />
+      <point x="61.5" y="2.6999999999999886" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterTableBased" target="com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader" relationship="DEPENDENCY">
+      <point x="0.0" y="13.5" />
+      <point x="1288.0" y="1039.0" />
+      <point x="-137.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.IMBController" target="net.minecraft.world.level.block.Block" relationship="DEPENDENCY">
+      <point x="5.0" y="13.5" />
+      <point x="2533.0" y="962.5" />
+      <point x="3133.0" y="962.5" />
+      <point x="5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicAPI" target="com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader" relationship="TO_ONE">
+      <point x="-5.0" y="13.5" />
+      <point x="1783.0" y="1034.5" />
+      <point x="137.0" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.units.RadiationFlux" target="com.rae.formicapi.units.IUnit" relationship="REALIZATION">
+      <point x="0.0" y="-13.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.EOSLibrary" target="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" relationship="CREATE">
+      <point x="64.5" y="0.0" />
+      <point x="242.5" y="179.0" />
+      <point x="242.5" y="482.5" />
+      <point x="-72.0" y="482.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction" target="com.rae.formicapi.math.data.OneDTabulatedFunction" relationship="CREATE">
+      <point x="149.5" y="4.5" />
+      <point x="-111.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBController" target="com.rae.formicapi.multiblock.IMBController" relationship="REALIZATION">
+      <point x="-0.0" y="13.5" />
+      <point x="2728.0" y="934.5" />
+      <point x="74.5" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBItem" target="com.rae.formicapi.multiblock.IMBController" relationship="DEPENDENCY">
+      <point x="0.0" y="13.5" />
+      <point x="0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.config.FormicAPICfgClient" target="com.rae.formicapi.FormicAPI" relationship="DEPENDENCY">
+      <point x="-95.0" y="0.0" />
+      <point x="1803.0" y="779.0" />
+      <point x="15.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" target="com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction" relationship="TO_ONE">
+      <point x="-20.0" y="-13.5" />
+      <point x="-92.0" y="-1.0" />
+      <point x="-149.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.data.providers.TwoDTabulatedFunctionProvider" target="com.rae.formicapi.math.data.StepMode" relationship="TO_ONE">
+      <point x="-5.0" y="-13.5" />
+      <point x="-5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBShape" target="net.minecraft.world.level.block.Block" relationship="DEPENDENCY">
+      <point x="-59.0" y="-4.5" />
+      <point x="44.5" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterTableBased" target="com.rae.formicapi.thermal_utilities.SpecificRealGazState" relationship="CREATE">
+      <point x="-10.0" y="-13.5" />
+      <point x="1278.0" y="403.5" />
+      <point x="101.0" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicApiLang" target="net.createmod.catnip.lang.Lang" relationship="GENERALIZATION">
+      <point x="-78.0" y="-8.099999999999909" />
+      <point x="42.0" y="-8.099999999999909" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterAsRealGaz" target="com.rae.formicapi.thermal_utilities.SpecificRealGazState" relationship="CREATE">
+      <point x="-0.0" y="13.5" />
+      <point x="788.0" y="394.5" />
+      <point x="-101.0" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBItem" target="net.minecraft.world.item.BlockItem" relationship="GENERALIZATION">
+      <point x="0.0" y="-13.5" />
+      <point x="2528.0" y="759.0" />
+      <point x="-60.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.config.UnitConfig" target="com.rae.formicapi.units.Temperature" relationship="DEPENDENCY">
+      <point x="-5.0" y="-13.5" />
+      <point x="-5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterTableBased" target="com.rae.formicapi.thermal_utilities.SpecificRealGazState" relationship="TO_ONE">
+      <point x="-0.0" y="-13.5" />
+      <point x="1288.0" y="394.5" />
+      <point x="101.0" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" target="com.rae.formicapi.math.Solvers" relationship="DEPENDENCY">
+      <point x="92.0" y="-2.6999999999999886" />
+      <point x="388.0" y="456.3" />
+      <point x="-0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.config.UnitConfig" target="com.rae.formicapi.units.Pressure" relationship="DEPENDENCY">
+      <point x="5.0" y="-13.5" />
+      <point x="2493.0" y="695.5" />
+      <point x="2808.0" y="695.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.IMBController" target="com.rae.formicapi.FormicAPI" relationship="DEPENDENCY">
+      <point x="-74.5" y="0.0" />
+      <point x="1793.0" y="939.0" />
+      <point x="5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS" target="com.rae.formicapi.thermal_utilities.SpecificRealGazState" relationship="CREATE">
+      <point x="-5.0" y="13.5" />
+      <point x="563.0" y="422.5" />
+      <point x="1028.0" y="422.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.CubicEOS" target="com.rae.formicapi.thermal_utilities.eos.EquationOfState" relationship="REALIZATION">
+      <point x="-60.5" y="-4.5" />
+      <point x="82.5" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.config.FormicAPIConfigs" target="net.createmod.catnip.config.ConfigBase" relationship="TO_MANY">
+      <point x="0.0" y="13.5" />
+      <point x="0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.CubicEOS" target="com.rae.formicapi.FormicAPI" relationship="DEPENDENCY">
+      <point x="60.5" y="-4.5" />
+      <point x="1783.0" y="114.5" />
+      <point x="-5.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.IMBController" target="com.rae.formicapi.multiblock.MBStructureBlock" relationship="DEPENDENCY">
+      <point x="74.5" y="4.5" />
+      <point x="2848.5" y="943.5" />
+      <point x="2848.5" y="883.5" />
+      <point x="-89.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterTableBased" target="com.rae.formicapi.thermal_utilities.eos.CubicEOS" relationship="DEPENDENCY">
+      <point x="10.0" y="-13.5" />
+      <point x="1298.0" y="123.5" />
+      <point x="60.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBStructureBlock" target="com.rae.formicapi.multiblock.IMBController" relationship="DEPENDENCY">
+      <point x="0.0" y="-13.5" />
+      <point x="2948.0" y="855.5" />
+      <point x="2544.25" y="855.5" />
+      <point x="16.25" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBController" target="com.rae.formicapi.multiblock.MBStructureBlock" relationship="TO_ONE">
+      <point x="72.5" y="-4.5" />
+      <point x="-89.5" y="-4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.math.data.TwoDTabulatedFunction" target="com.rae.formicapi.math.data.StepMode" relationship="TO_ONE">
+      <point x="0.0" y="-13.5" />
+      <point x="3748.0" y="435.5" />
+      <point x="3453.0" y="435.5" />
+      <point x="5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.EOSLibrary" target="com.rae.formicapi.thermal_utilities.eos.VanDerWaalsEOS" relationship="CREATE">
+      <point x="-64.5" y="0.0" />
+      <point x="93.5" y="179.0" />
+      <point x="93.5" y="155.5" />
+      <point x="270.5" y="155.5" />
+      <point x="270.5" y="179.0" />
+      <point x="-87.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.math.data.ReversibleOneDTabulatedFunction" target="com.rae.formicapi.math.data.StepMode" relationship="DEPENDENCY">
+      <point x="5.0" y="13.5" />
+      <point x="5.0" y="-13.5" />
+    </edge>
+    <edge source="net.minecraft.world.level.block.Block" target="net.minecraft.world.item.BlockItem" relationship="DEPENDENCY">
+      <point x="-5.0" y="-13.5" />
+      <point x="3123.0" y="759.0" />
+      <point x="60.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBController" target="net.minecraft.world.level.block.Block" relationship="GENERALIZATION">
+      <point x="-0.0" y="-13.5" />
+      <point x="2728.0" y="825.75" />
+      <point x="-44.5" y="6.75" />
+    </edge>
+    <edge source="com.rae.formicapi.units.Pressure" target="com.rae.formicapi.units.IUnit" relationship="REALIZATION">
+      <point x="-57.5" y="0.0" />
+      <point x="41.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader" target="com.rae.formicapi.math.data.TwoDTabulatedFunction" relationship="TO_ONE">
+      <point x="137.0" y="4.5" />
+      <point x="3748.0" y="1043.5" />
+      <point x="-0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBShape" target="com.rae.formicapi.FormicAPI" relationship="DEPENDENCY">
+      <point x="-0.0" y="-13.5" />
+      <point x="3268.0" y="456.3" />
+      <point x="61.5" y="-2.6999999999999886" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterTableBased" target="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" relationship="CREATE">
+      <point x="-88.0" y="8.099999999999966" />
+      <point x="92.0" y="8.099999999999966" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS" target="com.rae.formicapi.thermal_utilities.SpecificRealGazState" relationship="TO_ONE">
+      <point x="5.0" y="13.5" />
+      <point x="573.0" y="403.5" />
+      <point x="-101.0" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterAsRealGaz" target="com.rae.formicapi.thermal_utilities.SpecificRealGazState" relationship="TO_ONE">
+      <point x="84.0" y="0.0" />
+      <point x="1028.0" y="339.0" />
+      <point x="0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.math.data.OneDTabulatedFunction" target="com.rae.formicapi.math.data.StepMode" relationship="TO_ONE">
+      <point x="0.0" y="13.5" />
+      <point x="3748.0" y="59.0" />
+      <point x="61.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBKineticController" target="net.minecraft.world.level.block.Block" relationship="GENERALIZATION">
+      <point x="97.0" y="0.0" />
+      <point x="3182.5" y="999.0" />
+      <point x="3182.5" y="823.5" />
+      <point x="44.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicApiLang" target="com.rae.formicapi.config.FormicAPIConfigs" relationship="DEPENDENCY">
+      <point x="78.0" y="-4.5" />
+      <point x="3076.0" y="574.5" />
+      <point x="3076.0" y="519.0" />
+      <point x="89.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBKineticController" target="com.rae.formicapi.multiblock.MBStructureBlock" relationship="TO_ONE">
+      <point x="0.0" y="-13.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.units.Temperature" target="com.rae.formicapi.units.IUnit" relationship="REALIZATION">
+      <point x="71.5" y="4.5" />
+      <point x="-41.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" target="com.rae.formicapi.thermal_utilities.eos.CubicEOS" relationship="GENERALIZATION">
+      <point x="0.0" y="-13.5" />
+      <point x="-72.0" y="95.5" />
+      <point x="568.0" y="95.5" />
+      <point x="0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS" target="com.rae.formicapi.math.Solvers" relationship="DEPENDENCY">
+      <point x="5.0" y="-13.5" />
+      <point x="573.0" y="239.0" />
+      <point x="52.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.config.FormicAPIConfigs" target="com.rae.formicapi.config.FormicAPICfgClient" relationship="TO_ONE">
+      <point x="-89.0" y="0.0" />
+      <point x="2003.0" y="519.0" />
+      <point x="-5.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.data.Event" target="net.minecraftforge.event.server.ServerStartedEvent" relationship="DEPENDENCY">
+      <point x="45.0" y="0.0" />
+      <point x="-95.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.VanDerWaalsEOS" target="com.rae.formicapi.thermal_utilities.eos.EquationOfState" relationship="REALIZATION">
+      <point x="0.0" y="-13.5" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" target="com.rae.formicapi.math.data.StepMode" relationship="DEPENDENCY">
+      <point x="-10.0" y="-13.5" />
+      <point x="-82.0" y="35.5" />
+      <point x="3443.0" y="35.5" />
+      <point x="-5.0" y="-13.5" />
+    </edge>
+    <edge source="net.minecraft.world.item.BlockItem" target="net.minecraft.world.level.block.Block" relationship="TO_ONE">
+      <point x="-0.0" y="13.5" />
+      <point x="2988.0" y="812.25" />
+      <point x="-44.5" y="-6.75" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS" target="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" relationship="TO_ONE">
+      <point x="-81.5" y="0.0" />
+      <point x="-52.0" y="299.0" />
+      <point x="20.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicAPI" target="com.rae.formicapi.config.FormicAPIConfigs" relationship="DEPENDENCY">
+      <point x="61.5" y="8.099999999999966" />
+      <point x="2228.0" y="467.09999999999997" />
+      <point x="-0.0" y="-13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBStructureBlock" target="net.minecraft.world.level.block.Block" relationship="GENERALIZATION">
+      <point x="89.5" y="-4.5" />
+      <point x="3123.0" y="874.5" />
+      <point x="-5.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.multiblock.MBShape" target="com.rae.formicapi.multiblock.MBStructureBlock" relationship="TO_ONE">
+      <point x="-0.0" y="13.5" />
+      <point x="3268.0" y="883.5" />
+      <point x="89.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.config.FormicAPICfgClient" target="com.rae.formicapi.config.UnitConfig" relationship="TO_ONE">
+      <point x="95.0" y="0.0" />
+      <point x="2488.0" y="779.0" />
+      <point x="0.0" y="13.5" />
+    </edge>
+    <edge source="com.rae.formicapi.data.providers.TwoDTabulatedFunctionProvider" target="com.rae.formicapi.math.data.TwoDTabulatedFunction" relationship="DEPENDENCY">
+      <point x="143.0" y="0.0" />
+      <point x="-112.5" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicAPI" target="com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS" relationship="DEPENDENCY">
+      <point x="-61.5" y="-4.5" />
+      <point x="1716.5" y="454.5" />
+      <point x="1716.5" y="303.5" />
+      <point x="81.5" y="4.5" />
+    </edge>
+    <edge source="com.rae.formicapi.thermal_utilities.helper.WaterTableBased" target="com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS" relationship="TO_ONE">
+      <point x="-88.0" y="2.6999999999999886" />
+      <point x="92.0" y="2.6999999999999886" />
+    </edge>
+    <edge source="com.rae.formicapi.FormicApiLang" target="com.rae.formicapi.units.RadiationFlux" relationship="DEPENDENCY">
+      <point x="5.0" y="13.5" />
+      <point x="2993.0" y="719.0" />
+      <point x="73.0" y="0.0" />
+    </edge>
+    <edge source="com.rae.formicapi.units.RadiationFlux" target="com.rae.formicapi.FormicApiLang" relationship="DEPENDENCY">
+      <point x="-73.0" y="0.0" />
+      <point x="2585.0" y="719.0" />
+      <point x="2585.0" y="581.7" />
+      <point x="-78.0" y="2.7000000000000455" />
+    </edge>
+  </edges>
+  <settings layout="Channel" zoom="0.8633803666646238" showDependencies="true" x="1491.0945502946274" y="1177.412088596187" />
+  <SelectedNodes>
+    <node>net.minecraftforge.event.server.ServerStartedEvent</node>
+  </SelectedNodes>
+  <Categories />
+  <SCOPE>All</SCOPE>
+  <VISIBILITY>private</VISIBILITY>
+</Diagram>
+

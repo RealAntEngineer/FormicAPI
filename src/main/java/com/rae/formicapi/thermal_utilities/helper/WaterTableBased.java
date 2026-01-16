@@ -2,6 +2,7 @@ package com.rae.formicapi.thermal_utilities.helper;
 
 import com.rae.formicapi.FormicAPI;
 import com.rae.formicapi.thermal_utilities.SpecificRealGazState;
+import com.rae.formicapi.thermal_utilities.eos.EquationOfState;
 import com.rae.formicapi.thermal_utilities.eos.PengRobinsonEOS;
 import net.createmod.catnip.data.Couple;
 import org.jetbrains.annotations.NotNull;
@@ -94,40 +95,44 @@ public class WaterTableBased {
         // Clamp to [0,1] to account for numerical error
         return Math.min(Math.max(x,0f), 1f);
     }
-    public static float get_x_from_entropy(double s, float T, float P) {//this is wrong.
-        if (T < 100) T = 100;
-        if (P < 1) P = 1;
-        double[] roots = EOS.getZFactors(T, P);
+    public static float get_x_from_entropy(double s, float T, float P) {
+        // enforce minimum values
+        T = Math.max(T, 100f);
+        P = Math.max(P, 1f);
 
-        if (roots.length == 0){
-            //System.out.println("out of validity limits with T = "+ T + " P = " + P);
-            return 0;//fallback to 0 because we are at a specific volume lower than b
-        }
+        double Psat;
         Couple<Double> Vms = EOS.getSaturationVolumes(T);
-        if ( Math.abs(Vms.getSecond() - Vms.getFirst()) < 1e-8 ) {
-            double V = roots[0] * R * T / P;
-            return  (float) ((V > Vms.getSecond()) ? 1.0 : 0.0);
-        }
-
         try {
-            double saturationPressure = EOS.saturationPressure(T);
-            if (P < saturationPressure *0.99f) return  1f;
-            if (P > saturationPressure * 1.01f) return   0f;
-        } catch (RuntimeException ignored){
+            Psat = EOS.saturationPressure(T);
+        } catch (IllegalStateException e) {
+            // Outside valid 2-phase region, fallback to single-phase
+            double[] roots = EOS.getZFactors(T, P);
+            if (roots.length == 0) return 0f; // fallback liquid
+            double Vm = roots[0] * EquationOfState.R * T / P;
+            System.out.println("outside 2 phase region");
+            return Vm < 0.5f?1f:0f;//P < Psat; // single-phase liquid
         }
-
 
         double sl = EOS.totalEntropy(T, Vms.getFirst());   // saturated liquid
         double sv = EOS.totalEntropy(T, Vms.getSecond());  // saturated vapor
 
-        final double epsilon = 1e-6;
+        final double epsilon = 1e-8;
         if (Math.abs(sl - sv) < epsilon) {
-            // Avoid division by zero in pathological or near-critical cases
-            return s < sl ? 0.0f : 1.0f;
+            // near-critical region
+            return s < sl ? 0f : 1f;
         }
 
-        float x = (float) ((s - sl) / (sv - sl));
-        return Math.max(0.0f, Math.min(1.0f, x));
+        if (P < Psat) {
+            // superheated vapor
+            return 1f;
+        } else if (P > Psat) {
+            // subcooled liquid
+            return 0f;
+        } else {
+            // two-phase region: interpolate vapor fraction
+            float x = (float)((s - sl)/(sv - sl));
+            return Math.max(0f, Math.min(1f, x)); // clamp 0..1
+        }
     }
 
     private static @NotNull SpecificRealGazState isentropicPressureChange(float T1, float P1, float x1, float finalPressure) {
@@ -141,6 +146,20 @@ public class WaterTableBased {
         float hFinal = get_h(xcurrent, Tcurrent, finalPressure);
         return new SpecificRealGazState(Tcurrent, finalPressure, hFinal, xcurrent);
     }
+    private static @NotNull SpecificRealGazState realPressureChange(float T1, float P1, float x1, float finalPressure, float yield) {
+        // Step 1: Compute constant entropy from initial state
+        assert yield > 0;
+        assert yield < 1;
+        float sTarget = (float) EOS.getEntropy(T1, P1, x1) / yield;
+
+        // Step 2: Set parameters for stepping pressure
+        float Tcurrent = FormicAPI.WATER_PS_T.getValue(finalPressure, sTarget);
+        float xcurrent = get_x_from_entropy(sTarget, Tcurrent, finalPressure);
+        // Step 3: Compute final enthalpy
+        float hFinal = get_h(xcurrent, Tcurrent, finalPressure);
+        return new SpecificRealGazState(Tcurrent, finalPressure, hFinal, xcurrent);
+    }
+
     /**
      * adiabatic reversible expansion
      * @param initial
@@ -155,16 +174,14 @@ public class WaterTableBased {
 
     /**
      * adiabatic expansion
-     * @param fluidState :
+     * @param initial :
      * @param isentropicYield : how much the fluid lost enthalpy over what it should have if reversible (how much energy was taken from it)
-     * @param expansionCoef : the initial pressure over the pressure of the fluid at the end of the turbine
+     * @param expansionFactor : the initial pressure over the pressure of the fluid at the end of the turbine
      * @return the new fluid state
      */
-    public static SpecificRealGazState realExpansion(SpecificRealGazState fluidState, float isentropicYield, float expansionCoef){
-        SpecificRealGazState revFluidState = isentropicExpansion(fluidState,expansionCoef);
-        float reversibleDh = revFluidState.specificEnthalpy()- fluidState.specificEnthalpy();
-        float losth = reversibleDh*(1-isentropicYield);
-        return isobaricTransfer(revFluidState,-losth);
+    public static SpecificRealGazState realExpansion(SpecificRealGazState initial, float isentropicYield, float expansionFactor){
+        return realPressureChange(initial.temperature(), initial.pressure(), initial.vaporQuality(), initial.pressure() / expansionFactor, isentropicYield);
+
     }
     /**
      * adiabatic reversible compression

@@ -4,6 +4,7 @@ import com.rae.formicapi.config.FormicAPIConfigs;
 import com.rae.formicapi.data.managers.TwoDTabulatedFunctionLoader;
 import com.rae.formicapi.data.providers.TwoDTabulatedFunctionProvider;
 import com.rae.formicapi.math.data.StepMode;
+import com.rae.formicapi.new_thermalmodels.FullTableBased;
 import com.rae.formicapi.thermal_utilities.helper.WaterCubicEOS;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
@@ -11,8 +12,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.event.AddReloadListenerEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -36,10 +39,12 @@ public class FormicAPI {
 
 
     }
+
     public static void onAddReloadListeners(AddReloadListenerEvent event)
     {
         event.addListener(FormicAPI.WATER_PH_T);
         event.addListener(FormicAPI.WATER_PS_T);
+        FullTableBased.addReloadListeners(event);
     }
 
     public void gatherData(GatherDataEvent event) {
@@ -65,7 +70,7 @@ public class FormicAPI {
 
                 )
         );*/
-        generator.addProvider(
+        /*generator.addProvider(
                 event.includeServer(), new TwoDTabulatedFunctionProvider(
                         output, resource("water/pressure_entropy_to_temperature"),
                         (P, S) -> {
@@ -75,9 +80,9 @@ public class FormicAPI {
                             float x = WaterCubicEOS.get_x(P, initialH, initialT);
                             return WaterCubicEOS.getT(initialT, x, P, S);
                         }
-                        ,1e2f,1e-3f, 2e7f, 10e3f,300,1000,StepMode.LOGARITHMIC, StepMode.LINEAR, false
+                        ,1e2f,1e-3f, 2e7f, 10e3f,30,100,StepMode.LOGARITHMIC, StepMode.LINEAR, false
                 )
-        );
+        );*/
         /*generator.addProvider(event.includeServer(), new TwoDTabulatedFunctionProvider(
                 output, new ResourceLocation(MODID, "water/pressure_entropy_to_temperature"),
                 (h, p)-> WaterCubicEOS.get_T(p, h)
