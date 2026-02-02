@@ -29,7 +29,7 @@ public class MBItem extends BlockItem {
         Level lvl = pContext.getLevel();
         Direction facing = pContext.getClickedFace();
         Vec3i offset = main.getOffset(facing, false);//nope this isn't the correct offset to know where to verify the blocks
-        BlockPos mainPos = pContext.getClickedPos().offset(offset);
+        BlockPos mainPos = pContext.getClickedPos();//.offset(offset);
         boolean flag = true;
         Vec3i size = main.getSize(facing);
         for (int x = -offset.getX(); x < size.getX() - offset.getX();x++){
@@ -48,7 +48,7 @@ public class MBItem extends BlockItem {
                 break;
             }
         }
-        return true;
+        return flag;
     }
 
     @Override

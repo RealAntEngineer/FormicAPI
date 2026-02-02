@@ -6,7 +6,7 @@ license="MIT"
 
 [[mods]]
 modId="formicapi"
-version = "1.6.2"
+version = "1.6.8"
 displayName="Formic API"
 logoFile = "logo.png"
 credits='''

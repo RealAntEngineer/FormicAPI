@@ -31,12 +31,39 @@ public class FullTableBased {
 
 
     private static @NotNull SpecificRealGazState isentropicPressureChange(float H1, float P1, float finalPressure) {
-        float sTarget = (float) getS(H1, P1);
+        float sTarget = getS(H1, P1);
 
-        float hFinal = getH(sTarget, finalPressure);
-        float Tfinal = getT(hFinal,finalPressure);
-        float xFinal = getX(hFinal,Tfinal);
-        return new SpecificRealGazState(Tfinal, finalPressure, hFinal, xFinal);
+        // Initial guess from table interpolation
+        float h = getH(sTarget, finalPressure);
+
+        final float EPS = 1e-4f*P1;     // derivative step
+        final float TOL = 1e-1f;     // convergence tolerance
+        final int MAX_ITER = 20;
+
+        for (int i = 0; i < MAX_ITER; i++) {
+            float s = getS(h, finalPressure);
+            float f = s - sTarget;
+
+            if (Math.abs(f) < TOL) {
+                break; // converged
+            }
+
+            // Numerical derivative ds/dh
+            float s2 = getS(h + EPS, finalPressure);
+            float df = (s2 - s) / EPS;
+
+            // Safety check
+            if (Math.abs(df) < 1e-8f) {
+                break; // derivative too small → avoid explosion
+            }
+
+            h -= f / df;
+        }
+
+        float Tfinal = getT(h, finalPressure);
+        float xFinal = getX(h, Tfinal);
+
+        return new SpecificRealGazState(Tfinal, finalPressure, h, xFinal);
     }
     /**
      * adiabatic reversible expansion

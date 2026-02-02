@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 public class UnitConfig extends ConfigBase {
     public final ConfigEnum<Temperature> temperature = e(Temperature.CELSIUS,"temperature", Comments.temperature);
     public final ConfigEnum<Pressure> pressure = e(Pressure.ATMOSPHERES,"pressure", Comments.pressure);
-    public final ConfigEnum<RadiationFlux> radiationFlux = e(RadiationFlux.MEGA_BECQUERELS,"radiation_flux", Comments.radiationFlux);
+    public final ConfigEnum<RadiationFlux> radiationFlux = e(RadiationFlux.BECQUERELS,"radiation_flux", Comments.radiationFlux);
 
 
     @Override
