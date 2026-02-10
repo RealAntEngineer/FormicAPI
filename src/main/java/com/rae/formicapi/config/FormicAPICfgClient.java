@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
 public class FormicAPICfgClient extends ConfigBase {
 
 
-    public final FormicAPIUnits units = nested(0, FormicAPIUnits::new, Comments.units);
+    public final UnitConfig units = nested(0, UnitConfig::new, Comments.units);
     @Override
     public @NotNull String getName() {
         return FormicAPI.MODID +".client";
@@ -16,9 +16,6 @@ public class FormicAPICfgClient extends ConfigBase {
 
     private static class Comments {
         static String units = "Units used";
-        static String nuclear = "Graphic config for nuclear";
-        static String nuclearParticle = "Radiation Particles";
-
     }
 
 }

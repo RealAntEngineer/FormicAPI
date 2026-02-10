@@ -2,37 +2,18 @@ plugins {
     id 'idea'
     id 'maven-publish'
     id 'java-library'
-    id 'org.jreleaser' version '1.17.0'
     id 'net.neoforged.moddev' version '2.0.78'
 
 }
 
-
-import org.slf4j.event.Level
-
-import java.nio.file.Files
-import java.nio.file.Paths
-
-def loadEnv() {
-    def envFile = rootProject.file(".env")
-    if (envFile.exists()) {
-        envFile.eachLine { line ->
-            def matcher = line =~ /^\s*([\w\.]+)\s*=\s*(.*)\s*$/
-            if (matcher.matches()) {
-                def key = matcher[0][1]
-                def value = matcher[0][2]
-                System.setProperty(key, value)
-            }
-        }
-    }
-}
-loadEnv()
 version = minecraft_version + "-" + mod_version
 group = mod_group_id
 
 base {
     archivesName = mod_id
 }
+
+jarJar.enable()
 
 // Mojang ships Java 17 to end users in 1.18+, so your mod should target Java 17.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -100,7 +81,7 @@ neoForge {
             // Recommended logging level for the console
             // You can set various levels here.
             // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
-            logLevel = Level.WARN
+            //logLevel = Level.WARN
 
 
         }
@@ -171,7 +152,9 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
     //x chart to plot things
-    implementation("org.knowm.xchart:xchart:3.2.2")
+    jarJar(implementation("org.knowm.xchart:xchart:3.2.2")){
+        jarJar.ranged(it, '[3.2.2,)')
+    }
 
 }
 
@@ -208,6 +191,9 @@ tasks.test {
     useJUnitPlatform()
     debug = true;
 }
+
+jar.finalizedBy('reobfJar')
+tasks.jarJar.finalizedBy('reobfJarJar')
 // However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
 // tasks.named('publish').configure {
 //     dependsOn 'reobfJar'
@@ -216,7 +202,11 @@ tasks.test {
 publishing {
     publications {
         mavenJava(MavenPublication) {
+            artifactId = "FormicAPI" // ✅ no spaces or invalid chars
+
             from components.java
+            fg.component(it)
+            jarJar.component(it)
         }
     }
 }

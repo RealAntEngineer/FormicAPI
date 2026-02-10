@@ -1,5 +1,7 @@
 package com.rae.formicapi.math.data;
 
+import com.mojang.serialization.Codec;
+
 import java.util.function.DoubleUnaryOperator;
 
 public enum StepMode {
@@ -19,4 +21,9 @@ public enum StepMode {
         this.forward = forward;
         this.inverse = inverse;
     }
+    public static final Codec<StepMode> CODEC = Codec.STRING.xmap(
+            StepMode::valueOf,
+            StepMode::name
+    );
+
 }

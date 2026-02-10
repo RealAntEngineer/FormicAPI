@@ -4,15 +4,16 @@ import com.rae.formicapi.units.Pressure;
 import com.rae.formicapi.units.RadiationFlux;
 import com.rae.formicapi.units.Temperature;
 import net.createmod.catnip.config.ConfigBase;
+import org.jetbrains.annotations.NotNull;
 
-public class FormicAPIUnits extends ConfigBase {
+public class UnitConfig extends ConfigBase {
     public final ConfigEnum<Temperature> temperature = e(Temperature.CELSIUS,"temperature", Comments.temperature);
     public final ConfigEnum<Pressure> pressure = e(Pressure.ATMOSPHERES,"pressure", Comments.pressure);
-    public final ConfigEnum<RadiationFlux> radiationFlux = e(RadiationFlux.MEGA_BECQUERELS,"radiation_flux", Comments.radiationFlux);
+    public final ConfigEnum<RadiationFlux> radiationFlux = e(RadiationFlux.BECQUERELS,"radiation_flux", Comments.radiationFlux);
 
 
     @Override
-    public String getName() {
+    public @NotNull String getName() {
         return "units";
     }
     private static class Comments {
