@@ -82,20 +82,8 @@ public class LeastSquare {
 
     /** Multiply by AᵀA efficiently: temp = A*p, result = Aᵀ*temp */
     private static void multiplyAtA(Matrix A, double[] p, double[] temp, double[] result) {
-        int n = A.rows();
-        int m = A.cols();
-
-        // temp = A * p
-        for (int i = 0; i < n; i++) {
-            temp[i] = 0;
-            for (int j = 0; j < m; j++) temp[i] += A.get(i, j) * p[j];
-        }
-
-        // result = Aᵀ * temp
-        for (int j = 0; j < m; j++) {
-            result[j] = 0;
-            for (int i = 0; i < n; i++) result[j] += A.get(i, j) * temp[i];
-        }
+        A.multiply(p, temp);
+        A.transposeMultiply(temp, result);
     }
 
     private static double dot(double[] a, double[] b) {

@@ -1,8 +1,6 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.math.operators.DenseMatrix;
-import com.rae.formicapi.math.operators.HashSparseMatrix;
-import com.rae.formicapi.math.operators.MutableMatrix;
+import com.rae.formicapi.math.operators.*;
 
 public class SimulationContext {
 
@@ -13,7 +11,7 @@ public class SimulationContext {
         if (useDense) {
             matrix = new DenseMatrix(numNodes, numNodes);
         } else {
-            matrix = new HashSparseMatrix(numNodes, numNodes);
+            matrix = new DynamicCSRMatrix(numNodes, numNodes);
         }
         rhs = new double[numNodes];
     }

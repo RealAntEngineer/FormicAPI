@@ -1,9 +1,6 @@
 package com.rae.formicapi.math.operators;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class CSRMatrix implements Matrix {
 
@@ -63,6 +60,16 @@ public class CSRMatrix implements Matrix {
             }
 
             result[r] = sum;
+        }
+    }
+
+    @Override
+    public void transposeMultiply(double[] x, double[] result) {
+        Arrays.fill(result, 0.0);
+        for (int r = 0; r < rows; r++) {
+            for (int k = rowPtr[r]; k < rowPtr[r + 1]; k++) {
+                result[colIndex[k]] += values[k] * x[r];
+            }
         }
     }
 

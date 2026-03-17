@@ -1,14 +1,17 @@
 package com.rae.formicapi.thermal_nodes;
 
+import com.rae.formicapi.simulation.nodal.PhysicsDomain;
 import com.rae.formicapi.simulation.nodal.core.FixedValueNode;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.simulation.nodal.thermal.Conduction;
+import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.nodal.thermal.Convection;
 import com.rae.formicapi.simulation.nodal.thermal.SteadyStateSolver;
 import org.junit.jupiter.api.Test;
 
-import static com.rae.formicapi.Helper.savePlateHeatmap;
+import java.util.ArrayList;
+
+import static com.rae.formicapi.thermal_nodes.Helper.savePlateHeatmap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -20,11 +23,11 @@ public class TwoLayerPlateTest {
         SimulationModel model = new SimulationModel();
 
         // Unknown node
-        UnknownNode layer1 = new UnknownNode(0);
+        UnknownNode layer1 = new UnknownNode(PhysicsDomain.THERMAL,0);
 
         // Boundary nodes
-        FixedValueNode hot = new FixedValueNode(100);
-        FixedValueNode ambient = new FixedValueNode(25);
+        FixedValueNode hot = new FixedValueNode(PhysicsDomain.THERMAL,100);
+        FixedValueNode ambient = new FixedValueNode(PhysicsDomain.THERMAL,25);
 
         // Register nodes in the model
         model.addNode(layer1);
@@ -36,7 +39,7 @@ public class TwoLayerPlateTest {
         double h = 10;
 
         // Physics
-        model.addComponent(new Conduction(hot, layer1, G));
+        model.addComponent(new LinearLink(hot, layer1, G));
         model.addComponent(new Convection(layer1, ambient, h));
 
         // Solve
@@ -60,14 +63,14 @@ public class TwoLayerPlateTest {
         // Create unknown nodes
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
-                nodes[i][j] = new UnknownNode( 0); // unique ID
+                nodes[i][j] = new UnknownNode(PhysicsDomain.THERMAL, 0); // unique ID
                 model.addNode(nodes[i][j]);
             }
         }
 
         // Boundary nodes
-        FixedValueNode hotLeft = new FixedValueNode(100);
-        FixedValueNode coldRight = new FixedValueNode(25);
+        FixedValueNode hotLeft = new FixedValueNode(PhysicsDomain.THERMAL,100);
+        FixedValueNode coldRight = new FixedValueNode(PhysicsDomain.THERMAL,25);
         model.addNode(hotLeft);
         model.addNode(coldRight);
 
@@ -79,19 +82,19 @@ public class TwoLayerPlateTest {
                 // Right neighbor
                 if (i < Nx - 1) {
                     double Gx = 5 + i; // non-uniform across X
-                    model.addComponent(new Conduction(node, nodes[i + 1][j], Gx));
+                    model.addComponent(new LinearLink(node, nodes[i + 1][j], Gx));
                 }
 
                 // Top neighbor
                 if (j < Ny - 1) {
                     double Gy = 10 + j; // non-uniform across Y
-                    model.addComponent(new Conduction(node, nodes[i][j + 1], Gy));
+                    model.addComponent(new LinearLink(node, nodes[i][j + 1], Gy));
                 }
 
                 // Connect leftmost nodes to hot boundary
                 if (i == 0) {
                     double G_left = 8; // conduction to hot side
-                    model.addComponent(new Conduction(hotLeft, node, G_left));
+                    model.addComponent(new LinearLink(hotLeft, node, G_left));
                 }
 
                 // Connect rightmost nodes to cold boundary via convection
@@ -126,13 +129,13 @@ public class TwoLayerPlateTest {
         // Create unknown nodes
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
-                nodes[i][j] = new UnknownNode(25); // start at ambient
+                nodes[i][j] = new UnknownNode(PhysicsDomain.THERMAL,25); // start at ambient
                 model.addNode(nodes[i][j]);
             }
         }
 
         // Convection boundary nodes (ambient at all edges)
-        FixedValueNode ambient = new FixedValueNode(25);
+        FixedValueNode ambient = new FixedValueNode(PhysicsDomain.THERMAL,25);
         model.addNode(ambient);
         double h = 10; // uniform convection coefficient
 
@@ -152,23 +155,23 @@ public class TwoLayerPlateTest {
             for (int j = 0; j < Ny; j++) {
                 UnknownNode node = nodes[i][j];
 
-                if (i < Nx - 1) model.addComponent(new Conduction(node, nodes[i + 1][j], G));
-                if (j < Ny - 1) model.addComponent(new Conduction(node, nodes[i][j + 1], G));
+                if (i < Nx - 1) model.addComponent(new LinearLink(node, nodes[i + 1][j], G));
+                if (j < Ny - 1) model.addComponent(new LinearLink(node, nodes[i][j + 1], G));
             }
         }
 
         // Add hot spot in the center
         int cx = Nx / 2;
         int cy = Ny / 2;
-        FixedValueNode hotSpot = new FixedValueNode( 100);
+        FixedValueNode hotSpot = new FixedValueNode( PhysicsDomain.THERMAL,100);
         model.addNode(hotSpot);
-        model.addComponent(new Conduction(hotSpot, nodes[cx][cy], G));
+        model.addComponent(new LinearLink(hotSpot, nodes[cx][cy], G));
 
         // Solve
         SteadyStateSolver.solve(model);
 
         // Print results
-        savePlateHeatmap(nodes, "2d_plate_heatmap.png");
+        savePlateHeatmap(nodes, new ArrayList<>(),"2d_plate_heatmap.png");
 
         // Basic sanity check: temperatures should be between ambient and hot spot
         for (int i = 0; i < Nx; i++) {
@@ -192,7 +195,7 @@ public class TwoLayerPlateTest {
         // Create unknown nodes
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
-                nodes[i][j] = new UnknownNode(25); // start at ambient
+                nodes[i][j] = new UnknownNode(PhysicsDomain.THERMAL,25); // start at ambient
                 model.addNode(nodes[i][j]);
             }
         }
@@ -203,20 +206,20 @@ public class TwoLayerPlateTest {
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
                 UnknownNode node = nodes[i][j];
-                if (i < Nx - 1) model.addComponent(new Conduction(node, nodes[i + 1][j], Gx));
-                if (j < Ny - 1) model.addComponent(new Conduction(node, nodes[i][j + 1], Gy));
+                if (i < Nx - 1) model.addComponent(new LinearLink(node, nodes[i + 1][j], Gx));
+                if (j < Ny - 1) model.addComponent(new LinearLink(node, nodes[i][j + 1], Gy));
             }
         }
 
         // Hot base (left edge connected to engine or heat source)
-        FixedValueNode hotBase = new FixedValueNode(100);
+        FixedValueNode hotBase = new FixedValueNode(PhysicsDomain.THERMAL,100);
         model.addNode(hotBase);
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(new Conduction(hotBase, nodes[0][j], Gx));
+            model.addComponent(new LinearLink(hotBase, nodes[0][j], Gx));
         }
 
         // Convection to ambient on exposed surfaces (right edge + top/bottom surfaces)
-        FixedValueNode ambient = new FixedValueNode(25);
+        FixedValueNode ambient = new FixedValueNode(PhysicsDomain.THERMAL,25);
         model.addNode(ambient);
         double h = 5; // uniform convection coefficient
 
@@ -236,7 +239,7 @@ public class TwoLayerPlateTest {
 
 
         // Save heatmap image
-        savePlateHeatmap(nodes, "radiator_blade.png");
+        savePlateHeatmap(nodes, new ArrayList<>(), "radiator_blade.png");
 
         // Basic sanity check
         for (int i = 0; i < Nx; i++) {

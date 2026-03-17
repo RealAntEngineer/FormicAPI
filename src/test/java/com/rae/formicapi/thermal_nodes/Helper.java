@@ -1,24 +1,68 @@
-package com.rae.formicapi;
+package com.rae.formicapi.thermal_nodes;
 
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
+import com.rae.formicapi.simulation.nodal.thermal.PlateNodeHelper;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class Helper {
 
-    public static void savePlateHeatmap(UnknownNode[][] nodes, String filename) {
+    public static void savePlateHeatmap(UnknownNode[][] nodes, ArrayList<PlateNodeHelper.Layer> layers, String filename) {
 
         int Nx = nodes.length;
         int Ny = nodes[0].length;
 
         // ------------------------------------------------
-        // Find min and max temperatures
+        // Compute physical pixel sizes per column and row
+        // ------------------------------------------------
+
+        int pixelsPerMeter = 2000; // tune this to get a reasonable image size
+
+        // ------------------------------------------------
+        // Compute cell sizes — fallback to uniform if no layers
+        // ------------------------------------------------
+
+        int   cellW;
+        int[] cellH = new int[Ny];
+
+        if (layers == null || layers.isEmpty()) {
+
+            int fallback = 50;
+            cellW = fallback;
+            Arrays.fill(cellH, fallback);
+
+        } else {
+
+            double dx = layers.get(0).length / layers.get(0).nx;
+            cellW = Math.max(1, (int) (dx * pixelsPerMeter));
+
+            int rowIndex = 0;
+            for (PlateNodeHelper.Layer layer : layers) {
+                double dy = layer.thickness / layer.ny;
+                int h = Math.max(1, (int) (dy * pixelsPerMeter));
+                for (int j = 0; j < layer.ny; j++) {
+                    cellH[rowIndex++] = h;
+                }
+            }
+        }
+
+        // ------------------------------------------------
+        // Compute total image size
+        // ------------------------------------------------
+
+        int imageW = Nx * cellW;
+        int imageH = 0;
+        for (int h : cellH) imageH += h;
+
+        // ------------------------------------------------
+        // Find min / max temperatures
         // ------------------------------------------------
 
         double T_min = Double.MAX_VALUE;
@@ -26,59 +70,53 @@ public class Helper {
 
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
-
                 double T = nodes[i][j].getValue();
-
                 if (T < T_min) T_min = T;
                 if (T > T_max) T_max = T;
-
             }
         }
 
-        // ------------------------------------------------
-        // Clamp range to reduce outlier influence
-        // ------------------------------------------------
-
-        double range = T_max - T_min;
-
+        double range  = T_max - T_min;
         double T_low  = T_min + 0.05 * range;
         double T_high = T_max - 0.05 * range;
 
         // ------------------------------------------------
-        // Create image
+        // Precompute row Y offsets (bottom-up in physical space)
         // ------------------------------------------------
 
-        int scale = 50;
-
-        BufferedImage image =
-                new BufferedImage(Nx * scale, Ny * scale, BufferedImage.TYPE_INT_RGB);
+        int[] rowY = new int[Ny + 1]; // rowY[j] = pixel y of bottom edge of row j
+        rowY[0] = 0;
+        for (int j = 0; j < Ny; j++) {
+            rowY[j + 1] = rowY[j] + cellH[j];
+        }
 
         // ------------------------------------------------
-        // Fill pixels
+        // Create and fill image
         // ------------------------------------------------
+
+        BufferedImage image = new BufferedImage(imageW, imageH, BufferedImage.TYPE_INT_RGB);
 
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
 
-                double T = nodes[i][j].getValue();
-
-                // normalize
+                double T          = nodes[i][j].getValue();
                 double normalized = (T - T_low) / (T_high - T_low);
-
-                // clamp
-                normalized = Math.max(0, Math.min(1, normalized));
-
-                // nonlinear scaling (optional but recommended)
-                normalized = Math.sqrt(normalized);
+                normalized        = Math.max(0, Math.min(1, normalized));
+                normalized        = Math.sqrt(normalized);
 
                 Color color = heatmap(normalized);
+                int rgb     = color.getRGB();
 
-                // draw block
-                for (int x = i * scale; x < (i + 1) * scale; x++) {
-                    for (int y = (Ny - j - 1) * scale; y < (Ny - j) * scale; y++) {
+                int xStart = i * cellW;
+                int xEnd   = xStart + cellW;
 
-                        image.setRGB(x, y, color.getRGB());
+                // flip vertically: j=0 is bottom physically
+                int yStart = imageH - rowY[j + 1];
+                int yEnd   = imageH - rowY[j];
 
+                for (int x = xStart; x < xEnd; x++) {
+                    for (int y = yStart; y < yEnd; y++) {
+                        image.setRGB(x, y, rgb);
                     }
                 }
             }
@@ -89,14 +127,10 @@ public class Helper {
         // ------------------------------------------------
 
         try {
-
             Path path = Paths.get("test-output", filename);
             Files.createDirectories(path.getParent());
-
             ImageIO.write(image, "png", path.toFile());
-
             System.out.println("Saved heatmap to " + filename);
-
         } catch (Exception e) {
             e.printStackTrace();
         }

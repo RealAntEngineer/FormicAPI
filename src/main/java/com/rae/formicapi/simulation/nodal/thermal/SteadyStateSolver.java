@@ -1,5 +1,7 @@
 package com.rae.formicapi.simulation.nodal.thermal;
 
+import com.rae.formicapi.math.operators.CSRMatrix;
+import com.rae.formicapi.math.operators.HashSparseMatrix;
 import com.rae.formicapi.math.solvers.ConjugateGradient;
 import com.rae.formicapi.math.solvers.LeastSquare;
 import com.rae.formicapi.simulation.nodal.core.*;
@@ -15,7 +17,7 @@ public class SteadyStateSolver {
 
 
 
-        SimulationContext ctx = new SimulationContext(n, true);
+        SimulationContext ctx = new SimulationContext(n, false);
 
         double[] x_init = new double[n];
         int id = 0;

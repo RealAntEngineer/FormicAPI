@@ -1,15 +1,19 @@
 package com.rae.formicapi.thermal_nodes;
 
+import com.rae.formicapi.simulation.nodal.PhysicsDomain;
 import com.rae.formicapi.simulation.nodal.core.FixedValueNode;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.simulation.nodal.thermal.Conduction;
+import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.nodal.thermal.Convection;
 import com.rae.formicapi.simulation.nodal.thermal.PlateNodeHelper;
 import com.rae.formicapi.simulation.nodal.thermal.SteadyStateSolver;
+import com.rae.formicapi.simulation.physical.material.Material;
 import org.junit.jupiter.api.Test;
 
-import static com.rae.formicapi.Helper.savePlateHeatmap;
+import java.util.ArrayList;
+
+import static com.rae.formicapi.thermal_nodes.Helper.savePlateHeatmap;
 
 public class PlateHelperTest {
     @Test
@@ -18,25 +22,25 @@ public class PlateHelperTest {
         SimulationModel model = new SimulationModel();
         PlateNodeHelper helper = new PlateNodeHelper();
 
-        helper.addLayer(new PlateNodeHelper.Layer(PlateNodeHelper.Material.ALUMINUM, 1,0.005, 10, 3));
-        helper.addLayer(new PlateNodeHelper.Layer(PlateNodeHelper.Material.STEEL, 1,0.01, 10, 4));
+        helper.addLayer(new PlateNodeHelper.Layer(Material.STEEL, 0.5,0.05, 100, 10));
+        helper.addLayer(new PlateNodeHelper.Layer(Material.COPPER, 0.5,0.1, 100, 3));
 
         UnknownNode[][] nodes = helper.createPlateNodes(model);
 
         int Nx = nodes.length;
         int Ny = nodes[0].length;
 
-        FixedValueNode ambient = new FixedValueNode(25);
+        FixedValueNode ambient = new FixedValueNode(PhysicsDomain.THERMAL,25);
         model.addNode(ambient);
 
-        FixedValueNode hotPlate = new FixedValueNode(120);
+        FixedValueNode hotPlate = new FixedValueNode(PhysicsDomain.THERMAL,120);
         model.addNode(hotPlate);
 
         double h = 10;
 
         // Heated bottom
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new Conduction(hotPlate, node[0], 20));
+            model.addComponent(new LinearLink(hotPlate, node[0], 20));
         }
 
         // Convection elsewhere
@@ -51,6 +55,6 @@ public class PlateHelperTest {
 
         SteadyStateSolver.solve(model);
 
-        savePlateHeatmap(nodes, "multi_layer_plate.png");
+        savePlateHeatmap(nodes, new ArrayList<>(helper.getLayers()),"multi_layer_plate.png");
     }
 }

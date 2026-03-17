@@ -1,44 +1,49 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-public class UnknownNode implements Node {
+import com.rae.formicapi.simulation.nodal.PhysicsDomain;
 
-    private boolean setup = false;
-    private int id;
+/**
+ * A node whose value is unknown and solved for by the linear system.
+ *
+ * <p>Carries a capacitance term used by the time-integration layer for
+ * transient simulations (e.g. thermal capacity, moment of inertia).
+ * In steady-state solves, the capacitance has no effect.
+ *
+ * @see Node
+ * @see PhysicsDomain
+ */
+public class UnknownNode extends Node {
+
     private double value;
     private final double capacitance;
 
-    public UnknownNode(double capacitance) {
+    /**
+     * Creates an unknown node in the given domain.
+     *
+     * @param domain      the physical domain of this node
+     * @param capacitance the storage term (e.g. Cp [J/K], J [kg·m²])
+     */
+    public UnknownNode(PhysicsDomain domain, double capacitance) {
+        super(domain);
         this.capacitance = capacitance;
     }
 
-    @Override
-    public boolean isUnknown() {
-        return true;
-    }
-
-    @Override
-    public int getId() {
-        if (!setup) throw new IllegalStateException("Node::getId called before association");
-        return id;
-    }
-
-    @Override
-    public void setId(int id) {
-        if (setup) throw new IllegalStateException("Node::setId called after association");
-        this.id = id;
-        this.setup = true;
-    }
-
-    @Override
-    public double getValue() {
-        return value;
-    }
-
-    public void setValue(double value) {
-        this.value = value;
-    }
-
+    /**
+     * Returns the storage term associated with this node.
+     *
+     * @return capacitance (e.g. Cp, J, C depending on domain)
+     */
     public double getCapacitance() {
         return capacitance;
+    }
+
+    @Override public boolean isUnknown()                { return true;  }
+    @Override public double getValue()                  { return value; }
+    @Override public void setValue(double value)        { this.value = value; }
+
+    @Override
+    public String toString() {
+        return String.format("UnknownNode[%s] id=%d  %s = %.4f",
+                getDomain().name(), getId(), getDomain().valueName, value);
     }
 }

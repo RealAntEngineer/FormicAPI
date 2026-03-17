@@ -1,7 +1,10 @@
 package com.rae.formicapi.simulation.nodal.thermal;
 
+import com.rae.formicapi.simulation.nodal.PhysicsDomain;
+import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
+import com.rae.formicapi.simulation.physical.material.Material;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +27,11 @@ public class PlateNodeHelper {
         }
     }
 
-    private List<Layer> layers = new ArrayList<>();
+    public List<Layer> getLayers() {
+        return layers;
+    }
+
+    private final List<Layer> layers = new ArrayList<>();
 
     public void addLayer(Layer layer) {
         layers.add(layer);
@@ -46,7 +53,7 @@ public class PlateNodeHelper {
         for (Layer layer : layers) {
             for (int j = 0; j < layer.ny; j++) {
                 for (int i = 0; i < layer.nx; i++) {
-                    nodes[i][currentY + j] = new UnknownNode( 25); // start at ambient
+                    nodes[i][currentY + j] = new UnknownNode(PhysicsDomain.THERMAL, 25); // start at ambient
                     model.addNode(nodes[i][currentY + j]);
                 }
             }
@@ -66,37 +73,42 @@ public class PlateNodeHelper {
                     // Right neighbor
                     if (i < layer.nx - 1) {
                         double Gx = layer.material.getConductivity() * dy / dx;
-                        model.addComponent(new Conduction(node, nodes[i + 1][currentY + j], Gx));
+                        model.addComponent(new LinearLink(node, nodes[i + 1][currentY + j], Gx));
                     }
 
                     // Top neighbor
                     if (j < layer.ny - 1) {
                         double Gy = layer.material.getConductivity() * dx / dy;
-                        model.addComponent(new Conduction(node, nodes[i][currentY + j + 1], Gy));
+                        model.addComponent(new LinearLink(node, nodes[i][currentY + j + 1], Gy));
                     }
                 }
             }
             currentY += layer.ny;
         }
+        // Add conduction between layers
+        int offsetY = 0;
+        for (int l = 0; l < layers.size() - 1; l++) {
+            Layer bottom = layers.get(l);
+            Layer top    = layers.get(l + 1);
 
+            double dy_bottom = bottom.thickness / bottom.ny;
+            double dy_top    = top.thickness    / top.ny;
+            double dx        = bottom.length    / bottom.nx; // nx must match
+
+            // Interface conductance: harmonic mean of the two half-cells
+            double G_bottom = bottom.material.getConductivity() * dx / (dy_bottom / 2.0);
+            double G_top    = top.material.getConductivity()    * dx / (dy_top    / 2.0);
+            double G_interface = 1.0 / (1.0 / G_bottom + 1.0 / G_top);
+
+            int lastJ  = offsetY + bottom.ny - 1;  // last row of bottom layer
+            int firstJ = offsetY + bottom.ny;      // first row of top layer
+
+            for (int i = 0; i < bottom.nx; i++) {
+                model.addComponent(new LinearLink(nodes[i][lastJ], nodes[i][firstJ], G_interface));
+            }
+
+            offsetY += bottom.ny;
+        }
         return nodes;
-    }
-
-    public enum Material {
-        ALUMINUM(205),
-        COPPER(385),
-        STEEL(50),
-        WATER(0.6),
-        AIR(0.025);
-
-        private final double conductivity; // W/m·K
-
-        Material(double conductivity) {
-            this.conductivity = conductivity;
-        }
-
-        public double getConductivity() {
-            return conductivity;
-        }
     }
 }

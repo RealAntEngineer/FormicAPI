@@ -1,45 +1,40 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-public class FixedValueNode implements Node {
+import com.rae.formicapi.simulation.nodal.PhysicsDomain;
+
+/**
+ * A node with a fixed, prescribed value acting as a Dirichlet boundary condition.
+ *
+ * <p>Fixed nodes do not contribute rows to the system matrix. Their known
+ * values influence unknown nodes through the components that connect them.
+ *
+ * <p>Calls to {@link #setValue(double)} are silently ignored.
+ *
+ * @see Node
+ * @see PhysicsDomain
+ */
+public class FixedValueNode extends Node {
 
     private final double value;
-    private boolean setup = false;
-    private int id;
 
-    public FixedValueNode(double value) {
+    /**
+     * Creates a fixed-value node in the given domain.
+     *
+     * @param domain the physical domain of this node
+     * @param value  the prescribed scalar value (e.g. temperature, voltage)
+     */
+    public FixedValueNode(PhysicsDomain domain, double value) {
+        super(domain);
         this.value = value;
-        //this.id = id;
     }
 
-    @Override
-    public boolean isUnknown() {
-        return false;
-    }
+    @Override public boolean isUnknown()             { return false; }
+    @Override public double getValue()               { return value; }
+    @Override public void setValue(double value)     { /* fixed — ignore */ }
 
     @Override
-    public int getId() {
-        if (!setup) throw new IllegalStateException("getId() called before association");
-        return id;
-    }
-
-    @Override
-    public void setId(int id) {
-        this.id = id;
-        this.setup = true;
-    }
-    /*
-    @Override
-    public int getId() {
-        throw new IllegalStateException("Fixed node has no matrix id");
-    }*/
-
-    @Override
-    public double getValue() {
-        return value;
-    }
-
-    @Override
-    public void setValue(double value) {
-        //ignore set value, we are fixed.
+    public String toString() {
+        return String.format("FixedNode[%s] id=%d  %s = %.4f",
+                getDomain().name(), getId(), getDomain().valueName, value);
     }
 }
