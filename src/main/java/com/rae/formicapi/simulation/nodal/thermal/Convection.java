@@ -1,10 +1,11 @@
 package com.rae.formicapi.simulation.nodal.thermal;
 
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.Node;
-import com.rae.formicapi.simulation.nodal.core.PhysicsComponent;
+import com.rae.formicapi.simulation.nodal.core.DomainComponent;
 import com.rae.formicapi.simulation.nodal.core.SimulationContext;
 
-public class Convection implements PhysicsComponent {
+public class Convection extends DomainComponent {
 
     private final Node node;
     private final Node ambient;
@@ -14,6 +15,11 @@ public class Convection implements PhysicsComponent {
         this.node = node;
         this.ambient = ambient;
         this.h = h;
+    }
+
+    @Override
+    public PhysicsType getDomain() {
+        return PhysicsType.THERMAL;
     }
 
     @Override

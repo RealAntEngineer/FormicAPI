@@ -1,8 +1,9 @@
-package com.rae.formicapi.simulation.nodal.hydrolic;
+package com.rae.formicapi.simulation.nodal.thermal;
 
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.nodal.core.Node;
-import com.rae.formicapi.simulation.nodal.core.PhysicsComponent;
+import com.rae.formicapi.simulation.nodal.core.DomainComponent;
 import com.rae.formicapi.simulation.nodal.core.SimulationContext;
 
 /**
@@ -33,10 +34,10 @@ import com.rae.formicapi.simulation.nodal.core.SimulationContext;
  * during boundary condition assembly.
  *
  * @see LinearLink
- * @see PhysicsComponent
+ * @see DomainComponent
  * @see SimulationContext
  */
-public class Advection implements PhysicsComponent {
+public class Advection extends DomainComponent {
 
     private final Node a;  // upstream node
     private final Node b;  // downstream node
@@ -80,5 +81,10 @@ public class Advection implements PhysicsComponent {
         }
 
         // both fixed → nothing
+    }
+
+    @Override
+    public PhysicsType getDomain() {
+        return PhysicsType.THERMAL;
     }
 }

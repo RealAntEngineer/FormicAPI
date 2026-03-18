@@ -1,11 +1,11 @@
 package com.rae.formicapi.simulation.nodal.radiative;
 
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.Node;
-import com.rae.formicapi.simulation.nodal.core.PhysicsComponent;
+import com.rae.formicapi.simulation.nodal.core.DomainComponent;
 import com.rae.formicapi.simulation.nodal.core.SimulationContext;
-import com.rae.formicapi.simulation.nodal.core.UnknownNode;
 
-public class Radiation implements PhysicsComponent {
+public class Radiation extends DomainComponent {
 
     private static final double SIGMA = 5.670374419e-8;
 
@@ -20,6 +20,11 @@ public class Radiation implements PhysicsComponent {
         this.b = b;
         this.emissivity = emissivity;
         this.area = area;
+    }
+
+    @Override
+    public PhysicsType getDomain() {
+        return PhysicsType.THERMAL;//it's also radiative (if there is reflexions)
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.rae.formicapi.simulation.nodal.core;
 
+import com.rae.formicapi.simulation.nodal.PhysicsType;
+
 /**
  * Represents a generic linear flow link between two nodes in a nodal network.
  *
@@ -36,13 +38,14 @@ package com.rae.formicapi.simulation.nodal.core;
  * <p>This component is suitable for any linear nodal network simulation:
  * thermal, hydraulic, electrical, or other flow-based systems.
  *
- * @see PhysicsComponent
+ * @see DomainComponent
  * @see SimulationContext
  */
-public class LinearLink implements PhysicsComponent {
+public class LinearLink extends DomainComponent {
 
     private final Node a;
     private final Node b;
+    private final PhysicsType type;
     private final double conductance;
 
     /**
@@ -52,9 +55,10 @@ public class LinearLink implements PhysicsComponent {
      * @param b second node
      * @param conductance linear transfer coefficient (must be positive)
      */
-    public LinearLink(Node a, Node b, double conductance) {
+    public LinearLink(Node a, Node b, PhysicsType type, double conductance) {
         this.a = a;
         this.b = b;
+        this.type = type;
         this.conductance = conductance;
     }
 
@@ -86,5 +90,10 @@ public class LinearLink implements PhysicsComponent {
         }
 
         // both fixed → nothing
+    }
+
+    @Override
+    public PhysicsType getDomain() {
+        return type;
     }
 }

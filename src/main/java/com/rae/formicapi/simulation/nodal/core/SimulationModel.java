@@ -11,7 +11,7 @@ public class SimulationModel {
     private static final List<PhysicsType> SOLVE_ORDER = List.of(PhysicsType.MECHANICAL, PhysicsType.HYDRAULIC, PhysicsType.THERMAL);
 
     private final Map<PhysicsType, DomainModel> domains = new EnumMap<>(PhysicsType.class);
-    private final List<CoupledComponent> couplings = new ArrayList<>();
+    private final List<SimulationComponent> components = new ArrayList<>();
 
     public DomainModel domain(PhysicsType type) {
         return domains.computeIfAbsent(type, DomainModel::new);
@@ -21,16 +21,12 @@ public class SimulationModel {
         return domain(node.getDomain()).addNode(node);
     }
 
-    public void addComponent(PhysicsType type, PhysicsComponent component) {
-        domain(type).addComponent(component);
-    }
-
-    public void addCoupling(CoupledComponent coupling) {
-        couplings.add(coupling);
+    public void addComponent(SimulationComponent coupling) {
+        components.add(coupling);
     }
 
     public Map<PhysicsType, DomainModel> getDomains() { return domains; }
-    public List<CoupledComponent> getCouplings()      { return couplings; }
+    public List<SimulationComponent> getComponents()      { return components; }
 
     public List<PhysicsType> getSolveOrder() {
         return SOLVE_ORDER;

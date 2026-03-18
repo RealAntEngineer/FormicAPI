@@ -73,13 +73,13 @@ public class PlateNodeHelper {
                     // Right neighbor
                     if (i < layer.nx - 1) {
                         double Gx = layer.material.getConductivity() * dy / dx;
-                        model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i + 1][currentY + j], Gx));
+                        model.addComponent(new LinearLink(node, nodes[i + 1][currentY + j], PhysicsType.THERMAL,Gx));
                     }
 
                     // Top neighbor
                     if (j < layer.ny - 1) {
                         double Gy = layer.material.getConductivity() * dx / dy;
-                        model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i][currentY + j + 1], Gy));
+                        model.addComponent(new LinearLink(node, nodes[i][currentY + j + 1], PhysicsType.THERMAL,Gy));
                     }
                 }
             }
@@ -104,7 +104,7 @@ public class PlateNodeHelper {
             int firstJ = offsetY + bottom.ny;      // first row of top layer
 
             for (int i = 0; i < bottom.nx; i++) {
-                model.addComponent(PhysicsType.THERMAL,new LinearLink(nodes[i][lastJ], nodes[i][firstJ], G_interface));
+                model.addComponent(new LinearLink(nodes[i][lastJ], nodes[i][firstJ], PhysicsType.THERMAL,G_interface));
             }
 
             offsetY += bottom.ny;

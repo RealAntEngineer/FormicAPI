@@ -1,10 +1,11 @@
 package com.rae.formicapi.simulation.nodal.mechanical;
 
 import com.rae.formicapi.simulation.nodal.PhysicsType;
-import com.rae.formicapi.simulation.nodal.core.LinearLink;
-import com.rae.formicapi.simulation.nodal.core.Node;
-import com.rae.formicapi.simulation.nodal.core.PhysicsComponent;
-import com.rae.formicapi.simulation.nodal.core.SimulationContext;
+import com.rae.formicapi.simulation.nodal.core.*;
+
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Represents a viscous rotational damper between two mechanical nodes,
@@ -47,7 +48,7 @@ import com.rae.formicapi.simulation.nodal.core.SimulationContext;
  * @see LinearLink
  * @see PhysicsType
  */
-public class RotationalDamper implements PhysicsComponent {
+public class RotationalDamper implements SimulationComponent {
 
     private final Node a;
     private final Node b;
@@ -80,56 +81,38 @@ public class RotationalDamper implements PhysicsComponent {
         this.damping = damping;
     }
 
-    /**
-     * Stamps the mechanical damping contribution into the global system matrix.
-     *
-     * <p>Only the mechanical domain is stamped here. The thermal dissipation
-     * is handled externally via {@link #getDissipatedPower()}.
-     *
-     * @param ctx the simulation context containing the matrix and RHS
-     */
     @Override
-    public void stamp(SimulationContext ctx) {
-
-        boolean au = a.isUnknown();
-        boolean bu = b.isUnknown();
-        int i = a.getId();
-        int j = b.getId();
-
-        if (au) {
-            ctx.matrix.add(i, i,  damping);
-            ctx.matrix.add(i, j, -damping);
-        }
-
-        if (bu) {
-            ctx.matrix.add(j, j,  damping);
-            ctx.matrix.add(j, i, -damping);
-        }
+    public Set<PhysicsType> getDomains() {
+        return EnumSet.of(PhysicsType.MECHANICAL, PhysicsType.THERMAL);
     }
 
-    /**
-     * Returns the dissipated power based on the current (frozen) mechanical state.
-     *
-     * <p>This value should be read by the solver loop after the mechanical solve
-     * and injected as a heat source into the thermal network.
-     *
-     * <pre>
-     *     P = G · (ω_a - ω_b)²
-     * </pre>
-     *
-     * @return dissipated power P [W]
-     */
-    public double getDissipatedPower() {
-        double delta = a.getValue() - b.getValue();
-        return damping * delta * delta;
-    }
+    @Override
+    public void stamp(Map<PhysicsType, SimulationContext> contexts) {
 
-    /**
-     * Returns the thermal sink node that receives the dissipated power.
-     *
-     * @return the thermal {@link Node}
-     */
-    public Node getHeatNode() {
-        return heat;
+        SimulationContext mechCtx  = contexts.get(PhysicsType.MECHANICAL);
+        SimulationContext thermCtx = contexts.get(PhysicsType.THERMAL);
+
+        // mechanical stamp
+        if (mechCtx != null) {
+            boolean au = a.isUnknown();
+            boolean bu = b.isUnknown();
+            int i = a.getId();
+            int j = b.getId();
+
+            if (au) {
+                mechCtx.matrix.add(i, i,  damping);
+                mechCtx.matrix.add(i, j, -damping);
+            }
+            if (bu) {
+                mechCtx.matrix.add(j, j,  damping);
+                mechCtx.matrix.add(j, i, -damping);
+            }
+        }
+
+        // thermal injection from dissipated power
+        if (thermCtx != null && heat.isUnknown()) {
+            double delta = a.getValue() - b.getValue();
+            thermCtx.rhs[heat.getId()] += damping * delta * delta;
+        }
     }
 }
