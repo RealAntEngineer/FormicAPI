@@ -1,5 +1,6 @@
 package com.rae.formicapi.simulation.physical.core;
 
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.physical.ports.ThermalPort;
@@ -12,7 +13,7 @@ public class PortConnector {
             ThermalPort b,
             double conductance
     ) {
-        model.addComponent(new LinearLink(
+        model.addComponent(PhysicsType.THERMAL,new LinearLink(
                 a.getNode(),
                 b.getNode(),
                 conductance

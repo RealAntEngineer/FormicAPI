@@ -1,6 +1,6 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.simulation.nodal.PhysicsDomain;
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 
 /**
  * A node whose value is unknown and solved for by the linear system.
@@ -10,7 +10,7 @@ import com.rae.formicapi.simulation.nodal.PhysicsDomain;
  * In steady-state solves, the capacitance has no effect.
  *
  * @see Node
- * @see PhysicsDomain
+ * @see PhysicsType
  */
 public class UnknownNode extends Node {
 
@@ -23,7 +23,7 @@ public class UnknownNode extends Node {
      * @param domain      the physical domain of this node
      * @param capacitance the storage term (e.g. Cp [J/K], J [kg·m²])
      */
-    public UnknownNode(PhysicsDomain domain, double capacitance) {
+    public UnknownNode(PhysicsType domain, double capacitance) {
         super(domain);
         this.capacitance = capacitance;
     }

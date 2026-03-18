@@ -1,6 +1,6 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.simulation.nodal.PhysicsDomain;
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 
 /**
  * A node with a fixed, prescribed value acting as a Dirichlet boundary condition.
@@ -11,7 +11,7 @@ import com.rae.formicapi.simulation.nodal.PhysicsDomain;
  * <p>Calls to {@link #setValue(double)} are silently ignored.
  *
  * @see Node
- * @see PhysicsDomain
+ * @see PhysicsType
  */
 public class FixedValueNode extends Node {
 
@@ -23,7 +23,7 @@ public class FixedValueNode extends Node {
      * @param domain the physical domain of this node
      * @param value  the prescribed scalar value (e.g. temperature, voltage)
      */
-    public FixedValueNode(PhysicsDomain domain, double value) {
+    public FixedValueNode(PhysicsType domain, double value) {
         super(domain);
         this.value = value;
     }

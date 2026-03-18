@@ -1,6 +1,6 @@
 package com.rae.formicapi.simulation.nodal.thermal;
 
-import com.rae.formicapi.simulation.nodal.PhysicsDomain;
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
@@ -53,7 +53,7 @@ public class PlateNodeHelper {
         for (Layer layer : layers) {
             for (int j = 0; j < layer.ny; j++) {
                 for (int i = 0; i < layer.nx; i++) {
-                    nodes[i][currentY + j] = new UnknownNode(PhysicsDomain.THERMAL, 25); // start at ambient
+                    nodes[i][currentY + j] = new UnknownNode(PhysicsType.THERMAL, 25); // start at ambient
                     model.addNode(nodes[i][currentY + j]);
                 }
             }
@@ -73,13 +73,13 @@ public class PlateNodeHelper {
                     // Right neighbor
                     if (i < layer.nx - 1) {
                         double Gx = layer.material.getConductivity() * dy / dx;
-                        model.addComponent(new LinearLink(node, nodes[i + 1][currentY + j], Gx));
+                        model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i + 1][currentY + j], Gx));
                     }
 
                     // Top neighbor
                     if (j < layer.ny - 1) {
                         double Gy = layer.material.getConductivity() * dx / dy;
-                        model.addComponent(new LinearLink(node, nodes[i][currentY + j + 1], Gy));
+                        model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i][currentY + j + 1], Gy));
                     }
                 }
             }
@@ -104,7 +104,7 @@ public class PlateNodeHelper {
             int firstJ = offsetY + bottom.ny;      // first row of top layer
 
             for (int i = 0; i < bottom.nx; i++) {
-                model.addComponent(new LinearLink(nodes[i][lastJ], nodes[i][firstJ], G_interface));
+                model.addComponent(PhysicsType.THERMAL,new LinearLink(nodes[i][lastJ], nodes[i][firstJ], G_interface));
             }
 
             offsetY += bottom.ny;

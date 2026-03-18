@@ -17,7 +17,7 @@ public class HeatSource implements PhysicsComponent {
     @Override
     public void stamp(SimulationContext ctx) {
 
-        if (node.isUnknown()) {
+        if (node.isUnknown()) {//todo, correct this shit
             ctx.rhs[node.getId()] += flux;
         }
 

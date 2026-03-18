@@ -1,6 +1,6 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.simulation.nodal.PhysicsDomain;
+import com.rae.formicapi.simulation.nodal.PhysicsType;
 
 /**
  * Abstract base for all nodes in a nodal network simulation.
@@ -9,7 +9,7 @@ import com.rae.formicapi.simulation.nodal.PhysicsDomain;
  * quantity (e.g. temperature, voltage, angular velocity) is either unknown
  * and solved for, or fixed as a boundary condition.
  *
- * <p>Every node belongs to a {@link PhysicsDomain}, which carries the
+ * <p>Every node belongs to a {@link PhysicsType}, which carries the
  * semantic meaning of its value and associated flow quantity.
  *
  * <p>Nodes must be registered with a {@link SimulationContext} before use,
@@ -17,29 +17,29 @@ import com.rae.formicapi.simulation.nodal.PhysicsDomain;
  *
  * @see UnknownNode
  * @see FixedValueNode
- * @see PhysicsDomain
+ * @see PhysicsType
  */
 public abstract class Node {
 
     private boolean setup = false;
     private int id;
-    private final PhysicsDomain domain;
+    private final PhysicsType domain;
 
     /**
      * Creates a node belonging to the given physical domain.
      *
      * @param domain the physical domain of this node
      */
-    protected Node(PhysicsDomain domain) {
+    protected Node(PhysicsType domain) {
         this.domain = domain;
     }
 
     /**
      * Returns the physical domain of this node.
      *
-     * @return the {@link PhysicsDomain} of this node
+     * @return the {@link PhysicsType} of this node
      */
-    public PhysicsDomain getDomain() {
+    public PhysicsType getDomain() {
         return domain;
     }
 

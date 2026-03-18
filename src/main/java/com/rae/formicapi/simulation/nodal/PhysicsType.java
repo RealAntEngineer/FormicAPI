@@ -12,7 +12,7 @@ package com.rae.formicapi.simulation.nodal;
  *
  * <p>Useful for logging, debugging, and domain-aware printing.
  */
-public enum PhysicsDomain {
+public enum PhysicsType {
 
     THERMAL  ("Temperature [K]",      "Heat flux [W]"      ),
     HYDRAULIC("Pressure [Pa]",        "Mass flow [kg/s]"   ),
@@ -22,7 +22,7 @@ public enum PhysicsDomain {
     public final String valueName;
     public final String flowName;
 
-    PhysicsDomain(String valueName, String flowName) {
+    PhysicsType(String valueName, String flowName) {
         this.valueName = valueName;
         this.flowName  = flowName;
     }

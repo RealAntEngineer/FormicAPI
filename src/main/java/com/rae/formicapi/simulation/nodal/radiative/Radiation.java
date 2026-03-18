@@ -29,37 +29,21 @@ public class Radiation implements PhysicsComponent {
         double Tb = b.getValue();
 
         double Tm = 0.5 * (Ta + Tb);
-
         double g = 4 * SIGMA * emissivity * area * Math.pow(Tm, 3);
 
         boolean au = a.isUnknown();
         boolean bu = b.isUnknown();
+        int i = a.getId();
+        int j = b.getId();
 
-        if (au && bu) {
-
-            int i = a.getId();
-            int j = b.getId();
-
-            ctx.matrix.add(i, i, g);
+        if (au) {
+            ctx.matrix.add(i, i,  g);
             ctx.matrix.add(i, j, -g);
-            ctx.matrix.add(j, j, g);
+        }
+
+        if (bu) {
+            ctx.matrix.add(j, j,  g);
             ctx.matrix.add(j, i, -g);
         }
-
-        else if (au) {
-
-            int i = a.getId();
-            ctx.matrix.add(i, i, g);
-            ctx.rhs[i] += g * Tb;
-        }
-
-        else if (bu) {
-
-            int j = b.getId();
-            ctx.matrix.add(j, j, g);
-            ctx.rhs[j] += g * Ta;
-        }
-
-        // both fixed → nothing
     }
 }
