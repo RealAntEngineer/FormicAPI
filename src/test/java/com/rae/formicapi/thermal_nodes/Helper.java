@@ -19,37 +19,28 @@ public class Helper {
         int Nx = nodes.length;
         int Ny = nodes[0].length;
 
-        // ------------------------------------------------
-        // Compute physical pixel sizes per column and row
-        // ------------------------------------------------
-
-        int pixelsPerMeter = 2000; // tune this to get a reasonable image size
+        int pixelsPerMeter = 2000;
+        int supersample    = 2; // render at 2x then downscale
 
         // ------------------------------------------------
-        // Compute cell sizes — fallback to uniform if no layers
+        // Compute cell sizes
         // ------------------------------------------------
 
         int   cellW;
         int[] cellH = new int[Ny];
 
         if (layers == null || layers.isEmpty()) {
-
             int fallback = 50;
             cellW = fallback;
             Arrays.fill(cellH, fallback);
-
         } else {
-
             double dx = layers.get(0).length / layers.get(0).nx;
             cellW = Math.max(1, (int) (dx * pixelsPerMeter));
-
             int rowIndex = 0;
             for (PlateNodeHelper.Layer layer : layers) {
                 double dy = layer.thickness / layer.ny;
                 int h = Math.max(1, (int) (dy * pixelsPerMeter));
-                for (int j = 0; j < layer.ny; j++) {
-                    cellH[rowIndex++] = h;
-                }
+                for (int j = 0; j < layer.ny; j++) cellH[rowIndex++] = h;
             }
         }
 
@@ -60,6 +51,9 @@ public class Helper {
         int imageW = Nx * cellW;
         int imageH = 0;
         for (int h : cellH) imageH += h;
+
+        int renderW = imageW * supersample;
+        int renderH = imageH * supersample;
 
         // ------------------------------------------------
         // Find min / max temperatures
@@ -81,46 +75,84 @@ public class Helper {
         double T_high = T_max - 0.05 * range;
 
         // ------------------------------------------------
-        // Precompute row Y offsets (bottom-up in physical space)
+        // Precompute row Y offsets and per-pixel node coords
         // ------------------------------------------------
 
-        int[] rowY = new int[Ny + 1]; // rowY[j] = pixel y of bottom edge of row j
+        // cumulative pixel Y of bottom edge of each row (in render space)
+        int[] rowY = new int[Ny + 1];
         rowY[0] = 0;
-        for (int j = 0; j < Ny; j++) {
-            rowY[j + 1] = rowY[j] + cellH[j];
+        for (int j = 0; j < Ny; j++) rowY[j + 1] = rowY[j] + cellH[j] * supersample;
+
+        // For each render pixel x, find its fractional node-space i
+        double[] pixelToNodeX = new double[renderW];
+        int cellWs = cellW * supersample;
+        for (int x = 0; x < renderW; x++) {
+            pixelToNodeX[x] = (x + 0.5) / cellWs - 0.5; // center of node at i+0.5 in pixel space
+        }
+
+        // For each render pixel y (in flipped coords), find fractional node-space j
+        double[] pixelToNodeY = new double[renderH];
+        for (int y = 0; y < renderH; y++) {
+            int yFlipped = renderH - 1 - y; // j=0 is bottom physically
+            // find which row this belongs to
+            double nodeJ = 0;
+            for (int j = 0; j < Ny; j++) {
+                int yBot = rowY[j];
+                int yTop = rowY[j + 1];
+                if (yFlipped >= yBot && yFlipped < yTop) {
+                    double frac = (yFlipped - yBot + 0.5) / (yTop - yBot);
+                    nodeJ = j + frac - 0.5;
+                    break;
+                }
+            }
+            pixelToNodeY[y] = nodeJ;
         }
 
         // ------------------------------------------------
-        // Create and fill image
+        // Render with bicubic interpolation
+        // ------------------------------------------------
+
+        BufferedImage renderImage = new BufferedImage(renderW, renderH, BufferedImage.TYPE_INT_RGB);
+
+        for (int y = 0; y < renderH; y++) {
+            double fj = pixelToNodeY[y];
+            int    j0 = (int) Math.floor(fj);
+            double tj = fj - j0;
+
+            for (int x = 0; x < renderW; x++) {
+                double fi = pixelToNodeX[x];
+                int    i0 = (int) Math.floor(fi);
+                double ti = fi - i0;
+
+                // Bicubic: accumulate over 4x4 neighborhood
+                double T = 0;
+                for (int di = -1; di <= 2; di++) {
+                    double wi = cubicWeight(di - ti);
+                    int    ci = Math.max(0, Math.min(Nx - 1, i0 + di));
+                    for (int dj = -1; dj <= 2; dj++) {
+                        double wj = cubicWeight(dj - tj);
+                        int    cj = Math.max(0, Math.min(Ny - 1, j0 + dj));
+                        T += wi * wj * nodes[ci][cj].getValue();
+                    }
+                }
+
+                double normalized = (T - T_low) / (T_high - T_low);
+                normalized = Math.max(0, Math.min(1, normalized));
+                normalized = Math.sqrt(normalized);
+
+                renderImage.setRGB(x, y, heatmap(normalized).getRGB());
+            }
+        }
+
+        // ------------------------------------------------
+        // Downscale to final size (average supersampled pixels)
         // ------------------------------------------------
 
         BufferedImage image = new BufferedImage(imageW, imageH, BufferedImage.TYPE_INT_RGB);
-
-        for (int i = 0; i < Nx; i++) {
-            for (int j = 0; j < Ny; j++) {
-
-                double T          = nodes[i][j].getValue();
-                double normalized = (T - T_low) / (T_high - T_low);
-                normalized        = Math.max(0, Math.min(1, normalized));
-                normalized        = Math.sqrt(normalized);
-
-                Color color = heatmap(normalized);
-                int rgb     = color.getRGB();
-
-                int xStart = i * cellW;
-                int xEnd   = xStart + cellW;
-
-                // flip vertically: j=0 is bottom physically
-                int yStart = imageH - rowY[j + 1];
-                int yEnd   = imageH - rowY[j];
-
-                for (int x = xStart; x < xEnd; x++) {
-                    for (int y = yStart; y < yEnd; y++) {
-                        image.setRGB(x, y, rgb);
-                    }
-                }
-            }
-        }
+        Graphics2D g2 = image.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.drawImage(renderImage, 0, 0, imageW, imageH, null);
+        g2.dispose();
 
         // ------------------------------------------------
         // Save image
@@ -134,6 +166,17 @@ public class Helper {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Cubic Hermite / Catmull-Rom kernel weight for distance t.
+     * t is the distance from the sample point to the kernel center.
+     */
+    private static double cubicWeight(double t) {
+        double a = Math.abs(t);
+        if (a >= 2.0) return 0;
+        if (a >= 1.0) return (-0.5 * a * a * a + 2.5 * a * a - 4.0 * a + 2.0);
+        return (1.5 * a * a * a - 2.5 * a * a + 1.0);
     }
 
     // ------------------------------------------------

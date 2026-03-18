@@ -39,8 +39,8 @@ public class TwoLayerPlateTest {
         double h = 10;
 
         // Physics
-        model.addComponent(PhysicsType.THERMAL,new LinearLink(hot, layer1, G));
-        model.addComponent(PhysicsType.THERMAL,new Convection(layer1, ambient, h));
+        model.addComponent(new LinearLink(hot, layer1, PhysicsType.THERMAL,G));
+        model.addComponent(new Convection(layer1, ambient, h));
 
         // Solve
         SteadyStateSolver.solve(model);
@@ -82,25 +82,25 @@ public class TwoLayerPlateTest {
                 // Right neighbor
                 if (i < Nx - 1) {
                     double Gx = 5 + i; // non-uniform across X
-                    model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i + 1][j], Gx));
+                    model.addComponent(new LinearLink(node, nodes[i + 1][j], PhysicsType.THERMAL,Gx));
                 }
 
                 // Top neighbor
                 if (j < Ny - 1) {
                     double Gy = 10 + j; // non-uniform across Y
-                    model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i][j + 1], Gy));
+                    model.addComponent(new LinearLink(node, nodes[i][j + 1], PhysicsType.THERMAL,Gy));
                 }
 
                 // Connect leftmost nodes to hot boundary
                 if (i == 0) {
                     double G_left = 8; // conduction to hot side
-                    model.addComponent(PhysicsType.THERMAL,new LinearLink(hotLeft, node, G_left));
+                    model.addComponent(new LinearLink(hotLeft, node, PhysicsType.THERMAL,G_left));
                 }
 
                 // Connect rightmost nodes to cold boundary via convection
                 if (i == Nx - 1) {
                     double h_local = 5 + j; // non-uniform convection
-                    model.addComponent(PhysicsType.THERMAL,new Convection(node, coldRight, h_local));
+                    model.addComponent(new Convection(node, coldRight, h_local));
                 }
             }
         }
@@ -141,12 +141,12 @@ public class TwoLayerPlateTest {
 
         // Connect all edge nodes to ambient via convection
         for (int i = 0; i < Nx; i++) {
-            model.addComponent(PhysicsType.THERMAL,new Convection(nodes[i][0], ambient, h));       // bottom row
-            model.addComponent(PhysicsType.THERMAL,new Convection(nodes[i][Ny - 1], ambient, h));  // top row
+            model.addComponent(new Convection(nodes[i][0], ambient, h));       // bottom row
+            model.addComponent(new Convection(nodes[i][Ny - 1], ambient, h));  // top row
         }
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(PhysicsType.THERMAL,new Convection(nodes[0][j], ambient, h));       // left column
-            model.addComponent(PhysicsType.THERMAL,new Convection(nodes[Nx - 1][j], ambient, h));  // right column
+            model.addComponent(new Convection(nodes[0][j], ambient, h));       // left column
+            model.addComponent(new Convection(nodes[Nx - 1][j], ambient, h));  // right column
         }
 
         // Add conduction between neighbors (uniform G)
@@ -155,8 +155,8 @@ public class TwoLayerPlateTest {
             for (int j = 0; j < Ny; j++) {
                 UnknownNode node = nodes[i][j];
 
-                if (i < Nx - 1) model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i + 1][j], G));
-                if (j < Ny - 1) model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i][j + 1], G));
+                if (i < Nx - 1) model.addComponent(new LinearLink(node, nodes[i + 1][j], PhysicsType.THERMAL,G));
+                if (j < Ny - 1) model.addComponent(new LinearLink(node, nodes[i][j + 1], PhysicsType.THERMAL,G));
             }
         }
 
@@ -165,7 +165,7 @@ public class TwoLayerPlateTest {
         int cy = Ny / 2;
         FixedValueNode hotSpot = new FixedValueNode( PhysicsType.THERMAL,100);
         model.addNode(hotSpot);
-        model.addComponent(PhysicsType.THERMAL,new LinearLink(hotSpot, nodes[cx][cy], G));
+        model.addComponent(new LinearLink(hotSpot, nodes[cx][cy], PhysicsType.THERMAL,G));
 
         // Solve
         SteadyStateSolver.solve(model);
@@ -206,8 +206,8 @@ public class TwoLayerPlateTest {
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
                 UnknownNode node = nodes[i][j];
-                if (i < Nx - 1) model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i + 1][j], Gx));
-                if (j < Ny - 1) model.addComponent(PhysicsType.THERMAL,new LinearLink(node, nodes[i][j + 1], Gy));
+                if (i < Nx - 1) model.addComponent(new LinearLink(node, nodes[i + 1][j], PhysicsType.THERMAL,Gx));
+                if (j < Ny - 1) model.addComponent(new LinearLink(node, nodes[i][j + 1], PhysicsType.THERMAL,Gy));
             }
         }
 
@@ -215,7 +215,7 @@ public class TwoLayerPlateTest {
         FixedValueNode hotBase = new FixedValueNode(PhysicsType.THERMAL,100);
         model.addNode(hotBase);
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(PhysicsType.THERMAL,new LinearLink(hotBase, nodes[0][j], Gx));
+            model.addComponent(new LinearLink(hotBase, nodes[0][j], PhysicsType.THERMAL,Gx));
         }
 
         // Convection to ambient on exposed surfaces (right edge + top/bottom surfaces)
@@ -225,13 +225,13 @@ public class TwoLayerPlateTest {
 
         // Right edge convection
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(PhysicsType.THERMAL,new Convection(nodes[Nx - 1][j], ambient, h));
+            model.addComponent(new Convection(nodes[Nx - 1][j], ambient, h));
         }
 
         // Top and bottom surfaces convection
         for (int i = 0; i < Nx; i++) {
-            model.addComponent(PhysicsType.THERMAL,new Convection(nodes[i][0], ambient, h));       // bottom
-            model.addComponent(PhysicsType.THERMAL,new Convection(nodes[i][Ny - 1], ambient, h));  // top
+            model.addComponent(new Convection(nodes[i][0], ambient, h));       // bottom
+            model.addComponent(new Convection(nodes[i][Ny - 1], ambient, h));  // top
         }
 
         // Solve

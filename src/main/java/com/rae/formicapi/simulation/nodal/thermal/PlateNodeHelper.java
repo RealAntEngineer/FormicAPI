@@ -42,73 +42,101 @@ public class PlateNodeHelper {
      * and add conduction between neighbors based on geometry and material.
      */
     public UnknownNode[][] createPlateNodes(SimulationModel model) {
-        // Compute total dimensions
+
         int totalNx = layers.get(0).nx;
-        int totalNy = 0;
+        int totalNy = 1;
         for (Layer layer : layers) totalNy += layer.ny;
 
         UnknownNode[][] nodes = new UnknownNode[totalNx][totalNy];
-        int currentY = 0;
-
-        for (Layer layer : layers) {
-            for (int j = 0; j < layer.ny; j++) {
-                for (int i = 0; i < layer.nx; i++) {
-                    nodes[i][currentY + j] = new UnknownNode(PhysicsType.THERMAL, 25); // start at ambient
-                    model.addNode(nodes[i][currentY + j]);
-                }
+        for (int i = 0; i < totalNx; i++)
+            for (int j = 0; j < totalNy; j++) {
+                nodes[i][j] = new UnknownNode(PhysicsType.THERMAL, 25);
+                model.addNode(nodes[i][j]);
             }
-            currentY += layer.ny;
-        }
 
-        // Add conduction between neighbors
-        currentY = 0;
+        // ----------------------------------------------------------------
+        // Vertical links within each layer
+        // Distance between any two adjacent nodes is always dy
+        // ----------------------------------------------------------------
+        int nodeRowStart = 0;
         for (Layer layer : layers) {
-            double dx = layer.length / layer.nx;
+            double dx = layer.length    / layer.nx;
             double dy = layer.thickness / layer.ny;
 
-            for (int j = 0; j < layer.ny; j++) {
+            for (int j = nodeRowStart; j < nodeRowStart + layer.ny; j++) {
                 for (int i = 0; i < layer.nx; i++) {
-                    UnknownNode node = nodes[i][currentY + j];
-
-                    // Right neighbor
-                    if (i < layer.nx - 1) {
-                        double Gx = layer.material.getConductivity() * dy / dx;
-                        model.addComponent(new LinearLink(node, nodes[i + 1][currentY + j], PhysicsType.THERMAL,Gx));
-                    }
-
-                    // Top neighbor
-                    if (j < layer.ny - 1) {
-                        double Gy = layer.material.getConductivity() * dx / dy;
-                        model.addComponent(new LinearLink(node, nodes[i][currentY + j + 1], PhysicsType.THERMAL,Gy));
-                    }
+                    double G = layer.material.getConductivity() * dx / dy;
+                    model.addComponent(new LinearLink(
+                            nodes[i][j], nodes[i][j + 1], PhysicsType.THERMAL, G));
                 }
             }
-            currentY += layer.ny;
+            nodeRowStart += layer.ny;
         }
-        // Add conduction between layers
-        int offsetY = 0;
-        for (int l = 0; l < layers.size() - 1; l++) {
-            Layer bottom = layers.get(l);
-            Layer top    = layers.get(l + 1);
 
-            double dy_bottom = bottom.thickness / bottom.ny;
-            double dy_top    = top.thickness    / top.ny;
-            double dx        = bottom.length    / bottom.nx; // nx must match
+        // ----------------------------------------------------------------
+        // Horizontal links — interior rows of each layer
+        // Edge rows (bottom boundary of layer, top boundary of last layer)
+        // use half-cell height dy/2; interior rows use full dy.
+        // Interface rows are handled separately below.
+        // ----------------------------------------------------------------
+        nodeRowStart = 0;
+        for (int l = 0; l < layers.size(); l++) {
+            Layer  layer = layers.get(l);
+            double dx    = layer.length    / layer.nx;
+            double dy    = layer.thickness / layer.ny;
+            boolean isLastLayer = (l == layers.size() - 1);
 
-            // Interface conductance: harmonic mean of the two half-cells
-            double G_bottom = bottom.material.getConductivity() * dx / (dy_bottom / 2.0);
-            double G_top    = top.material.getConductivity()    * dx / (dy_top    / 2.0);
-            double G_interface = 1.0 / (1.0 / G_bottom + 1.0 / G_top);
+            for (int j = nodeRowStart; j <= nodeRowStart + layer.ny; j++) {
 
-            int lastJ  = offsetY + bottom.ny - 1;  // last row of bottom layer
-            int firstJ = offsetY + bottom.ny;      // first row of top layer
+                boolean isBottomBoundary = (j == nodeRowStart);
+                boolean isTopBoundary    = (j == nodeRowStart + layer.ny);
+                boolean isInterface      = isTopBoundary && !isLastLayer;
 
-            for (int i = 0; i < bottom.nx; i++) {
-                model.addComponent(new LinearLink(nodes[i][lastJ], nodes[i][firstJ], PhysicsType.THERMAL,G_interface));
+                // Interface rows are handled in the dedicated block below
+                if (isInterface) continue;
+
+                double halfDy = (isBottomBoundary || isTopBoundary) ? 0.5 * dy : dy;
+
+                for (int i = 0; i < layer.nx - 1; i++) {
+                    double G = layer.material.getConductivity() * halfDy / dx;
+                    model.addComponent(new LinearLink(
+                            nodes[i][j], nodes[i + 1][j], PhysicsType.THERMAL, G));
+                }
             }
-
-            offsetY += bottom.ny;
+            nodeRowStart += layer.ny;
         }
+
+        // ----------------------------------------------------------------
+        // Horizontal links at interface rows
+        // The interface node sits between two materials; each side contributes
+        // a half-cell (dy/2) in series, giving a harmonic-mean conductance.
+        // ----------------------------------------------------------------
+        nodeRowStart = 0;
+        for (int l = 0; l < layers.size() - 1; l++) {
+            Layer bot = layers.get(l);
+            Layer top = layers.get(l + 1);
+            nodeRowStart += bot.ny;  // global j of the interface row
+
+            double dy_bot = bot.thickness / bot.ny;
+            double dy_top = top.thickness / top.ny;
+            double dx     = bot.length    / bot.nx;
+
+            // Each half-cell resistance in the horizontal direction:
+            // R = distance / (k * area) = (dy/2) / (k * 1)  [per unit depth, dx cancels]
+            // But here the section area for horizontal flow IS dy/2 (height) * 1 (depth)
+            // and distance is dx, so G = k * (dy/2) / dx  — harmonic mean of the two:
+            double G_bot       = bot.material.getConductivity() * (dy_bot / 2.0) / dx;
+            double G_top       = top.material.getConductivity() * (dy_top / 2.0) / dx;
+            double G_interface = 1.0 / (1.0 / G_bot + 1.0 / G_top);
+
+            for (int i = 0; i < bot.nx - 1; i++) {
+                model.addComponent(new LinearLink(
+                        nodes[i][nodeRowStart], nodes[i + 1][nodeRowStart],
+                        PhysicsType.THERMAL, G_interface));
+            }
+        }
+
         return nodes;
     }
+
 }

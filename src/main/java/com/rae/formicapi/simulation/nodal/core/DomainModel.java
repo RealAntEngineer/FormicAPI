@@ -9,7 +9,6 @@ public class DomainModel {
 
     private final PhysicsType type;
     private final List<Node> nodes = new ArrayList<>();
-    private final List<DomainComponent> components = new ArrayList<>();
     private SimulationContext context;
 
     public DomainModel(PhysicsType type) { this.type = type; }
@@ -25,10 +24,7 @@ public class DomainModel {
         return node;
     }
 
-    public void addComponent(DomainComponent component) { components.add(component); }
-
     public List<Node> getNodes()                  { return nodes; }
-    public List<DomainComponent> getComponents() { return components; }
 
     /**
      * Rebuilds a fresh context from the current node state.

@@ -18,8 +18,8 @@ public class ConductionSimulationTest {
         model.addNode(a);
         model.addNode(b);
 
-        model.addComponent(PhysicsType.THERMAL,new LinearLink(a, b, 10));
-        model.addComponent(PhysicsType.THERMAL,new HeatSource(a, 100));
+        model.addComponent(new LinearLink(a, b, PhysicsType.THERMAL,10));
+        model.addComponent(new HeatSource(a, 100));
 
         SteadyStateSolver.solve(model);
 

@@ -16,22 +16,24 @@ public class SteadyStateSolver {
 
         List<PhysicsType> order = model.getSolveOrder();
 
+        // 1. build and stamp all domain contexts
+        Map<PhysicsType, SimulationContext> ctxMap = new EnumMap<>(PhysicsType.class);
+        for (PhysicsType type : order) {
+            DomainModel domain = model.domain(type);
+            if (domain.isEmpty()) continue;
+
+            domain.rebuildContext();
+
+            ctxMap.put(type, domain.getContext());
+        }
+
         for (int iter = 0; iter < MAX_ITER; iter++) {
 
             double maxDelta = 0.0;
 
-            // 1. rebuild and stamp all domain contexts
-            Map<PhysicsType, SimulationContext> ctxMap = new EnumMap<>(PhysicsType.class);
-            for (PhysicsType type : order) {
-                DomainModel domain = model.domain(type);
-                if (domain.isEmpty()) continue;
 
-                domain.rebuildContext();
 
-                ctxMap.put(type, domain.getContext());
-            }
-
-            // 2. stamp all couplings into the freshly built contexts
+            // 2. stamp all component into the freshly built contexts
             for (SimulationComponent c : model.getComponents())
                 c.stamp(ctxMap);
 

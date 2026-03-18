@@ -13,9 +13,10 @@ public class PortConnector {
             ThermalPort b,
             double conductance
     ) {
-        model.addComponent(PhysicsType.THERMAL,new LinearLink(
+        model.addComponent(new LinearLink(
                 a.getNode(),
                 b.getNode(),
+                PhysicsType.THERMAL,
                 conductance
         ));
     }
