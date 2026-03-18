@@ -1,11 +1,11 @@
-package com.rae.formicapi.simulation.nodal.radiative;
+package com.rae.formicapi.simulation.nodal.thermal;
 
 import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.Node;
-import com.rae.formicapi.simulation.nodal.core.DomainComponent;
+import com.rae.formicapi.simulation.nodal.core.SingleDomainComponent;
 import com.rae.formicapi.simulation.nodal.core.SimulationContext;
 
-public class Radiation extends DomainComponent {
+public class Radiation extends SingleDomainComponent {
 
     private static final double SIGMA = 5.670374419e-8;
 

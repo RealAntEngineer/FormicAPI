@@ -1,16 +1,13 @@
-package com.rae.formicapi.simulation.nodal.thermal;
+package com.rae.formicapi.simulation.nodal.core;
 
 import com.rae.formicapi.simulation.nodal.PhysicsType;
-import com.rae.formicapi.simulation.nodal.core.Node;
-import com.rae.formicapi.simulation.nodal.core.DomainComponent;
-import com.rae.formicapi.simulation.nodal.core.SimulationContext;
 
-public class HeatSource extends DomainComponent {
+public class Source extends SingleDomainComponent {
 
     private final Node node;
     private final double flux;
 
-    public HeatSource(Node node, double flux) {
+    public Source(Node node, double flux) {
         this.node = node;
         this.flux = flux;
     }
@@ -23,7 +20,7 @@ public class HeatSource extends DomainComponent {
     @Override
     public void stamp(SimulationContext ctx) {
 
-        if (node.isUnknown()) {//todo, correct this shit
+        if (node.isUnknown()) {
             ctx.rhs[node.getId()] += flux;
         }
 

@@ -8,8 +8,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Represents a viscous rotational damper between two mechanical nodes,
- * with heat dissipation into a thermal node.
+ * Viscous rotational damper between two mechanical nodes, with heat dissipation
+ * into a thermal node.
+ *
+ * <p>This is a multi-physics component spanning the {@link PhysicsType#MECHANICAL}
+ * and {@link PhysicsType#THERMAL} domains. Both are stamped in a single
+ * {@link #stamp(Map)} call by the staggered solver.
  *
  * <p>The mechanical behavior follows the linear relation:
  *
@@ -17,36 +21,26 @@ import java.util.Set;
  *     τ = G · (ω_a - ω_b)
  * </pre>
  *
- * <p>The dissipated power is nonlinear in the node values:
+ * <p>The dissipated power is nonlinear and computed from the frozen mechanical
+ * state of the current iteration:
  *
  * <pre>
  *     P = G · (ω_a - ω_b)²
  * </pre>
  *
- * <p>Because of this nonlinearity, the mechanical and thermal domains are solved
- * in two separate simulations. The solver loop is responsible for the staggered
- * sequence:
+ * <p>It is injected directly into the thermal RHS at the heat node. Convergence
+ * of the outer iteration loop resolves the coupling between mechanical velocity
+ * and thermal dissipation.
  *
- * <ol>
- *     <li>Solve the mechanical network → {@code ω} values are frozen.</li>
- *     <li>Query {@link #getDissipatedPower()} and inject it as a heat source
- *         into the thermal RHS.</li>
- *     <li>Solve the thermal network → {@code T} values resolved.</li>
- * </ol>
- *
- * <p>{@link #stamp(SimulationContext)} only participates in the mechanical solve.
- * The thermal node is never stamped here; it is only exposed via
- * {@link #getHeatNode()} for the solver loop to use.
- *
- * <p>The mechanical stamp is symmetric, identical to {@link LinearLink}:
+ * <p>The mechanical stamp is symmetric:
  *
  * <pre>
  *     [ +G  -G ] [ω_a]
  *     [ -G  +G ] [ω_b]
  * </pre>
  *
- * @see LinearLink
  * @see PhysicsType
+ * @see SimulationComponent
  */
 public class RotationalDamper implements SimulationComponent {
 

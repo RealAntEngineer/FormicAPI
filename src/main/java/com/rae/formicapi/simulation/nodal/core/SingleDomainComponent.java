@@ -6,7 +6,7 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 
-public abstract class DomainComponent implements SimulationComponent {
+public abstract class SingleDomainComponent implements SimulationComponent {
     public abstract PhysicsType getDomain();
     public abstract void stamp(SimulationContext ctx);
 

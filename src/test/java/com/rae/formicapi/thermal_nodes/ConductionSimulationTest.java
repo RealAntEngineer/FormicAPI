@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.*;
-import com.rae.formicapi.simulation.nodal.thermal.*;
 import org.junit.jupiter.api.Test;
 
 public class ConductionSimulationTest {
@@ -19,7 +18,7 @@ public class ConductionSimulationTest {
         model.addNode(b);
 
         model.addComponent(new LinearLink(a, b, PhysicsType.THERMAL,10));
-        model.addComponent(new HeatSource(a, 100));
+        model.addComponent(new Source(a, 100));
 
         SteadyStateSolver.solve(model);
 

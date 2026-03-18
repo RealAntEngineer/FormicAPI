@@ -1,4 +1,4 @@
-package com.rae.formicapi.simulation.physical.material;
+package com.rae.formicapi.simulation.nodal.material;
 
 
 public interface MaterialField {

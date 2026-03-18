@@ -38,10 +38,10 @@ import com.rae.formicapi.simulation.nodal.PhysicsType;
  * <p>This component is suitable for any linear nodal network simulation:
  * thermal, hydraulic, electrical, or other flow-based systems.
  *
- * @see DomainComponent
+ * @see SingleDomainComponent
  * @see SimulationContext
  */
-public class LinearLink extends DomainComponent {
+public class LinearLink extends SingleDomainComponent {
 
     private final Node a;
     private final Node b;

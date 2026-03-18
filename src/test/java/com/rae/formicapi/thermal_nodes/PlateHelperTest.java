@@ -5,10 +5,9 @@ import com.rae.formicapi.simulation.nodal.core.FixedValueNode;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
 import com.rae.formicapi.simulation.nodal.core.LinearLink;
-import com.rae.formicapi.simulation.nodal.thermal.Convection;
 import com.rae.formicapi.simulation.nodal.thermal.PlateNodeHelper;
 import com.rae.formicapi.simulation.nodal.core.SteadyStateSolver;
-import com.rae.formicapi.simulation.physical.material.Material;
+import com.rae.formicapi.simulation.nodal.material.Material;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -45,12 +44,12 @@ public class PlateHelperTest {
 
         // Convection elsewhere
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new Convection(node[Ny - 1], ambient, h));
+            model.addComponent(new LinearLink(node[Ny - 1], ambient, PhysicsType.THERMAL, h));
         }
 
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(new Convection(nodes[0][j], ambient, h));
-            model.addComponent(new Convection(nodes[Nx - 1][j], ambient, h));
+            model.addComponent(new LinearLink(nodes[0][j], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, PhysicsType.THERMAL, h));
         }
 
         SteadyStateSolver.solve(model);
@@ -88,12 +87,12 @@ public class PlateHelperTest {
 
         // Convection elsewhere
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new Convection(node[Ny - 1], ambient, h));
+            model.addComponent(new LinearLink(node[Ny - 1], ambient, PhysicsType.THERMAL, h));
         }
 
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(new Convection(nodes[0][j], ambient, h));
-            model.addComponent(new Convection(nodes[Nx - 1][j], ambient, h));
+            model.addComponent(new LinearLink(nodes[0][j], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, PhysicsType.THERMAL, h));
         }
 
         SteadyStateSolver.solve(model);
@@ -131,12 +130,12 @@ public class PlateHelperTest {
 
         // Convection elsewhere
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new Convection(node[Ny - 1], ambient, h));
+            model.addComponent(new LinearLink(node[Ny - 1], ambient, PhysicsType.THERMAL, h));
         }
 
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(new Convection(nodes[0][j], ambient, h));
-            model.addComponent(new Convection(nodes[Nx - 1][j], ambient, h));
+            model.addComponent(new LinearLink(nodes[0][j], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, PhysicsType.THERMAL, h));
         }
 
         SteadyStateSolver.solve(model);

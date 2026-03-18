@@ -4,7 +4,7 @@ import com.rae.formicapi.simulation.nodal.PhysicsType;
 import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.simulation.physical.material.Material;
+import com.rae.formicapi.simulation.nodal.material.Material;
 
 import java.util.ArrayList;
 import java.util.List;
