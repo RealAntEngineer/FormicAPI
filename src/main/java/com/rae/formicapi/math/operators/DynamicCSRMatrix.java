@@ -146,7 +146,7 @@ public class DynamicCSRMatrix implements MutableMatrix {
      *
      * @return the compiled CSR representation of this matrix
      */
-    public CSRMatrix getCashed() {
+    public CSRMatrix toCSR() {
         return compiled();
     }
 }

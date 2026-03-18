@@ -130,7 +130,7 @@ public class LeastSquareBenchmarkTest {
         DynamicCSRMatrix m = new DynamicCSRMatrix(rows, cols);
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++)
-                if (raw[r][c] != 0.0) m.add(r, c, raw[r][c]);
+                if (raw[r][c] != 0.0) m.set(r, c, raw[r][c]);
         m.multiply(new double[cols], new double[rows]); // force compile
         return m;
     }

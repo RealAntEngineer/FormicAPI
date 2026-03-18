@@ -6,7 +6,4 @@ public interface MutableMatrix extends Matrix {
 
     void set(int row, int col, double value);
 
-
-
-
 }

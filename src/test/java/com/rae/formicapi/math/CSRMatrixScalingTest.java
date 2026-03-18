@@ -78,7 +78,7 @@ public class CSRMatrixScalingTest {
         }
 
         m.multiply(new double[cols], new double[rows]); // force CSR compile
-        return m.getCash();
+        return m.toCSR();
     }
 
     // ------------------------------------------------

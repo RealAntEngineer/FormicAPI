@@ -1,7 +1,6 @@
 package com.rae.formicapi.math.solvers;
 
 import com.rae.formicapi.math.operators.Matrix;
-import com.rae.formicapi.math.operators.MutableMatrix;
 
 public class LeastSquare {
 
@@ -32,9 +31,7 @@ public class LeastSquare {
 
         // Compute Aᵀ * b
         double[] Atb = new double[m];
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < m; j++)
-                Atb[j] += A.get(i, j) * b[i];
+        A.transposeMultiply(b, Atb);
 
         // Use CG on normal equations AᵀA x = Aᵀb
         return conjugateGradientNormalEq(A, x_init.clone(), Atb, maxIter, tol);
@@ -95,7 +92,7 @@ public class LeastSquare {
     }
 
     /** Convenience overload: zero initial guess */
-    public static double[] solve(MutableMatrix A, double[] b, int maxIter, float tol) {
+    public static double[] solve(Matrix A, double[] b, int maxIter, float tol) {
         return solve(A, new double[A.cols()], b, maxIter, tol);
     }
 }
