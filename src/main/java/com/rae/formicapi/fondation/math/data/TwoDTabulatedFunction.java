@@ -8,21 +8,13 @@ import java.util.TreeMap;
 import java.util.function.BiFunction;
 
 public class TwoDTabulatedFunction {
-    // table: X -> (Y -> Value)
-    private final TreeMap<Float, TreeMap<Float, Float>> table;
-    private final float xStep;
-    private final float yStep;
-    private final StepMode xMode;
-    private final StepMode yMode;
-    private final boolean clamp;
     // Codec for individual inner maps (Y -> Value)
     public static final Codec<TreeMap<Float, Float>> INNER_MAP_CODEC = Codec.unboundedMap(
-            Codec.STRING.xmap(Float::parseFloat,Object::toString), Codec.FLOAT
+            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
     ).xmap(TreeMap::new, TreeMap::new);
-
     // Codec for the entire TwoDTabulatedFunction table
     public static final Codec<TwoDTabulatedFunction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat,Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
+            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
                     .forGetter(f -> f.table),
             Codec.FLOAT.fieldOf("x_step").forGetter(f -> f.xStep),
             Codec.FLOAT.fieldOf("y_step").forGetter(f -> f.yStep),
@@ -30,6 +22,13 @@ public class TwoDTabulatedFunction {
             StepMode.CODEC.fieldOf("y_mode").forGetter(f -> f.yMode),
             Codec.BOOL.fieldOf("clamp").forGetter(f -> f.clamp)
     ).apply(instance, TwoDTabulatedFunction::new));
+    // table: X -> (Y -> Value)
+    private final TreeMap<Float, TreeMap<Float, Float>> table;
+    private final float xStep;
+    private final float yStep;
+    private final StepMode xMode;
+    private final StepMode yMode;
+    private final boolean clamp;
 
     public TwoDTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, float xStep, float yStep, StepMode xMode, StepMode yMode, boolean clamp) {
         this.table = table;
@@ -39,6 +38,7 @@ public class TwoDTabulatedFunction {
         this.yMode = yMode;
         this.clamp = clamp;
     }
+
     public static TwoDTabulatedFunction populate(
             BiFunction<Float, Float, Float> f,
             float xStart, float yStart,
@@ -163,6 +163,7 @@ public class TwoDTabulatedFunction {
         float t = (query - x1) / (x2 - x1);
         return y1 * (1 - t) + y2 * t;
     }
+
     private float extrapolateZ(float xInput, float yInput) {
         Map.Entry<Float, TreeMap<Float, Float>> lower = table.floorEntry(xInput);
         Map.Entry<Float, TreeMap<Float, Float>> upper = table.ceilingEntry(xInput);

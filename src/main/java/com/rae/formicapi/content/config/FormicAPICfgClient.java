@@ -9,9 +9,10 @@ public class FormicAPICfgClient extends ConfigBase {
 
 
     public final UnitConfig units = nested(0, UnitConfig::new, Comments.units);
+
     @Override
     public @NotNull String getName() {
-        return FormicAPI.MODID +".client";
+        return FormicAPI.MODID + ".client";
     }
 
     private static class Comments {

@@ -79,30 +79,6 @@ public class DynamicCSRMatrix implements MutableMatrix {
     // Matrix reads — compile CSR lazily
     // ------------------------------------------------
 
-    @Override
-    public int rows() { return buffer.rows(); }
-
-    @Override
-    public int cols() { return buffer.cols(); }
-
-    /**
-     * Returns the value at (r, c).
-     *
-     * <p>Reads directly from the hash buffer rather than the compiled CSR,
-     * so it never triggers a recompile. This is intentional — element reads
-     * during assembly should not pay the full CSR compilation cost.
-     *
-     * <p>If no value has been set at (r, c), returns {@code 0.0}.
-     *
-     * @param r row index
-     * @param c column index
-     * @return the scalar value at (r, c), or {@code 0.0} if not stored
-     */
-    @Override
-    public double get(int r, int c) {
-        return buffer.get(r, c);
-    }
-
     /**
      * Multiplies this matrix by vector {@code x}, storing Ax in {@code result}.
      *
@@ -128,6 +104,34 @@ public class DynamicCSRMatrix implements MutableMatrix {
     @Override
     public void transposeMultiply(double[] x, double[] result) {
         compiled().transposeMultiply(x, result);
+    }
+
+    @Override
+    public int rows() {
+        return buffer.rows();
+    }
+
+    @Override
+    public int cols() {
+        return buffer.cols();
+    }
+
+    /**
+     * Returns the value at (r, c).
+     *
+     * <p>Reads directly from the hash buffer rather than the compiled CSR,
+     * so it never triggers a recompile. This is intentional — element reads
+     * during assembly should not pay the full CSR compilation cost.
+     *
+     * <p>If no value has been set at (r, c), returns {@code 0.0}.
+     *
+     * @param r row index
+     * @param c column index
+     * @return the scalar value at (r, c), or {@code 0.0} if not stored
+     */
+    @Override
+    public double get(int r, int c) {
+        return buffer.get(r, c);
     }
 
     // ------------------------------------------------

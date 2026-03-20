@@ -21,25 +21,30 @@ import java.util.Objects;
  */
 public abstract class MBController extends DirectionalBlock implements IMBController {
     final MBStructureBlock structure;
+
     protected MBController(Properties properties, MBStructureBlock structure) {
         super(properties);
         this.structure = structure;
         this.registerDefaultState(this.defaultBlockState().setValue(FACING, Direction.NORTH));
     }
+
+    public BlockState getStateForPlacement(@NotNull BlockPlaceContext context) {
+        return Objects.requireNonNull(super.getStateForPlacement(context)).setValue(FACING, context.getClickedFace());
+
+    }
+
     @Override
     public void setPlacedBy(@NotNull Level worldIn, @NotNull BlockPos pos, @NotNull BlockState state, @Nullable LivingEntity entity, @NotNull ItemStack stack) {
         super.setPlacedBy(worldIn, pos, state, entity, stack);
         repairStructure(worldIn, pos, state.getValue(FACING));
     }
-    public BlockState getStateForPlacement(@NotNull BlockPlaceContext context) {
-        return Objects.requireNonNull(super.getStateForPlacement(context)).setValue(FACING,context.getClickedFace());
 
-    }
     @Override
     protected void createBlockStateDefinition(StateDefinition.@NotNull Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
         builder.add(FACING);
     }
+
     @Override
     public MBStructureBlock getStructure() {
         return structure;

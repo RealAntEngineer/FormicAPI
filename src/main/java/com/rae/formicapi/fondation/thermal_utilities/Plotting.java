@@ -35,9 +35,10 @@ public class Plotting {
                     float h = FullTableBased.getH((float) s, p);
                     if (!Float.isFinite(h)) continue;
 
-                    pressures.add((double)p);
-                    enthalpies.add((double)h);
-                } catch (Exception ignored) {}
+                    pressures.add((double) p);
+                    enthalpies.add((double) h);
+                } catch (Exception ignored) {
+                }
             }
 
             plot.addSeries(String.format("s=%.2f kJ/kg·K", s), enthalpies, pressures);
@@ -65,12 +66,13 @@ public class Plotting {
 
             for (float p = pMin; p <= pMax; p *= 1.01f) {
                 try {
-                    float T = FullTableBased.getT(p, (float)FullTableBased.getH((float) s, p));
+                    float T = FullTableBased.getT(p, FullTableBased.getH((float) s, p));
                     if (!Float.isFinite(T)) continue;
 
-                    pressures.add((double)p);
-                    temperatures.add((double)T);
-                } catch (Exception ignored) {}
+                    pressures.add((double) p);
+                    temperatures.add((double) T);
+                } catch (Exception ignored) {
+                }
             }
 
             plot.addSeries(String.format("s=%.2f kJ/kg·K", s), temperatures, pressures);
@@ -89,7 +91,6 @@ public class Plotting {
         }
 
         plot.addSeries(String.format("saturation"), temperatures, pressures);*/
-
 
 
         plot.save("isentropes_pt.png");

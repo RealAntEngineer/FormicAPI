@@ -54,7 +54,7 @@ public class TwoDTabulatedFunctionProvider implements DataProvider {
     public @NotNull CompletableFuture<?> run(@NotNull CachedOutput cache) {
         // Example path: data/yourmod/tabulated_functions/my_function.json
         TwoDTabulatedFunction function = TwoDTabulatedFunction.populate(
-              f, // your function here
+                f, // your function here
                 xStart, yStart, xEnd, yEnd, xNbr, yNbr,
                 xMode, yMode,
                 clamp

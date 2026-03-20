@@ -1,7 +1,6 @@
 package com.rae.formicapi.fondation.simulation.nodal;
 
 import com.rae.formicapi.fondation.simulation.nodal.core.*;
-import com.rae.formicapi.fondation.simulation.nodal.core.*;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -9,7 +8,7 @@ import java.util.Map;
 
 public class SteadyStateSolver {
 
-    private static final int    MAX_ITER  = 50;
+    private static final int MAX_ITER = 50;
     private static final double TOLERANCE = 1e-3;
 
     public static void solve(SimulationModel model) {

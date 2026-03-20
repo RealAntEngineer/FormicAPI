@@ -4,7 +4,6 @@ import com.rae.formicapi.fondation.simulation.nodal.ModelType;
 import com.rae.formicapi.fondation.simulation.nodal.core.Node;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationComponent;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationContext;
-import com.rae.formicapi.fondation.simulation.nodal.core.*;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -73,9 +72,9 @@ public class RotationalDamper implements SimulationComponent {
         if (damping <= 0)
             throw new IllegalArgumentException("Damping must be positive, got: " + damping);
 
-        this.a       = a;
-        this.b       = b;
-        this.heat    = heat;
+        this.a = a;
+        this.b = b;
+        this.heat = heat;
         this.damping = damping;
     }
 
@@ -92,7 +91,7 @@ public class RotationalDamper implements SimulationComponent {
     @Override
     public void stamp(Map<ModelType, SimulationContext> contexts) {
 
-        SimulationContext mechCtx  = contexts.get(ModelType.MECHANICAL);
+        SimulationContext mechCtx = contexts.get(ModelType.MECHANICAL);
         SimulationContext thermCtx = contexts.get(ModelType.THERMAL);
 
         // mechanical stamp
@@ -103,11 +102,11 @@ public class RotationalDamper implements SimulationComponent {
             int j = b.getId(ModelType.MECHANICAL);
 
             if (au) {
-                mechCtx.matrix.add(i, i,  damping);
+                mechCtx.matrix.add(i, i, damping);
                 mechCtx.matrix.add(i, j, -damping);
             }
             if (bu) {
-                mechCtx.matrix.add(j, j,  damping);
+                mechCtx.matrix.add(j, j, damping);
                 mechCtx.matrix.add(j, i, -damping);
             }
         }

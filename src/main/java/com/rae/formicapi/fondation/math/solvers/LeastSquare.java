@@ -5,6 +5,13 @@ import com.rae.formicapi.fondation.math.operators.Matrix;
 public class LeastSquare {
 
     /**
+     * Convenience overload: zero initial guess
+     */
+    public static double[] solve(Matrix A, double[] b, int maxIter, float tol) {
+        return solve(A, new double[A.cols()], b, maxIter, tol);
+    }
+
+    /**
      * Solve Ax = b in least-squares sense.
      * Works for square, rectangular, symmetric or non-symmetric matrices.
      *
@@ -37,7 +44,9 @@ public class LeastSquare {
         return conjugateGradientNormalEq(A, x_init.clone(), Atb, maxIter, tol);
     }
 
-    /** CG on AᵀA x = Aᵀb without forming AᵀA explicitly */
+    /**
+     * CG on AᵀA x = Aᵀb without forming AᵀA explicitly
+     */
     private static double[] conjugateGradientNormalEq(Matrix A, double[] x, double[] Atb, int maxIter, double tol) {
         int n = A.rows();
         int m = A.cols();
@@ -77,7 +86,9 @@ public class LeastSquare {
         return x;
     }
 
-    /** Multiply by AᵀA efficiently: temp = A*p, result = Aᵀ*temp */
+    /**
+     * Multiply by AᵀA efficiently: temp = A*p, result = Aᵀ*temp
+     */
     private static void multiplyAtA(Matrix A, double[] p, double[] temp, double[] result) {
         A.multiply(p, temp);
         A.transposeMultiply(temp, result);
@@ -89,10 +100,5 @@ public class LeastSquare {
         double sum = 0;
         for (int i = 0; i < a.length; i++) sum += a[i] * b[i];
         return sum;
-    }
-
-    /** Convenience overload: zero initial guess */
-    public static double[] solve(Matrix A, double[] b, int maxIter, float tol) {
-        return solve(A, new double[A.cols()], b, maxIter, tol);
     }
 }

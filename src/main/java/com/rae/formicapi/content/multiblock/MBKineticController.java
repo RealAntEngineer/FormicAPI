@@ -19,18 +19,21 @@ import java.util.Objects;
  */
 public abstract class MBKineticController extends DirectionalKineticBlock implements IMBController {
     final MBStructureBlock structure;
+
     protected MBKineticController(Properties properties, MBStructureBlock structure) {
         super(properties);
         this.structure = structure;
         this.registerDefaultState(this.defaultBlockState().setValue(FACING, Direction.NORTH));
     }
+
     @Override
     public void setPlacedBy(@NotNull Level worldIn, @NotNull BlockPos pos, @NotNull BlockState state, @Nullable LivingEntity entity, @NotNull ItemStack stack) {
         super.setPlacedBy(worldIn, pos, state, entity, stack);
         repairStructure(worldIn, pos, state.getValue(FACING));
     }
+
     public BlockState getStateForPlacement(@NotNull BlockPlaceContext context) {
-        return Objects.requireNonNull(super.getStateForPlacement(context)).setValue(FACING,context.getClickedFace());
+        return Objects.requireNonNull(super.getStateForPlacement(context)).setValue(FACING, context.getClickedFace());
 
     }
 

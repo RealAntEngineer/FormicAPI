@@ -14,6 +14,10 @@ public enum StepMode {
             Math::exp
     );
 
+    public static final Codec<StepMode> CODEC = Codec.STRING.xmap(
+            StepMode::valueOf,
+            StepMode::name
+    );
     public final DoubleUnaryOperator forward;
     public final DoubleUnaryOperator inverse;
 
@@ -21,9 +25,5 @@ public enum StepMode {
         this.forward = forward;
         this.inverse = inverse;
     }
-    public static final Codec<StepMode> CODEC = Codec.STRING.xmap(
-            StepMode::valueOf,
-            StepMode::name
-    );
 
 }

@@ -7,7 +7,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -17,20 +17,6 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 public class SimplePlot {
 
-    public static class Series {
-        public String label;
-        public List<Double> x;
-        public List<Double> y;
-        public Color color;
-
-        public Series(String label, List<Double> x, List<Double> y, Color color) {
-            this.label = label;
-            this.x = x;
-            this.y = y;
-            this.color = color;
-        }
-    }
-
     private final List<Series> seriesList = new ArrayList<>();
     private boolean xLog = false;
     private boolean yLog = false;
@@ -38,33 +24,79 @@ public class SimplePlot {
     private String xLabel = "";
     private String yLabel = "";
     private String title = "";
-
     private int width = 800;
     private int height = 600;
-    private int margin = 60;
-
+    private final int margin = 60;
     private double xMin = Double.POSITIVE_INFINITY;
     private double xMax = Double.NEGATIVE_INFINITY;
     private double yMin = Double.POSITIVE_INFINITY;
     private double yMax = Double.NEGATIVE_INFINITY;
 
+    public SimplePlot width(int width) {
+        this.width = width;
+        return this;
+    }
+
     // ===== Setters =====
 
-    public SimplePlot width(int width) { this.width = width; return this; }
-    public SimplePlot height(int height) { this.height = height; return this; }
-    public SimplePlot title(String title) { this.title = title; return this; }
-    public SimplePlot xlabel(String label) { this.xLabel = label; return this; }
-    public SimplePlot ylabel(String label) { this.yLabel = label; return this; }
-    public SimplePlot xLog(boolean log) { this.xLog = log; return this; }
-    public SimplePlot yLog(boolean log) { this.yLog = log; return this; }
-    public SimplePlot showLegend(boolean showLegend){this.showLegend = showLegend;return this;}
+    public SimplePlot height(int height) {
+        this.height = height;
+        return this;
+    }
+
+    public SimplePlot title(String title) {
+        this.title = title;
+        return this;
+    }
+
+    public SimplePlot xlabel(String label) {
+        this.xLabel = label;
+        return this;
+    }
+
+    public SimplePlot ylabel(String label) {
+        this.yLabel = label;
+        return this;
+    }
+
+    public SimplePlot xLog(boolean log) {
+        this.xLog = log;
+        return this;
+    }
+
+    public SimplePlot yLog(boolean log) {
+        this.yLog = log;
+        return this;
+    }
+
+    public SimplePlot showLegend(boolean showLegend) {
+        this.showLegend = showLegend;
+        return this;
+    }
 
     public void addSeries(String label, List<Double> x, List<Double> y) {
         Color color = randomColor(seriesList.size());
         seriesList.add(new Series(label, x, y, color));
 
-        for (double val : x) { if (!Double.isNaN(val)) { xMin = Math.min(xMin, val); xMax = Math.max(xMax, val); } }
-        for (double val : y) { if (!Double.isNaN(val)) { yMin = Math.min(yMin, val); yMax = Math.max(yMax, val); } }
+        for (double val : x) {
+            if (!Double.isNaN(val)) {
+                xMin = Math.min(xMin, val);
+                xMax = Math.max(xMax, val);
+            }
+        }
+        for (double val : y) {
+            if (!Double.isNaN(val)) {
+                yMin = Math.min(yMin, val);
+                yMax = Math.max(yMax, val);
+            }
+        }
+    }
+
+    private static Color randomColor(int seed) {
+        int r = (int) ((Math.sin(seed + 1) * 10000) % 255);
+        int g = (int) ((Math.cos(seed + 2) * 10000) % 255);
+        int b = (int) ((Math.sin(seed + 3) * 10000) % 255);
+        return new Color(Math.abs(r), Math.abs(g), Math.abs(b));
     }
 
     // ===== Rendering =====
@@ -102,8 +134,8 @@ public class SimplePlot {
                     double yv = s.y.get(i);
                     if (Double.isNaN(xv) || Double.isNaN(yv)) continue;
 
-                    int px = margin + (int) ((width - 2*margin) * normalize(xv, xMin, xMax, xLog));
-                    int py = height - margin - (int) ((height - 2*margin) * normalize(yv, yMin, yMax, yLog));
+                    int px = margin + (int) ((width - 2 * margin) * normalize(xv, xMin, xMax, xLog));
+                    int py = height - margin - (int) ((height - 2 * margin) * normalize(yv, yMin, yMax, yLog));
 
                     if (prevX >= 0 && prevY >= 0) {
                         g.drawLine(prevX, prevY, px, py);
@@ -141,6 +173,15 @@ public class SimplePlot {
         }
     }
 
+    private static double normalize(double value, double min, double max, boolean log) {
+        if (log) {
+            value = Math.log10(value);
+            min = Math.log10(min);
+            max = Math.log10(max);
+        }
+        return (value - min) / (max - min);
+    }
+
     // ===== Utilities =====
     private void drawGraduations(Graphics2D g, double xMin, double xMax, double yMin, double yMax) {
         g.setFont(new Font("SansSerif", Font.PLAIN, 12));
@@ -155,13 +196,13 @@ public class SimplePlot {
             if (xLog) {
                 double logMin = Math.log10(xMin);
                 double logMax = Math.log10(xMax);
-                val = Math.pow(10, logMin + i*(logMax-logMin)/numXTicks);
-            } else val = xMin + i*(xMax-xMin)/numXTicks;
+                val = Math.pow(10, logMin + i * (logMax - logMin) / numXTicks);
+            } else val = xMin + i * (xMax - xMin) / numXTicks;
 
-            int px = margin + (int)((width - 2*margin) * normalize(val, xMin, xMax, xLog));
+            int px = margin + (int) ((width - 2 * margin) * normalize(val, xMin, xMax, xLog));
             g.drawLine(px, height - margin, px, height - margin + tickSize);
             String label = formatNumber(val);
-            g.drawString(label, px - g.getFontMetrics().stringWidth(label)/2, height - margin + 20);
+            g.drawString(label, px - g.getFontMetrics().stringWidth(label) / 2, height - margin + 20);
         }
 
         // Y axis ticks
@@ -171,35 +212,34 @@ public class SimplePlot {
             if (yLog) {
                 double logMin = Math.log10(yMin);
                 double logMax = Math.log10(yMax);
-                val = Math.pow(10, logMin + i*(logMax-logMin)/numYTicks);
-            } else val = yMin + i*(yMax-yMin)/numYTicks;
+                val = Math.pow(10, logMin + i * (logMax - logMin) / numYTicks);
+            } else val = yMin + i * (yMax - yMin) / numYTicks;
 
-            int py = height - margin - (int)((height - 2*margin) * normalize(val, yMin, yMax, yLog));
+            int py = height - margin - (int) ((height - 2 * margin) * normalize(val, yMin, yMax, yLog));
             g.drawLine(margin - tickSize, py, margin, py);
             String label = formatNumber(val);
             g.drawString(label, margin - tickSize - g.getFontMetrics().stringWidth(label) - 2, py + 4);
         }
-    }
-    private static double normalize(double value, double min, double max, boolean log) {
-        if (log) {
-            value = Math.log10(value);
-            min = Math.log10(min);
-            max = Math.log10(max);
-        }
-        return (value - min) / (max - min);
-    }
-
-    private static Color randomColor(int seed) {
-        int r = (int) ((Math.sin(seed + 1) * 10000) % 255);
-        int g = (int) ((Math.cos(seed + 2) * 10000) % 255);
-        int b = (int) ((Math.sin(seed + 3) * 10000) % 255);
-        return new Color(Math.abs(r), Math.abs(g), Math.abs(b));
     }
 
     private static String formatNumber(double val) {
         if (Math.abs(val) >= 1e4 || Math.abs(val) < 1e-2) return String.format("%.1e", val);
         if (Math.abs(val) >= 10) return String.format("%.0f", val);
         return String.format("%.3f", val);
+    }
+
+    public static class Series {
+        public String label;
+        public List<Double> x;
+        public List<Double> y;
+        public Color color;
+
+        public Series(String label, List<Double> x, List<Double> y, Color color) {
+            this.label = label;
+            this.x = x;
+            this.y = y;
+            this.color = color;
+        }
     }
 }
 

@@ -11,8 +11,8 @@ public class OneDTabulatedFunction {
 
     /**
      * @param table Sorted data: x -> y
-     * @param step Distance between values in transformed space (e.g., log(x) if LOGARITHMIC)
-     * @param mode The axis step mode (linear, log, etc.)
+     * @param step  Distance between values in transformed space (e.g., log(x) if LOGARITHMIC)
+     * @param mode  The axis step mode (linear, log, etc.)
      * @param clamp Clamp outside instead of extrapolating.
      */
     public OneDTabulatedFunction(TreeMap<Float, Float> table, float step, StepMode mode, boolean clamp) {
@@ -42,6 +42,20 @@ public class OneDTabulatedFunction {
 
         // Interpolation inside the range
         return interpolate(input);
+    }
+
+    private float extrapolateBelow(float query) {
+        Map.Entry<Float, Float> lower = table.firstEntry();
+        Map.Entry<Float, Float> upper = table.higherEntry(lower.getKey());
+        if (upper == null) return lower.getValue(); // only one point in table
+        return linear(query, lower, upper);
+    }
+
+    private float extrapolateAbove(float query) {
+        Map.Entry<Float, Float> upper = table.lastEntry();
+        Map.Entry<Float, Float> lower = table.lowerEntry(upper.getKey());
+        if (lower == null) return upper.getValue(); // only one point in table
+        return linear(query, lower, upper);
     }
 
     private float interpolate(double input) {
@@ -74,20 +88,6 @@ public class OneDTabulatedFunction {
         float P2 = table.get(X2);
 
         return P1 * (1 - frac) + P2 * frac;
-    }
-
-    private float extrapolateBelow(float query) {
-        Map.Entry<Float, Float> lower = table.firstEntry();
-        Map.Entry<Float, Float> upper = table.higherEntry(lower.getKey());
-        if (upper == null) return lower.getValue(); // only one point in table
-        return linear(query, lower, upper);
-    }
-
-    private float extrapolateAbove(float query) {
-        Map.Entry<Float, Float> upper = table.lastEntry();
-        Map.Entry<Float, Float> lower = table.lowerEntry(upper.getKey());
-        if (lower == null) return upper.getValue(); // only one point in table
-        return linear(query, lower, upper);
     }
 
     private float linear(float query, Map.Entry<Float, Float> a, Map.Entry<Float, Float> b) {

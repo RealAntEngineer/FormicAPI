@@ -13,8 +13,9 @@ public class SimulationModel {
     private final Map<ModelType, DomainModel> domains = new EnumMap<>(ModelType.class);
     private final List<SimulationComponent> components = new ArrayList<>();
 
-    public DomainModel domain(ModelType type) {
-        return domains.computeIfAbsent(type, DomainModel::new);
+    public void addComponent(SimulationComponent coupling) {
+        components.add(coupling);
+        coupling.getInternalNodes().forEach(this::addNode);
     }
 
     public Node addNode(Node node) {
@@ -22,13 +23,17 @@ public class SimulationModel {
         return node;
     }
 
-    public void addComponent(SimulationComponent coupling) {
-        components.add(coupling);
-        coupling.getInternalNodes().forEach(this::addNode);
+    public DomainModel domain(ModelType type) {
+        return domains.computeIfAbsent(type, DomainModel::new);
     }
 
-    public Map<ModelType, DomainModel> getDomains() { return domains; }
-    public List<SimulationComponent> getComponents()      { return components; }
+    public Map<ModelType, DomainModel> getDomains() {
+        return domains;
+    }
+
+    public List<SimulationComponent> getComponents() {
+        return components;
+    }
 
     public List<ModelType> getSolveOrder() {
         return SOLVE_ORDER;

@@ -34,17 +34,23 @@ public abstract class Node {
 
     // ── domain membership ─────────────────────────────────────────────────
 
-    /** All domains this node participates in. */
-    public Set<ModelType> getDomains() { return domains; }
+    /**
+     * All domains this node participates in.
+     */
+    public Set<ModelType> getDomains() {
+        return domains;
+    }
 
-    public boolean participatesIn(ModelType type) { return domains.contains(type); }
+    public boolean participatesIn(ModelType type) {
+        return domains.contains(type);
+    }
 
     // ── matrix index — one per domain ─────────────────────────────────────
 
     /**
      * Returns the matrix row/column index for this node in the given domain.
      *
-     * @throws IllegalStateException if the domain has not been registered yet
+     * @throws IllegalStateException    if the domain has not been registered yet
      * @throws IllegalArgumentException if this node does not participate in that domain
      */
     public int getId(ModelType type) {
@@ -58,7 +64,9 @@ public abstract class Node {
         return id;
     }
 
-    /** Called by {@link DomainModel#rebuildContext()} once per domain per rebuild. */
+    /**
+     * Called by {@link DomainModel#rebuildContext()} once per domain per rebuild.
+     */
     public void setId(ModelType type, int id) {
         if (!domains.contains(type))
             throw new IllegalArgumentException(
@@ -74,9 +82,13 @@ public abstract class Node {
      */
     public abstract boolean isUnknown(ModelType type);
 
-    /** Returns the current scalar value for the given domain. */
+    /**
+     * Returns the current scalar value for the given domain.
+     */
     public abstract double getValue(ModelType type);
 
-    /** Sets the value for the given domain. Fixed domains silently ignore this. */
+    /**
+     * Sets the value for the given domain. Fixed domains silently ignore this.
+     */
     public abstract void setValue(ModelType type, double value);
 }

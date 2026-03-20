@@ -13,7 +13,7 @@ import java.util.List;
  * <pre>
  *     Q = G * (X_a - X_b)
  * </pre>
- *
+ * <p>
  * where:
  * <ul>
  *     <li>{@code Q} is the flow of the quantity (e.g., heat flux, mass flux, current)</li>
@@ -53,8 +53,8 @@ public class LinearLink extends SingleDomainComponent {
     /**
      * Creates a linear link between two nodes.
      *
-     * @param a first node
-     * @param b second node
+     * @param a           first node
+     * @param b           second node
      * @param conductance linear transfer coefficient (must be positive)
      */
     public LinearLink(Node a, Node b, ModelType type, double conductance) {
@@ -62,6 +62,11 @@ public class LinearLink extends SingleDomainComponent {
         this.b = b;
         this.type = type;
         this.conductance = conductance;
+    }
+
+    @Override
+    public ModelType getDomain() {
+        return type;
     }
 
     /**
@@ -92,11 +97,6 @@ public class LinearLink extends SingleDomainComponent {
         }
 
         // both fixed → nothing
-    }
-
-    @Override
-    public ModelType getDomain() {
-        return type;
     }
 
     @Override

@@ -10,10 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 
-
-
 public class HeatExchanger implements SimulationComponent {
-
 
 
     @Override

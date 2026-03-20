@@ -7,21 +7,19 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class TwoDSparseTabulatedFunction {
-    // table: X -> (Y -> Value)
-    private final TreeMap<Float, TreeMap<Float, Float>> table;
-
-    private final boolean clamp;
     // Codec for individual inner maps (Y -> Value)
     public static final Codec<TreeMap<Float, Float>> INNER_MAP_CODEC = Codec.unboundedMap(
-            Codec.STRING.xmap(Float::parseFloat,Object::toString), Codec.FLOAT
+            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
     ).xmap(TreeMap::new, TreeMap::new);
-
     // Codec for the entire TwoDTabulatedFunction table
     public static final Codec<TwoDSparseTabulatedFunction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat,Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
+            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
                     .forGetter(f -> f.table),
             Codec.BOOL.fieldOf("clamp").forGetter(f -> f.clamp)
     ).apply(instance, TwoDSparseTabulatedFunction::new));
+    // table: X -> (Y -> Value)
+    private final TreeMap<Float, TreeMap<Float, Float>> table;
+    private final boolean clamp;
 
     public TwoDSparseTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, boolean clamp) {
         this.table = table;
@@ -122,6 +120,7 @@ public class TwoDSparseTabulatedFunction {
         float t = (query - x1) / (x2 - x1);
         return y1 * (1 - t) + y2 * t;
     }
+
     private float extrapolateZ(float xInput, float yInput) {
         Map.Entry<Float, TreeMap<Float, Float>> lower = table.floorEntry(xInput);
         Map.Entry<Float, TreeMap<Float, Float>> upper = table.ceilingEntry(xInput);

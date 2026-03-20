@@ -20,32 +20,6 @@ import java.util.Arrays;
 public interface Matrix {
 
     /**
-     * Returns the number of rows in this matrix.
-     *
-     * @return row count
-     */
-    int rows();
-
-    /**
-     * Returns the number of columns in this matrix.
-     *
-     * @return column count
-     */
-    int cols();
-
-    /**
-     * Returns the value at position (r, c).
-     *
-     * <p>For sparse implementations, returns {@code 0.0} for entries
-     * not explicitly stored.
-     *
-     * @param r row index
-     * @param c column index
-     * @return the scalar value at (r, c)
-     */
-    double get(int r, int c);
-
-    /**
      * Multiplies this matrix by vector {@code x}, storing Ax in {@code result}.
      *
      * @param x      input vector of length {@link #cols()}
@@ -73,4 +47,30 @@ public interface Matrix {
             }
         }
     }
+
+    /**
+     * Returns the number of rows in this matrix.
+     *
+     * @return row count
+     */
+    int rows();
+
+    /**
+     * Returns the number of columns in this matrix.
+     *
+     * @return column count
+     */
+    int cols();
+
+    /**
+     * Returns the value at position (r, c).
+     *
+     * <p>For sparse implementations, returns {@code 0.0} for entries
+     * not explicitly stored.
+     *
+     * @param r row index
+     * @param c column index
+     * @return the scalar value at (r, c)
+     */
+    double get(int r, int c);
 }

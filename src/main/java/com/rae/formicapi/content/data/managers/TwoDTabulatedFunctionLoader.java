@@ -17,12 +17,12 @@ import org.slf4j.Logger;
 import java.util.Map;
 
 public class TwoDTabulatedFunctionLoader extends SimpleJsonResourceReloadListener {
+    public static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new Gson();
     private static final String FOLDER = "tabulated_functions";
-
     private final ResourceLocation FILE_NAME;
     private TwoDTabulatedFunction FUNCTION;
-    public static final Logger LOGGER = LogUtils.getLogger();
+
     public TwoDTabulatedFunctionLoader(String modId, String fileName) {
         super(GSON, FOLDER);
         FILE_NAME = new ResourceLocation(modId, fileName);
@@ -36,14 +36,15 @@ public class TwoDTabulatedFunctionLoader extends SimpleJsonResourceReloadListene
             if (!entry.getKey().equals(FILE_NAME)) continue;
             try {
                 JsonObject json = GsonHelper.convertToJsonObject(entry.getValue(), "tabulated function");
-                FUNCTION = TwoDTabulatedFunction.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow(false, s -> {}).getFirst();
+                FUNCTION = TwoDTabulatedFunction.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow(false, s -> {
+                }).getFirst();
             } catch (Exception e) {
                 LOGGER.error("Failed to load float data from {}", entry.getKey(), e);
             }
         }
     }
 
-    public float getValue(float x,float y) {
+    public float getValue(float x, float y) {
         return FUNCTION.evaluate(x, y);
     }
 

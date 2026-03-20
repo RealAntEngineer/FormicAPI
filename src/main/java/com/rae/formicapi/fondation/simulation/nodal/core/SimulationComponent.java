@@ -8,6 +8,8 @@ import java.util.Set;
 
 public interface SimulationComponent {
     Set<ModelType> getDomains();
+
     List<Node> getInternalNodes();
+
     void stamp(Map<ModelType, SimulationContext> contexts);
 }

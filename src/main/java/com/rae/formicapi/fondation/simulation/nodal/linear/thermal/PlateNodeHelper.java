@@ -1,37 +1,21 @@
 package com.rae.formicapi.fondation.simulation.nodal.linear.thermal;
 
+import com.rae.formicapi.fondation.simulation.material.Material;
 import com.rae.formicapi.fondation.simulation.nodal.ModelType;
 import com.rae.formicapi.fondation.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.fondation.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.fondation.simulation.material.Material;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class PlateNodeHelper {
 
-    public static class Layer {
-        public Material material;
-        public double thickness; // meters, Y-direction
-        public double length;    // meters, X-direction
-        public int nx;           // nodes along length
-        public int ny;           // nodes along thickness
-
-        public Layer(Material material, double length, double thickness, int nx, int ny) {
-            this.material = material;
-            this.length = length;
-            this.thickness = thickness;
-            this.nx = nx;
-            this.ny = ny;
-        }
-    }
+    private final List<Layer> layers = new ArrayList<>();
 
     public List<Layer> getLayers() {
         return layers;
     }
-
-    private final List<Layer> layers = new ArrayList<>();
 
     public void addLayer(Layer layer) {
         layers.add(layer);
@@ -60,7 +44,7 @@ public class PlateNodeHelper {
         // ----------------------------------------------------------------
         int nodeRowStart = 0;
         for (Layer layer : layers) {
-            double dx = layer.length    / layer.nx;
+            double dx = layer.length / layer.nx;
             double dy = layer.thickness / layer.ny;
 
             for (int j = nodeRowStart; j < nodeRowStart + layer.ny; j++) {
@@ -81,16 +65,16 @@ public class PlateNodeHelper {
         // ----------------------------------------------------------------
         nodeRowStart = 0;
         for (int l = 0; l < layers.size(); l++) {
-            Layer  layer = layers.get(l);
-            double dx    = layer.length    / layer.nx;
-            double dy    = layer.thickness / layer.ny;
+            Layer layer = layers.get(l);
+            double dx = layer.length / layer.nx;
+            double dy = layer.thickness / layer.ny;
             boolean isLastLayer = (l == layers.size() - 1);
 
             for (int j = nodeRowStart; j <= nodeRowStart + layer.ny; j++) {
 
                 boolean isBottomBoundary = (j == nodeRowStart);
-                boolean isTopBoundary    = (j == nodeRowStart + layer.ny);
-                boolean isInterface      = isTopBoundary && !isLastLayer;
+                boolean isTopBoundary = (j == nodeRowStart + layer.ny);
+                boolean isInterface = isTopBoundary && !isLastLayer;
 
                 // Interface rows are handled in the dedicated block below
                 if (isInterface) continue;
@@ -119,14 +103,14 @@ public class PlateNodeHelper {
 
             double dy_bot = bot.thickness / bot.ny;
             double dy_top = top.thickness / top.ny;
-            double dx     = bot.length    / bot.nx;
+            double dx = bot.length / bot.nx;
 
             // Each half-cell resistance in the horizontal direction:
             // R = distance / (k * area) = (dy/2) / (k * 1)  [per unit depth, dx cancels]
             // But here the section area for horizontal flow IS dy/2 (height) * 1 (depth)
             // and distance is dx, so G = k * (dy/2) / dx  — harmonic mean of the two:
-            double G_bot       = bot.material.getConductivity() * (dy_bot / 2.0) / dx;
-            double G_top       = top.material.getConductivity() * (dy_top / 2.0) / dx;
+            double G_bot = bot.material.getConductivity() * (dy_bot / 2.0) / dx;
+            double G_top = top.material.getConductivity() * (dy_top / 2.0) / dx;
             double G_interface = 1.0 / (1.0 / G_bot + 1.0 / G_top);
 
             for (int i = 0; i < bot.nx - 1; i++) {
@@ -137,6 +121,22 @@ public class PlateNodeHelper {
         }
 
         return nodes;
+    }
+
+    public static class Layer {
+        public Material material;
+        public double thickness; // meters, Y-direction
+        public double length;    // meters, X-direction
+        public int nx;           // nodes along length
+        public int ny;           // nodes along thickness
+
+        public Layer(Material material, double length, double thickness, int nx, int ny) {
+            this.material = material;
+            this.length = length;
+            this.thickness = thickness;
+            this.nx = nx;
+            this.ny = ny;
+        }
     }
 
 }

@@ -17,29 +17,7 @@ import java.util.Queue;
 import java.util.Set;
 
 public interface IMBController {
-    Vec3i getDefaultOffset();
-    Vec3i getDefaultSize();
     VoxelShape getGlobalShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context);
-    MBStructureBlock getStructure();
-    default Vec3i getOffset(Direction facing, boolean mirrorOnDir){
-        final int dirMultiply = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE && mirrorOnDir ? -1 : 1;
-        Vec3i defaultOffset = getDefaultOffset();
-        return switch (facing.getAxis()){
-            case Z -> new Vec3i( defaultOffset.getZ(), defaultOffset.getY(), dirMultiply *defaultOffset.getX());
-            case Y -> new Vec3i( defaultOffset.getY(), dirMultiply *defaultOffset.getX(),defaultOffset.getZ());
-            default -> new Vec3i( dirMultiply *defaultOffset.getX(),defaultOffset.getY(), defaultOffset.getZ());
-        };
-    }
-
-    default Vec3i getSize(Direction facing){
-        Vec3i defaultSize = getDefaultSize();
-        return switch (facing.getAxis()){
-            case Z -> new Vec3i(defaultSize.getZ(), defaultSize.getY(), defaultSize.getX());
-            case Y -> new Vec3i(defaultSize.getY(), defaultSize.getX(),defaultSize.getZ());
-            default -> defaultSize;
-        };
-    }
-
 
     default void repairStructure(Level level, BlockPos controlPos, Direction facing) {
         if (level.isClientSide()) return;
@@ -85,14 +63,40 @@ public interface IMBController {
         }
     }
 
+    MBStructureBlock getStructure();
+
+    default Vec3i getOffset(Direction facing, boolean mirrorOnDir) {
+        final int dirMultiply = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE && mirrorOnDir ? -1 : 1;
+        Vec3i defaultOffset = getDefaultOffset();
+        return switch (facing.getAxis()) {
+            case Z -> new Vec3i(defaultOffset.getZ(), defaultOffset.getY(), dirMultiply * defaultOffset.getX());
+            case Y -> new Vec3i(defaultOffset.getY(), dirMultiply * defaultOffset.getX(), defaultOffset.getZ());
+            default -> new Vec3i(dirMultiply * defaultOffset.getX(), defaultOffset.getY(), defaultOffset.getZ());
+        };
+    }
+
+    default Vec3i getSize(Direction facing) {
+        Vec3i defaultSize = getDefaultSize();
+        return switch (facing.getAxis()) {
+            case Z -> new Vec3i(defaultSize.getZ(), defaultSize.getY(), defaultSize.getX());
+            case Y -> new Vec3i(defaultSize.getY(), defaultSize.getX(), defaultSize.getZ());
+            default -> defaultSize;
+        };
+    }
+
     default boolean isInsideBounds(BlockPos pos, BlockPos minCorner, Vec3i size) {
         int dx = minCorner.getX() - pos.getX();
-        int dy = minCorner.getY() - pos.getY() ;
+        int dy = minCorner.getY() - pos.getY();
         int dz = minCorner.getZ() - pos.getZ();
         return dx >= 0 && dx < size.getX() &&
                 dy >= 0 && dy < size.getY() &&
                 dz >= 0 && dz < size.getZ();
     }
-    record Node(Direction fromDir, BlockPos pos){
+
+    Vec3i getDefaultOffset();
+
+    Vec3i getDefaultSize();
+
+    record Node(Direction fromDir, BlockPos pos) {
     }
 }

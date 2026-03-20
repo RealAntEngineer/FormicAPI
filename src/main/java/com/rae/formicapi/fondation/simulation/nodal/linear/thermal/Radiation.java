@@ -2,8 +2,8 @@ package com.rae.formicapi.fondation.simulation.nodal.linear.thermal;
 
 import com.rae.formicapi.fondation.simulation.nodal.ModelType;
 import com.rae.formicapi.fondation.simulation.nodal.core.Node;
-import com.rae.formicapi.fondation.simulation.nodal.core.SingleDomainComponent;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationContext;
+import com.rae.formicapi.fondation.simulation.nodal.core.SingleDomainComponent;
 
 import java.util.List;
 
@@ -44,12 +44,12 @@ public class Radiation extends SingleDomainComponent {
         int j = b.getId(ModelType.THERMAL);
 
         if (au) {
-            ctx.matrix.add(i, i,  g);
+            ctx.matrix.add(i, i, g);
             ctx.matrix.add(i, j, -g);
         }
 
         if (bu) {
-            ctx.matrix.add(j, j,  g);
+            ctx.matrix.add(j, j, g);
             ctx.matrix.add(j, i, -g);
         }
     }

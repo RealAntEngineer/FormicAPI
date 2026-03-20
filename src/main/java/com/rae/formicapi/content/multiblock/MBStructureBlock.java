@@ -50,21 +50,20 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
 
     @Override
     @NonnullDefault
-    public @NotNull VoxelShape getShape(BlockState state, BlockGetter getter, BlockPos pos, CollisionContext context) {
-        if (!(getter instanceof Level level && level.isClientSide)) return Shapes.empty();
-        BlockPos masterPos = getMaster(getter, pos);
-        BlockState masterState =  getter.getBlockState(masterPos);
-        if (masterState.getBlock() instanceof IMBController masterBlock) {
-            VoxelShape shape = masterBlock.getGlobalShape(masterState,getter, masterPos, context);
-            return Shapes.join(shape.move( masterPos.getX()- pos.getX(),  masterPos.getY() - pos.getY(), masterPos.getZ() - pos.getZ()), Shapes.block(), BooleanOp.AND);
-        }
-        return Shapes.block();
-        //need to be intersected with a box.
+    public boolean propagatesSkylightDown(BlockState pState, BlockGetter pReader, BlockPos pPos) {
+        return true;
     }
 
-    @Override
-    public @Nullable PushReaction getPistonPushReaction(BlockState state) {
-        return PushReaction.BLOCK;
+    @NonnullDefault
+    public void playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
+        if (stillValid(pLevel, pPos, pState)) {
+            BlockPos masterPos = getMaster(pLevel, pPos);
+            pLevel.destroyBlockProgress(masterPos.hashCode(), masterPos, -1);
+            if (!pLevel.isClientSide() && pPlayer.isCreative())
+                pLevel.destroyBlock(masterPos, false);
+        }
+
+        super.playerWillDestroy(pLevel, pPos, pState, pPlayer);
     }
 
     @Override
@@ -72,23 +71,15 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         super.createBlockStateDefinition(pBuilder.add(FACING));
     }
 
-    @Override
-    @NonnullDefault
-    public float getShadeBrightness(BlockState pState, BlockGetter pLevel, BlockPos pPos) {
-        return 1.0F;
-    }
-
-    @Override
-    @NonnullDefault
-    public boolean propagatesSkylightDown(BlockState pState, BlockGetter pReader, BlockPos pPos) {
-        return true;
+    @OnlyIn(Dist.CLIENT)
+    public void initializeClient(Consumer<IClientBlockExtensions> consumer) {
+        consumer.accept(new RenderProperties());
     }
 
     @Override
     public InteractionResult onWrenched(BlockState state, UseOnContext context) {
         return InteractionResult.PASS;
     }
-
 
     @Override
     public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
@@ -106,16 +97,15 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         return IWrenchable.super.onSneakWrenched(state, context);
     }
 
-    @NonnullDefault
-    public void playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
-        if (stillValid(pLevel, pPos, pState)) {
-            BlockPos masterPos = getMaster(pLevel, pPos);
-            pLevel.destroyBlockProgress(masterPos.hashCode(), masterPos, -1);
-            if (!pLevel.isClientSide() && pPlayer.isCreative())
-                pLevel.destroyBlock(masterPos, false);
-        }
+    public static boolean stillValid(BlockGetter level, BlockPos pos, BlockState state) {
+        if (!(state.getBlock() instanceof MBStructureBlock))
+            return false;
 
-        super.playerWillDestroy(pLevel, pPos, pState, pPlayer);
+        Direction direction = state.getValue(FACING);
+        BlockPos targetedPos = pos.relative(direction);
+        BlockState targetedState = level.getBlockState(targetedPos);
+        return targetedState.getBlock() instanceof MBStructureBlock ||
+                (targetedState.getBlock() instanceof IMBController mb && state.is(mb.getStructure()));
     }
 
     @Override
@@ -126,7 +116,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
             BlockPos masterPos = getMaster(pLevel, pCurrentPos);
             if (!pLevel.getBlockTicks()
                     .hasScheduledTick(masterPos, pLevel.getBlockState(masterPos).getBlock()))
-                pLevel.scheduleTick(masterPos, pLevel.getBlockState(masterPos).getBlock(),1);
+                pLevel.scheduleTick(masterPos, pLevel.getBlockState(masterPos).getBlock(), 1);
             return pState;
         }
         if (!(pLevel instanceof Level level) || level.isClientSide())
@@ -136,6 +126,27 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
             level.scheduleTick(pCurrentPos, this, 1);
         return pState;
     }
+
+    @Override
+    @NonnullDefault
+    public float getShadeBrightness(BlockState pState, BlockGetter pLevel, BlockPos pPos) {
+        return 1.0F;
+    }
+
+    @Override
+    @NonnullDefault
+    public @NotNull VoxelShape getShape(BlockState state, BlockGetter getter, BlockPos pos, CollisionContext context) {
+        if (!(getter instanceof Level level && level.isClientSide)) return Shapes.empty();
+        BlockPos masterPos = getMaster(getter, pos);
+        BlockState masterState = getter.getBlockState(masterPos);
+        if (masterState.getBlock() instanceof IMBController masterBlock) {
+            VoxelShape shape = masterBlock.getGlobalShape(masterState, getter, masterPos, context);
+            return Shapes.join(shape.move(masterPos.getX() - pos.getX(), masterPos.getY() - pos.getY(), masterPos.getZ() - pos.getZ()), Shapes.block(), BooleanOp.AND);
+        }
+        return Shapes.block();
+        //need to be intersected with a box.
+    }
+
     //TODO rewrite this
     public static BlockPos getMaster(BlockGetter level, BlockPos initialPos) {
         //makeSomething to prevent stackOverFlow -> while
@@ -160,17 +171,6 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         return targetedPos;
     }
 
-    public static boolean stillValid(BlockGetter level, BlockPos pos, BlockState state) {
-        if (!(state.getBlock() instanceof MBStructureBlock))
-            return false;
-
-        Direction direction = state.getValue(FACING);
-        BlockPos targetedPos = pos.relative(direction);
-        BlockState targetedState = level.getBlockState(targetedPos);
-        return targetedState.getBlock() instanceof MBStructureBlock ||
-                (targetedState.getBlock() instanceof IMBController mb && state.is(mb.getStructure()));
-    }
-
     @Override
     @NonnullDefault
     public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
@@ -179,24 +179,23 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         }
     }
 
-    @OnlyIn(Dist.CLIENT)
-    public void initializeClient(Consumer<IClientBlockExtensions> consumer) {
-        consumer.accept(new RenderProperties());
-    }
-
     @Override
     public boolean addLandingEffects(BlockState state1, ServerLevel level, BlockPos pos, BlockState state2,
                                      LivingEntity entity, int numberOfParticles) {
         return true;
     }
 
+    @Override
+    public @Nullable PushReaction getPistonPushReaction(BlockState state) {
+        return PushReaction.BLOCK;
+    }
+
+    @Override
+    public BlockPos getInformationSource(Level level, BlockPos pos, BlockState state) {
+        return stillValid(level, pos, state) ? getMaster(level, pos) : pos;
+    }
 
     public static class RenderProperties implements IClientBlockExtensions, MultiPosDestructionHandler {
-
-        @Override
-        public boolean addDestroyEffects(BlockState state, Level Level, BlockPos pos, ParticleEngine manager) {
-            return true;
-        }
 
         @Override
         public boolean addHitEffects(BlockState state, Level level, HitResult target, ParticleEngine manager) {
@@ -210,6 +209,11 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         }
 
         @Override
+        public boolean addDestroyEffects(BlockState state, Level Level, BlockPos pos, ParticleEngine manager) {
+            return true;
+        }
+
+        @Override
         @Nullable
         public Set<BlockPos> getExtraPositions(ClientLevel level, BlockPos pos, BlockState blockState, int progress) {
 
@@ -219,10 +223,5 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
             set.add(MBStructureBlock.getMaster(level, pos));
             return set;
         }
-    }
-
-    @Override
-    public BlockPos getInformationSource(Level level, BlockPos pos, BlockState state) {
-        return stillValid(level, pos, state) ? getMaster(level, pos) : pos;
     }
 }

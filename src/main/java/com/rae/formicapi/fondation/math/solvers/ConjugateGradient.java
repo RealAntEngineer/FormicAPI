@@ -5,6 +5,11 @@ import com.rae.formicapi.fondation.math.operators.MutableMatrix;
 
 public class ConjugateGradient {
 
+    // Convenience overload
+    public static double[] solve(MutableMatrix matrix, double[] rhs, int maxIter, float tol) {
+        return solve(matrix, new double[matrix.cols()], rhs, maxIter, tol);
+    }
+
     /**
      * Solve Ax = b using Conjugate Gradient.
      *
@@ -100,10 +105,5 @@ public class ConjugateGradient {
         for (int i = 0; i < a.length; i++)
             sum += a[i] * b[i];
         return sum;
-    }
-
-    // Convenience overload
-    public static double[] solve(MutableMatrix matrix, double[] rhs, int maxIter, float tol) {
-        return solve(matrix, new double[matrix.cols()], rhs, maxIter, tol);
     }
 }

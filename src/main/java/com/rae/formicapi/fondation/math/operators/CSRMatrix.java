@@ -23,8 +23,8 @@ public class CSRMatrix implements Matrix {
     private final int cols;
 
     private final double[] values;
-    private final int[]    colIndex;
-    private final int[]    rowPtr;
+    private final int[] colIndex;
+    private final int[] rowPtr;
 
     /**
      * Constructs a CSR matrix from raw arrays.
@@ -47,35 +47,61 @@ public class CSRMatrix implements Matrix {
      * @param rowPtr   row pointer array of length {@code rows + 1}
      */
     public CSRMatrix(int rows, int cols, double[] values, int[] colIndex, int[] rowPtr) {
-        this.rows     = rows;
-        this.cols     = cols;
-        this.values   = values;
+        this.rows = rows;
+        this.cols = cols;
+        this.values = values;
         this.colIndex = colIndex;
-        this.rowPtr   = rowPtr;
+        this.rowPtr = rowPtr;
     }
 
-    @Override
-    public int rows() { return rows; }
-
-    @Override
-    public int cols() { return cols; }
-
     /**
-     * Returns the value at (r, c).
+     * Builds a {@link CSRMatrix} from a {@link HashSparseMatrix}.
      *
-     * <p>Performs a linear scan of the stored entries in row {@code r}.
-     * O(nnz_per_row) — avoid calling this in hot loops; use
-     * {@link #multiply} or {@link #transposeMultiply} instead.
+     * <p>Rows are sorted by column index as required by the CSR format.
+     * Zero entries are excluded — {@link HashSparseMatrix} already prevents
+     * them from being stored, so this is a safeguard for direct callers.
      *
-     * @param r row index
-     * @param c column index
-     * @return the scalar value at (r, c), or {@code 0.0} if not stored
+     * @param hash the source hash matrix
+     * @return a compiled CSR representation
      */
-    @Override
-    public double get(int r, int c) {
-        for (int k = rowPtr[r]; k < rowPtr[r + 1]; k++)
-            if (colIndex[k] == c) return values[k];
-        return 0;
+    public static CSRMatrix fromHash(HashSparseMatrix hash) {
+        int rows = hash.rows();
+        int cols = hash.cols();
+
+        List<Double> valuesList = new ArrayList<>();
+        List<Integer> colIndexList = new ArrayList<>();
+        int[] rowPtr = new int[rows + 1];
+        int count = 0;
+
+        for (int r = 0; r < rows; r++) {
+            rowPtr[r] = count;
+
+            Map<Integer, Double> row = hash.getRow(r);
+            if (row != null) {
+                List<Integer> sortedCols = new ArrayList<>(row.keySet());
+                Collections.sort(sortedCols);
+
+                for (int c : sortedCols) {
+                    double v = row.get(c);
+                    if (v == 0.0) continue; // safeguard — should not occur
+                    valuesList.add(v);
+                    colIndexList.add(c);
+                    count++;
+                }
+            }
+        }
+
+        rowPtr[rows] = count;
+
+        double[] values = new double[count];
+        int[] colIndex = new int[count];
+
+        for (int i = 0; i < count; i++) {
+            values[i] = valuesList.get(i);
+            colIndex[i] = colIndexList.get(i);
+        }
+
+        return new CSRMatrix(rows, cols, values, colIndex, rowPtr);
     }
 
     /**
@@ -114,53 +140,31 @@ public class CSRMatrix implements Matrix {
                 result[colIndex[k]] += values[k] * x[r];
     }
 
+    @Override
+    public int rows() {
+        return rows;
+    }
+
+    @Override
+    public int cols() {
+        return cols;
+    }
+
     /**
-     * Builds a {@link CSRMatrix} from a {@link HashSparseMatrix}.
+     * Returns the value at (r, c).
      *
-     * <p>Rows are sorted by column index as required by the CSR format.
-     * Zero entries are excluded — {@link HashSparseMatrix} already prevents
-     * them from being stored, so this is a safeguard for direct callers.
+     * <p>Performs a linear scan of the stored entries in row {@code r}.
+     * O(nnz_per_row) — avoid calling this in hot loops; use
+     * {@link #multiply} or {@link #transposeMultiply} instead.
      *
-     * @param hash the source hash matrix
-     * @return a compiled CSR representation
+     * @param r row index
+     * @param c column index
+     * @return the scalar value at (r, c), or {@code 0.0} if not stored
      */
-    public static CSRMatrix fromHash(HashSparseMatrix hash) {
-        int rows = hash.rows();
-        int cols = hash.cols();
-
-        List<Double>  valuesList   = new ArrayList<>();
-        List<Integer> colIndexList = new ArrayList<>();
-        int[]         rowPtr       = new int[rows + 1];
-        int           count        = 0;
-
-        for (int r = 0; r < rows; r++) {
-            rowPtr[r] = count;
-
-            Map<Integer, Double> row = hash.getRow(r);
-            if (row != null) {
-                List<Integer> sortedCols = new ArrayList<>(row.keySet());
-                Collections.sort(sortedCols);
-
-                for (int c : sortedCols) {
-                    double v = row.get(c);
-                    if (v == 0.0) continue; // safeguard — should not occur
-                    valuesList.add(v);
-                    colIndexList.add(c);
-                    count++;
-                }
-            }
-        }
-
-        rowPtr[rows] = count;
-
-        double[] values   = new double[count];
-        int[]    colIndex = new int[count];
-
-        for (int i = 0; i < count; i++) {
-            values[i]   = valuesList.get(i);
-            colIndex[i] = colIndexList.get(i);
-        }
-
-        return new CSRMatrix(rows, cols, values, colIndex, rowPtr);
+    @Override
+    public double get(int r, int c) {
+        for (int k = rowPtr[r]; k < rowPtr[r + 1]; k++)
+            if (colIndex[k] == c) return values[k];
+        return 0;
     }
 }

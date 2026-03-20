@@ -10,20 +10,27 @@ import java.util.Map;
  *
  * <p>Stores one value per domain. The capacitance map carries storage terms
  * for transient solves (thermal capacity, fluid compressibility, inertia, etc.).
- *  * @see Node
- *  * @see ModelType
+ * * @see Node
+ * * @see ModelType
  */
 public class UnknownNode extends Node {
 
-    private final Map<ModelType, Double> values       = new EnumMap<>(ModelType.class);
+    private final Map<ModelType, Double> values = new EnumMap<>(ModelType.class);
     private final Map<ModelType, Double> capacitances = new EnumMap<>(ModelType.class);
+
+    /**
+     * Convenience constructor — zero capacitance in all domains.
+     */
+    public UnknownNode(ModelType first, ModelType... rest) {
+        this(Map.of(), first, rest);
+    }
 
     /**
      * Constructs a node unknown in all given domains.
      *
      * @param capacitance map of domain → storage term (use empty map for steady-state only)
-     * @param first        at least one domain required
-     * @param rest         additional domains
+     * @param first       at least one domain required
+     * @param rest        additional domains
      */
     public UnknownNode(Map<ModelType, Double> capacitance, ModelType first, ModelType... rest) {
         super(first, rest);
@@ -33,12 +40,10 @@ public class UnknownNode extends Node {
         }
     }
 
-    /** Convenience constructor — zero capacitance in all domains. */
-    public UnknownNode(ModelType first, ModelType... rest) {
-        this(Map.of(), first, rest);
+    @Override
+    public boolean isUnknown(ModelType type) {
+        return true;
     }
-
-    @Override public boolean isUnknown(ModelType type) { return true; }
 
     @Override
     public double getValue(ModelType type) {
@@ -52,12 +57,12 @@ public class UnknownNode extends Node {
         values.put(type, value);
     }
 
-    public double getCapacitance(ModelType type) {
-        return capacitances.getOrDefault(type, 0.0);
-    }
-
     private void assertParticipates(ModelType type) {
         if (!participatesIn(type))
             throw new IllegalArgumentException("Node does not participate in " + type);
+    }
+
+    public double getCapacitance(ModelType type) {
+        return capacitances.getOrDefault(type, 0.0);
     }
 }

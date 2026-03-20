@@ -13,5 +13,5 @@ public interface IUnit {
      */
     float convert(float mainUnitValue);
 
-     Component getSymbol();
+    Component getSymbol();
 }

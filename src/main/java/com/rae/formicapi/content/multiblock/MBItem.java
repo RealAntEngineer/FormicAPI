@@ -19,10 +19,11 @@ import java.util.Objects;
 public class MBItem extends BlockItem {
     public MBItem(Block block, Properties properties) {
         super(block, properties);
-        if(!(block instanceof IMBController)){
+        if (!(block instanceof IMBController)) {
             throw new IllegalArgumentException("block must be an instance of IMBController for a MBItem");
         }
     }
+
     @Override
     protected boolean canPlace(BlockPlaceContext pContext, @NotNull BlockState pState) {
         IMBController main = (IMBController) getBlock();
@@ -32,19 +33,19 @@ public class MBItem extends BlockItem {
         BlockPos mainPos = pContext.getClickedPos();//.offset(offset);
         boolean flag = true;
         Vec3i size = main.getSize(facing);
-        for (int x = -offset.getX(); x < size.getX() - offset.getX();x++){
-            for (int y = -offset.getY(); y < size.getY() - offset.getY();y++){
-                for (int z = -offset.getZ(); z < size.getZ() - offset.getZ();z++){
-                    if (!lvl.getBlockState(mainPos.offset(x,y,z)).isAir()){
+        for (int x = -offset.getX(); x < size.getX() - offset.getX(); x++) {
+            for (int y = -offset.getY(); y < size.getY() - offset.getY(); y++) {
+                for (int z = -offset.getZ(); z < size.getZ() - offset.getZ(); z++) {
+                    if (!lvl.getBlockState(mainPos.offset(x, y, z)).isAir()) {
                         flag = false;
                         break;
                     }
                 }
-                if (!flag){
+                if (!flag) {
                     break;
                 }
             }
-            if (!flag){
+            if (!flag) {
                 break;
             }
         }

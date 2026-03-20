@@ -11,15 +11,15 @@ public class ReversibleOneDTabulatedFunction {
     private final OneDTabulatedFunction f;
     private final OneDTabulatedFunction inverse_f;
 
-    public ReversibleOneDTabulatedFunction(Function<Float, Float>  f, float min, float max, StepMode stepMode, float step, StepMode inverseStepMode, float inverseStep) {
+    public ReversibleOneDTabulatedFunction(Function<Float, Float> f, float min, float max, StepMode stepMode, float step, StepMode inverseStepMode, float inverseStep) {
         TreeMap<Float, Float> populated = populate(f, min, max, stepMode, step);
         this.f = new OneDTabulatedFunction(populated, step, stepMode, true);
         inverse_f = new OneDTabulatedFunction(invertTable(populated, inverseStepMode, inverseStep), inverseStep, inverseStepMode, true);
     }
 
-    private TreeMap<Float, Float> populate(Function<Float, Float>  f, float min, float max, StepMode stepMode, float step) {
+    private TreeMap<Float, Float> populate(Function<Float, Float> f, float min, float max, StepMode stepMode, float step) {
         TreeMap<Float, Float> treeMap = new TreeMap<>();
-        for (float x = min; x < max; x= (float) stepMode.inverse.applyAsDouble(stepMode.forward.applyAsDouble(x) + step)) {
+        for (float x = min; x < max; x = (float) stepMode.inverse.applyAsDouble(stepMode.forward.applyAsDouble(x) + step)) {
             try {
                 float P = f.apply(x);
                 treeMap.put(x, P);

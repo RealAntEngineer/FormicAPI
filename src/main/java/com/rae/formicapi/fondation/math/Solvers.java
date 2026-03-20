@@ -2,15 +2,13 @@ package com.rae.formicapi.fondation.math;
 
 import java.util.function.Function;
 
-import static java.lang.Math.abs;
-
 public class Solvers {
     /**
      *
      * @param function the equation you want to solve
-     * @param a first boundaries
-     * @param b second boundaries
-     * @param epsilon tolerance
+     * @param a        first boundaries
+     * @param b        second boundaries
+     * @param epsilon  tolerance
      * @return the Solution if there is one or 0.
      */
     public static float dichotomy(Function<Float, Float> function, float a, float b, float epsilon) {
@@ -64,10 +62,11 @@ public class Solvers {
     /**
      * Uses gradient descent to find the minimum of a given function, with adaptive step size.
      * (generated in part with chatgpt)
+     *
      * @param function a function that has a minimum
-     * @param start starting point
-     * @param step initial learning rate
-     * @param dx small delta used to estimate the derivative
+     * @param start    starting point
+     * @param step     initial learning rate
+     * @param dx       small delta used to estimate the derivative
      * @return the estimated x value at which the function has a minimum, return NaN if there is no solution found
      */
     public static float gradientDecent(Function<Float, Float> function, float start, float step, float dx) {
@@ -109,10 +108,11 @@ public class Solvers {
     /**
      * Uses gradient descent to find the minimum of a given function, with adaptive step size.
      * (generated in part with chatgpt)
-     * @param function a function that has a minimum
-     * @param start starting point
-     * @param step initial learning rate
-     * @param dx small delta used to estimate the derivative
+     *
+     * @param function  a function that has a minimum
+     * @param start     starting point
+     * @param step      initial learning rate
+     * @param dx        small delta used to estimate the derivative
      * @param tolerance tolerance over the derivative
      * @return the estimated x value at which the function has a minimum, return NaN if there is no solution found
      */
@@ -130,10 +130,10 @@ public class Solvers {
 
             float currentValue = function.apply(x);
             float newValue = function.apply(newX);
-            if (Float.isNaN(newX)){
+            if (Float.isNaN(newX)) {
                 System.out.println("weird");
             }
-            if (Float.isNaN(x)){
+            if (Float.isNaN(x)) {
                 System.out.println("weird");
             }
             if (newValue < currentValue) {

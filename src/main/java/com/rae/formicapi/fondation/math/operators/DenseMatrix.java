@@ -9,16 +9,6 @@ public class DenseMatrix implements MutableMatrix {
     }
 
     @Override
-    public int rows() {
-        return data.length;
-    }
-
-    @Override
-    public int cols() {
-        return data[0].length;
-    }
-
-    @Override
     public void add(int r, int c, double v) {
         data[r][c] += v;
     }
@@ -26,11 +16,6 @@ public class DenseMatrix implements MutableMatrix {
     @Override
     public void set(int r, int c, double v) {
         data[r][c] = v;
-    }
-
-    @Override
-    public double get(int r, int c) {
-        return data[r][c];
     }
 
     @Override
@@ -59,6 +44,21 @@ public class DenseMatrix implements MutableMatrix {
             }
             result[i] = sum;
         }
+    }
+
+    @Override
+    public int rows() {
+        return data.length;
+    }
+
+    @Override
+    public int cols() {
+        return data[0].length;
+    }
+
+    @Override
+    public double get(int r, int c) {
+        return data[r][c];
     }
 
     @Override

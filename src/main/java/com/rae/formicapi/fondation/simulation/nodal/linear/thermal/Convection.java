@@ -39,38 +39,10 @@ import java.util.Set;
  */
 public class Convection implements SimulationComponent {
 
-    /**
-     * Correlation mapping |ṁ| [kg/s] to convective film conductance h·A [W/K].
-     * Implementations encode Nusselt/Reynolds correlations for the geometry.
-     */
-    @FunctionalInterface
-    public interface HCorrelation {
-        double compute(double absMassFlow);
-    }
-
     private final Node wall;
     private final Node flowNode;
     private final double cp;
     private final HCorrelation hCorr;
-
-    /**
-     * @param wall     thermal node
-     * @param flowNode hydraulic node providing ṁ [kg/s]
-     * @param cp           fluid specific heat [J/(kg·K)]
-     * @param hCorr        correlation giving h·A [W/K] as a function of |ṁ| [kg/s]
-     */
-    public Convection(Node wall, Node flowNode,
-                      double cp, HCorrelation hCorr) {
-        if (!wall.participatesIn(ModelType.THERMAL))
-            throw new IllegalArgumentException("wall must be THERMAL, got: " + wall.getDomains());
-        if (!flowNode.participatesIn(ModelType.HYDRAULIC) || flowNode.participatesIn(ModelType.THERMAL) )
-            throw new IllegalArgumentException("massFlowNode must be HYDRAULIC and THERMAL, got: " + flowNode.getDomains());
-        this.wall = wall;
-        this.flowNode = flowNode;
-        this.cp           = cp;
-        this.hCorr        = hCorr;
-    }
-
     /**
      * Convenience constructor with a constant h·A independent of flow.
      *
@@ -79,6 +51,24 @@ public class Convection implements SimulationComponent {
     public Convection(Node wall, Node flowNode,
                       double cp, double hA) {
         this(wall, flowNode, cp, mDot -> hA);
+    }
+
+    /**
+     * @param wall     thermal node
+     * @param flowNode hydraulic node providing ṁ [kg/s]
+     * @param cp       fluid specific heat [J/(kg·K)]
+     * @param hCorr    correlation giving h·A [W/K] as a function of |ṁ| [kg/s]
+     */
+    public Convection(Node wall, Node flowNode,
+                      double cp, HCorrelation hCorr) {
+        if (!wall.participatesIn(ModelType.THERMAL))
+            throw new IllegalArgumentException("wall must be THERMAL, got: " + wall.getDomains());
+        if (!flowNode.participatesIn(ModelType.HYDRAULIC) || flowNode.participatesIn(ModelType.THERMAL))
+            throw new IllegalArgumentException("massFlowNode must be HYDRAULIC and THERMAL, got: " + flowNode.getDomains());
+        this.wall = wall;
+        this.flowNode = flowNode;
+        this.cp = cp;
+        this.hCorr = hCorr;
     }
 
     @Override
@@ -98,7 +88,7 @@ public class Convection implements SimulationComponent {
         if (thermCtx == null) return;
 
         double mDot = flowNode.getValue(ModelType.HYDRAULIC);
-        double hA   = hCorr.compute(Math.abs(mDot));
+        double hA = hCorr.compute(Math.abs(mDot));
         double gAdv = mDot * cp;
 
         boolean au = wall.isUnknown(ModelType.THERMAL);
@@ -108,24 +98,33 @@ public class Convection implements SimulationComponent {
 
         // diffusive part — symmetric
         if (au) {
-            thermCtx.matrix.add(i, i,  hA);
+            thermCtx.matrix.add(i, i, hA);
             thermCtx.matrix.add(i, j, -hA);
         }
         if (bu) {
-            thermCtx.matrix.add(j, j,  hA);
+            thermCtx.matrix.add(j, j, hA);
             thermCtx.matrix.add(j, i, -hA);
         }
 
         // advective part — asymmetric, only upstream node drives transport
         if (gAdv > 0) {
             // flow a → b
-            if (au) thermCtx.matrix.add(i, i,  gAdv);
+            if (au) thermCtx.matrix.add(i, i, gAdv);
             if (bu) thermCtx.matrix.add(j, i, -gAdv);
         } else if (gAdv < 0) {
             // flow b → a
             double gAbs = -gAdv;
-            if (bu) thermCtx.matrix.add(j, j,  gAbs);
+            if (bu) thermCtx.matrix.add(j, j, gAbs);
             if (au) thermCtx.matrix.add(i, j, -gAbs);
         }
+    }
+
+    /**
+     * Correlation mapping |ṁ| [kg/s] to convective film conductance h·A [W/K].
+     * Implementations encode Nusselt/Reynolds correlations for the geometry.
+     */
+    @FunctionalInterface
+    public interface HCorrelation {
+        double compute(double absMassFlow);
     }
 }

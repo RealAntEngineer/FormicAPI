@@ -4,10 +4,10 @@ package com.rae.formicapi.fondation.units;
 import com.rae.formicapi.FormicApiLang;
 import net.minecraft.network.chat.Component;
 
-public enum Temperature implements IUnit{
-    KELVIN(1,0),
-    CELSIUS(1,-273.15f),
-    FAHRENHEIT(9f/5 , -273.15f * 9f/5 +32);
+public enum Temperature implements IUnit {
+    KELVIN(1, 0),
+    CELSIUS(1, -273.15f),
+    FAHRENHEIT(9f / 5, -273.15f * 9f / 5 + 32);
 
     private final float a;
     private final float b;
@@ -16,7 +16,7 @@ public enum Temperature implements IUnit{
     Temperature(float a, float b) {
         this.a = a;
         this.b = b;
-        this.symbol = FormicApiLang.translate("units.temperature.symbol."+name().toLowerCase()).component();
+        this.symbol = FormicApiLang.translate("units.temperature.symbol." + name().toLowerCase()).component();
     }
 
     public float convert(float kelvin) {

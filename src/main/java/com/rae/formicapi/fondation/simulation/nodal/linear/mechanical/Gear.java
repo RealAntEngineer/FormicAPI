@@ -5,7 +5,6 @@ import com.rae.formicapi.fondation.simulation.nodal.core.ConstraintNode;
 import com.rae.formicapi.fondation.simulation.nodal.core.Node;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationContext;
 import com.rae.formicapi.fondation.simulation.nodal.core.SingleDomainComponent;
-import com.rae.formicapi.fondation.simulation.nodal.core.*;
 
 import java.util.List;
 
@@ -17,10 +16,10 @@ public class Gear extends SingleDomainComponent {
     private final double ratio;
 
     public Gear(Node a, Node b, double ratio) {
-        this.a      = a;
-        this.b      = b;
-        this.ratio  = ratio;
-        this.lambda =new ConstraintNode(ModelType.MECHANICAL);  // registers with MECHANICAL domain
+        this.a = a;
+        this.b = b;
+        this.ratio = ratio;
+        this.lambda = new ConstraintNode(ModelType.MECHANICAL);  // registers with MECHANICAL domain
     }
 
     @Override
@@ -29,7 +28,7 @@ public class Gear extends SingleDomainComponent {
     }
 
     @Override
-    public void stamp(SimulationContext ctx ) {
+    public void stamp(SimulationContext ctx) {
 
         int i = a.getId(ModelType.MECHANICAL);
         int j = b.getId(ModelType.MECHANICAL);

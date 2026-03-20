@@ -38,7 +38,8 @@ public enum ModelType {
             SimulationContext ctx = domain.getContext();
             double[] x0 = nodeValues(domain);
             double[] result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
-            applyResult(domain, result);        }
+            applyResult(domain, result);
+        }
     },
 
     HYDRAULIC("Pressure [Pa]", "Mass flow [kg/s]") {
@@ -57,11 +58,8 @@ public enum ModelType {
 
     ModelType(String valueName, String flowName) {
         this.valueName = valueName;
-        this.flowName  = flowName;
+        this.flowName = flowName;
     }
-
-    // ── strategy contract ──────────────────────────────────────────────────
-    public abstract void solve(DomainModel domain, List<SimulationComponent> components);
 
     // ── shared helpers ─────────────────────────────────────────────────────
     protected static double[] nodeValues(DomainModel domain) {
@@ -70,6 +68,9 @@ public enum ModelType {
 
     protected static void applyResult(DomainModel domain, double[] result) {
         for (Node node : domain.getNodes())
-            node.setValue(domain.getType(),result[node.getId(domain.getType())]);
+            node.setValue(domain.getType(), result[node.getId(domain.getType())]);
     }
+
+    // ── strategy contract ──────────────────────────────────────────────────
+    public abstract void solve(DomainModel domain, List<SimulationComponent> components);
 }

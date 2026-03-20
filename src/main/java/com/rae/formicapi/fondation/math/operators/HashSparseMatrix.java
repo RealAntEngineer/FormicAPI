@@ -32,12 +32,6 @@ public class HashSparseMatrix implements MutableMatrix {
     }
 
     @Override
-    public int rows() { return rows; }
-
-    @Override
-    public int cols() { return cols; }
-
-    @Override
     public void add(int r, int c, double v) {
         if (v == 0.0) return;
         data.computeIfAbsent(r, k -> new HashMap<>())
@@ -53,13 +47,6 @@ public class HashSparseMatrix implements MutableMatrix {
         }
         data.computeIfAbsent(r, k -> new HashMap<>())
                 .put(c, v);
-    }
-
-    @Override
-    public double get(int r, int c) {
-        Map<Integer, Double> row = data.get(r);
-        if (row == null) return 0;
-        return row.getOrDefault(c, 0.0);
     }
 
     @Override
@@ -87,11 +74,28 @@ public class HashSparseMatrix implements MutableMatrix {
     public void transposeMultiply(double[] x, double[] result) {
         Arrays.fill(result, 0);
         for (var rowEntry : data.entrySet()) {
-            int    r   = rowEntry.getKey();
-            double xr  = x[r];
+            int r = rowEntry.getKey();
+            double xr = x[r];
             for (var colEntry : rowEntry.getValue().entrySet())
                 result[colEntry.getKey()] += colEntry.getValue() * xr;
         }
+    }
+
+    @Override
+    public int rows() {
+        return rows;
+    }
+
+    @Override
+    public int cols() {
+        return cols;
+    }
+
+    @Override
+    public double get(int r, int c) {
+        Map<Integer, Double> row = data.get(r);
+        if (row == null) return 0;
+        return row.getOrDefault(c, 0.0);
     }
 
     public CSRMatrix toCSR() {
