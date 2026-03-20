@@ -13,6 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
+
 @Mod.EventBusSubscriber()
 public class Event {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -35,6 +36,7 @@ public class Event {
                     .orElseThrow();
         }
     }
+
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         CommandsInit.register(event.getDispatcher());

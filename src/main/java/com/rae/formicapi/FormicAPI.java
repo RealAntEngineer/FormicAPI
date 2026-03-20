@@ -26,15 +26,10 @@ public class FormicAPI {
         IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
         ModLoadingContext modLoadingContext = ModLoadingContext.get();
         FormicAPIConfigs.registerConfigs(modLoadingContext);
-        modEventBus.addListener(EventPriority.NORMAL,this::gatherData);
+        modEventBus.addListener(EventPriority.NORMAL, this::gatherData);
         forgeEventBus.addListener(FormicAPI::onAddReloadListeners);
 
 
-    }
-
-    public static void onAddReloadListeners(AddReloadListenerEvent event)
-    {
-        FullTableBased.addReloadListeners(event);
     }
 
     public void gatherData(GatherDataEvent event) {
@@ -79,8 +74,13 @@ public class FormicAPI {
                 ,1e2f,0, 1e7f, 5e7f,1000,1000,StepMode.LOGARITHMIC, StepMode.LINEAR, true
         ));*/
     }
+
+    public static void onAddReloadListeners(AddReloadListenerEvent event) {
+        FullTableBased.addReloadListeners(event);
+    }
+
     public static ResourceLocation resource(String name) {
-        return new ResourceLocation(MODID,name);
+        return new ResourceLocation(MODID, name);
     }
 
 }
