@@ -1,8 +1,8 @@
 package com.rae.formicapi.thermal_nodes;
 
-import com.rae.formicapi.simulation.nodal.ModelType;
-import com.rae.formicapi.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.simulation.nodal.linear.thermal.PlateNodeHelper;
+import com.rae.formicapi.fondation.simulation.nodal.ModelType;
+import com.rae.formicapi.fondation.simulation.nodal.core.UnknownNode;
+import com.rae.formicapi.fondation.simulation.nodal.linear.thermal.PlateNodeHelper;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

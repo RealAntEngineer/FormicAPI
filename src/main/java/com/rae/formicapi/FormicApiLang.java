@@ -1,9 +1,9 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.units.Pressure;
-import com.rae.formicapi.units.RadiationFlux;
-import com.rae.formicapi.units.Temperature;
-import com.rae.formicapi.config.FormicAPIConfigs;
+import com.rae.formicapi.fondation.units.Pressure;
+import com.rae.formicapi.fondation.units.IrradiationFlux;
+import com.rae.formicapi.fondation.units.Temperature;
+import com.rae.formicapi.content.config.FormicAPIConfigs;
 import com.simibubi.create.foundation.utility.CreateLang;
 import net.createmod.catnip.lang.Lang;
 import net.createmod.catnip.lang.LangBuilder;
@@ -63,7 +63,7 @@ public class FormicApiLang extends Lang {
                 .add(unit.getSymbol());
     }
     public static LangBuilder formatRadiationFlux(float radiationFlux) {
-        RadiationFlux unit = FormicAPIConfigs.CLIENT.units.radiationFlux.get();
+        IrradiationFlux unit = FormicAPIConfigs.CLIENT.units.radiationFlux.get();
         return CreateLang.builder().add(Component.literal("activity : "))
                 .add(numberWithSymbol(unit.convert(radiationFlux)))
                 .add(unit.getSymbol());

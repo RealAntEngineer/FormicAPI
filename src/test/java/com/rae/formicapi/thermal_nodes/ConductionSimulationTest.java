@@ -2,9 +2,9 @@ package com.rae.formicapi.thermal_nodes;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.rae.formicapi.simulation.nodal.ModelType;
-import com.rae.formicapi.simulation.nodal.SteadyStateSolver;
-import com.rae.formicapi.simulation.nodal.core.*;
+import com.rae.formicapi.fondation.simulation.nodal.ModelType;
+import com.rae.formicapi.fondation.simulation.nodal.SteadyStateSolver;
+import com.rae.formicapi.fondation.simulation.nodal.core.*;
 import org.junit.jupiter.api.Test;
 
 public class ConductionSimulationTest {

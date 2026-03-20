@@ -1,13 +1,13 @@
 package com.rae.formicapi.thermal_nodes;
 
-import com.rae.formicapi.simulation.nodal.ModelType;
-import com.rae.formicapi.simulation.nodal.core.FixedValueNode;
-import com.rae.formicapi.simulation.nodal.core.SimulationModel;
-import com.rae.formicapi.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.simulation.nodal.core.LinearLink;
-import com.rae.formicapi.simulation.nodal.linear.thermal.PlateNodeHelper;
-import com.rae.formicapi.simulation.nodal.SteadyStateSolver;
-import com.rae.formicapi.simulation.material.Material;
+import com.rae.formicapi.fondation.simulation.nodal.ModelType;
+import com.rae.formicapi.fondation.simulation.nodal.core.FixedValueNode;
+import com.rae.formicapi.fondation.simulation.nodal.core.SimulationModel;
+import com.rae.formicapi.fondation.simulation.nodal.core.UnknownNode;
+import com.rae.formicapi.fondation.simulation.nodal.core.LinearLink;
+import com.rae.formicapi.fondation.simulation.nodal.linear.thermal.PlateNodeHelper;
+import com.rae.formicapi.fondation.simulation.nodal.SteadyStateSolver;
+import com.rae.formicapi.fondation.simulation.material.Material;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

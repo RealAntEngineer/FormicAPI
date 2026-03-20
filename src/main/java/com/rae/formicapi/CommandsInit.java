@@ -3,7 +3,7 @@ package com.rae.formicapi;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.rae.formicapi.thermal_utilities.Plotting;
+import com.rae.formicapi.fondation.thermal_utilities.Plotting;
 import net.minecraft.Util;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;

@@ -1,6 +1,6 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.math.Solvers;
+import com.rae.formicapi.fondation.math.Solvers;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 

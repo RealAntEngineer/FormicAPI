@@ -1,6 +1,6 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.data.managers.FloatMapDataLoader;
+import com.rae.formicapi.content.data.managers.FloatMapDataLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;

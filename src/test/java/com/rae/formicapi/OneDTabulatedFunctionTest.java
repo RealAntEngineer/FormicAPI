@@ -1,7 +1,7 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.math.data.OneDTabulatedFunction;
-import com.rae.formicapi.math.data.StepMode;
+import com.rae.formicapi.fondation.math.data.OneDTabulatedFunction;
+import com.rae.formicapi.fondation.math.data.StepMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.Random;
