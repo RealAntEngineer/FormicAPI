@@ -1,4 +1,4 @@
-package com.rae.formicapi.fondation.thermal_utilities;
+package com.rae.formicapi.content.thermal_utilities;
 
 import com.rae.formicapi.fondation.plotting.SimplePlot;
 import net.minecraftforge.api.distmarker.Dist;

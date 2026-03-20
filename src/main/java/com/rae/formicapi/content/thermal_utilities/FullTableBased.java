@@ -1,4 +1,4 @@
-package com.rae.formicapi.fondation.thermal_utilities;
+package com.rae.formicapi.content.thermal_utilities;
 
 import com.rae.formicapi.FormicAPI;
 import com.rae.formicapi.content.data.managers.TwoDSparceTabulatedFunctionLoader;

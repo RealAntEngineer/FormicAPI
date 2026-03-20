@@ -1,8 +1,5 @@
 package com.rae.formicapi.fondation.units;
 
-import com.rae.formicapi.FormicApiLang;
-import net.minecraft.network.chat.Component;
-
 public enum IrradiationFlux implements IUnit {
     // Assuming base unit is MBq (Becquerels)
     BECQUERELS(1e6f),
@@ -12,12 +9,10 @@ public enum IrradiationFlux implements IUnit {
     RAD_PER_SECOND(1.602e-5f / 1e6f),   // 1 Gy = 100 rad
     SIEVERT_PER_SECOND(1.602e-7f / 1e6f); // Q factor assumed 1
 
-    final Component symbol;
     private final float a;
 
     IrradiationFlux(float a) {
         this.a = a;
-        this.symbol = FormicApiLang.translate("units.radiation_flux.symbol." + name().toLowerCase()).component();
 
     }
 
@@ -25,7 +20,4 @@ public enum IrradiationFlux implements IUnit {
         return radiationFluxInMBq * a;
     }
 
-    public Component getSymbol() {
-        return symbol;
-    }
 }

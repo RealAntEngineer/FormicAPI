@@ -1,7 +1,7 @@
 package com.rae.formicapi;
 
 import com.rae.formicapi.content.config.FormicAPIConfigs;
-import com.rae.formicapi.fondation.thermal_utilities.FullTableBased;
+import com.rae.formicapi.content.thermal_utilities.FullTableBased;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;

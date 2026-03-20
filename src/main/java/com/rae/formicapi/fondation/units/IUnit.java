@@ -1,7 +1,5 @@
 package com.rae.formicapi.fondation.units;
 
-import net.minecraft.network.chat.Component;
-
 /**
  * this is an interface meant as a template for Enums representing units
  */
@@ -12,6 +10,4 @@ public interface IUnit {
      * @return converted value
      */
     float convert(float mainUnitValue);
-
-    Component getSymbol();
 }
