@@ -1,9 +1,10 @@
-package com.rae.formicapi.simulation.nodal.mechanical;
+package com.rae.formicapi.simulation.nodal.linear.mechanical;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
 import com.rae.formicapi.simulation.nodal.core.*;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -11,8 +12,8 @@ import java.util.Set;
  * Viscous rotational damper between two mechanical nodes, with heat dissipation
  * into a thermal node.
  *
- * <p>This is a multi-physics component spanning the {@link PhysicsType#MECHANICAL}
- * and {@link PhysicsType#THERMAL} domains. Both are stamped in a single
+ * <p>This is a multi-physics component spanning the {@link ModelType#MECHANICAL}
+ * and {@link ModelType#THERMAL} domains. Both are stamped in a single
  * {@link #stamp(Map)} call by the staggered solver.
  *
  * <p>The mechanical behavior follows the linear relation:
@@ -39,7 +40,7 @@ import java.util.Set;
  *     [ -G  +G ] [ω_b]
  * </pre>
  *
- * @see PhysicsType
+ * @see ModelType
  * @see SimulationComponent
  */
 public class RotationalDamper implements SimulationComponent {
@@ -53,19 +54,19 @@ public class RotationalDamper implements SimulationComponent {
      * Creates a rotational damper between two mechanical nodes, dissipating
      * heat into a thermal node.
      *
-     * @param a       first mechanical node (must be {@link PhysicsType#MECHANICAL})
-     * @param b       second mechanical node (must be {@link PhysicsType#MECHANICAL})
-     * @param heat    thermal sink node (must be {@link PhysicsType#THERMAL})
+     * @param a       first mechanical node (must be {@link ModelType#MECHANICAL})
+     * @param b       second mechanical node (must be {@link ModelType#MECHANICAL})
+     * @param heat    thermal sink node (must be {@link ModelType#THERMAL})
      * @param damping viscous damping coefficient G [N·m·s/rad], must be positive
      * @throws IllegalArgumentException if any node has the wrong domain, or damping is not positive
      */
     public RotationalDamper(Node a, Node b, Node heat, double damping) {
-        if (a.getDomain() != PhysicsType.MECHANICAL)
-            throw new IllegalArgumentException("Node 'a' must be MECHANICAL, got: " + a.getDomain());
-        if (b.getDomain() != PhysicsType.MECHANICAL)
-            throw new IllegalArgumentException("Node 'b' must be MECHANICAL, got: " + b.getDomain());
-        if (heat.getDomain() != PhysicsType.THERMAL)
-            throw new IllegalArgumentException("Node 'heat' must be THERMAL, got: " + heat.getDomain());
+        if (!a.participatesIn(ModelType.MECHANICAL))
+            throw new IllegalArgumentException("Node 'a' must be MECHANICAL, got: " + a.getDomains());
+        if (!b.participatesIn(ModelType.MECHANICAL))
+            throw new IllegalArgumentException("Node 'b' must be MECHANICAL, got: " + b.getDomains());
+        if (!heat.participatesIn(ModelType.THERMAL))
+            throw new IllegalArgumentException("Node 'heat' must be THERMAL, got: " + heat.getDomains());
         if (damping <= 0)
             throw new IllegalArgumentException("Damping must be positive, got: " + damping);
 
@@ -76,22 +77,27 @@ public class RotationalDamper implements SimulationComponent {
     }
 
     @Override
-    public Set<PhysicsType> getDomains() {
-        return EnumSet.of(PhysicsType.MECHANICAL, PhysicsType.THERMAL);
+    public Set<ModelType> getDomains() {
+        return EnumSet.of(ModelType.MECHANICAL, ModelType.THERMAL);
     }
 
     @Override
-    public void stamp(Map<PhysicsType, SimulationContext> contexts) {
+    public List<Node> getInternalNodes() {
+        return List.of();
+    }
 
-        SimulationContext mechCtx  = contexts.get(PhysicsType.MECHANICAL);
-        SimulationContext thermCtx = contexts.get(PhysicsType.THERMAL);
+    @Override
+    public void stamp(Map<ModelType, SimulationContext> contexts) {
+
+        SimulationContext mechCtx  = contexts.get(ModelType.MECHANICAL);
+        SimulationContext thermCtx = contexts.get(ModelType.THERMAL);
 
         // mechanical stamp
         if (mechCtx != null) {
-            boolean au = a.isUnknown();
-            boolean bu = b.isUnknown();
-            int i = a.getId();
-            int j = b.getId();
+            boolean au = a.isUnknown(ModelType.MECHANICAL);
+            boolean bu = b.isUnknown(ModelType.MECHANICAL);
+            int i = a.getId(ModelType.MECHANICAL);
+            int j = b.getId(ModelType.MECHANICAL);
 
             if (au) {
                 mechCtx.matrix.add(i, i,  damping);
@@ -104,9 +110,9 @@ public class RotationalDamper implements SimulationComponent {
         }
 
         // thermal injection from dissipated power
-        if (thermCtx != null && heat.isUnknown()) {
-            double delta = a.getValue() - b.getValue();
-            thermCtx.rhs[heat.getId()] += damping * delta * delta;
+        if (thermCtx != null && heat.isUnknown(ModelType.THERMAL)) {
+            double delta = a.getValue(ModelType.THERMAL) - b.getValue(ModelType.THERMAL);
+            thermCtx.rhs[heat.getId(ModelType.THERMAL)] += damping * delta * delta;
         }
     }
 }

@@ -1,6 +1,7 @@
-package com.rae.formicapi.simulation.nodal.material;
+package com.rae.formicapi.simulation.material;
 
 public enum Material {
+    //todo add other properties : viscosity, solid/liquid/gas, tensile strength, meltdown temperature....
     ALUMINUM(205),
     COPPER(385),
     STEEL(50),

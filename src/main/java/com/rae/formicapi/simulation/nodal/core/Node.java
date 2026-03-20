@@ -1,91 +1,82 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
+
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Abstract base for all nodes in a nodal network simulation.
  *
- * <p>A node represents a point in the network at which a scalar physical
- * quantity (e.g. temperature, voltage, angular velocity) is either unknown
- * and solved for, or fixed as a boundary condition.
+ * <p>A node represents a physical point in the network that may participate
+ * in one or more physical domains simultaneously. For example, a fluid node
+ * carries both a pressure (HYDRAULIC) and a temperature (THERMAL).
  *
- * <p>Every node belongs to a {@link PhysicsType}, which carries the
- * semantic meaning of its value and associated flow quantity.
- *
- * <p>Nodes must be registered with a {@link SimulationContext} before use,
- * which assigns them a matrix index via {@link #setId(int)}.
+ * <p>Each domain the node participates in gets an independent matrix index,
+ * assigned per domain by {@link DomainModel#rebuildContext()}.
  *
  * @see UnknownNode
  * @see FixedValueNode
- * @see PhysicsType
+ * @see ModelType
  */
 public abstract class Node {
 
-    private boolean setup = false;
-    private int id;
-    private final PhysicsType domain;
+    private final Set<ModelType> domains;
+    private final Map<ModelType, Integer> ids = new EnumMap<>(ModelType.class);
 
-    /**
-     * Creates a node belonging to the given physical domain.
-     *
-     * @param domain the physical domain of this node
-     */
-    protected Node(PhysicsType domain) {
-        this.domain = domain;
+    protected Node(ModelType first, ModelType... rest) {
+        this.domains = rest.length == 0
+                ? EnumSet.of(first)
+                : EnumSet.of(first, rest);
     }
 
-    /**
-     * Returns the physical domain of this node.
-     *
-     * @return the {@link PhysicsType} of this node
-     */
-    public PhysicsType getDomain() {
-        return domain;
-    }
+    // ── domain membership ─────────────────────────────────────────────────
+
+    /** All domains this node participates in. */
+    public Set<ModelType> getDomains() { return domains; }
+
+    public boolean participatesIn(ModelType type) { return domains.contains(type); }
+
+    // ── matrix index — one per domain ─────────────────────────────────────
 
     /**
-     * Returns the matrix index assigned to this node.
+     * Returns the matrix row/column index for this node in the given domain.
      *
-     * @return the matrix row/column index
-     * @throws IllegalStateException if called before {@link #setId(int)}
+     * @throws IllegalStateException if the domain has not been registered yet
+     * @throws IllegalArgumentException if this node does not participate in that domain
      */
-    public int getId() {
-        if (!setup) throw new IllegalStateException("getId() called before association");
+    public int getId(ModelType type) {
+        if (!domains.contains(type))
+            throw new IllegalArgumentException(
+                    "Node does not participate in domain " + type);
+        Integer id = ids.get(type);
+        if (id == null)
+            throw new IllegalStateException(
+                    "getId(" + type + ") called before setId() for this domain");
         return id;
     }
 
-    /**
-     * Assigns a matrix index to this node. May only be called once.
-     *
-     * @param id the matrix row/column index assigned by the simulation context
-     * @throws IllegalStateException if called more than once
-     */
-    public void setId(int id) {
-        if (setup) throw new IllegalStateException("setId() called after association");
-        this.id    = id;
-        this.setup = true;
+    /** Called by {@link DomainModel#rebuildContext()} once per domain per rebuild. */
+    public void setId(ModelType type, int id) {
+        if (!domains.contains(type))
+            throw new IllegalArgumentException(
+                    "Cannot assign id for domain " + type + " — node does not participate");
+        ids.put(type, id);
     }
 
-    /**
-     * Returns whether this node is an unknown to be solved for.
-     *
-     * @return {@code true} if unknown, {@code false} if fixed (Dirichlet)
-     */
-    public abstract boolean isUnknown();
+    // ── per-domain value contract ─────────────────────────────────────────
 
     /**
-     * Returns the current value at this node.
-     *
-     * @return the scalar value (e.g. temperature, voltage, angular velocity)
+     * Whether this node is an unknown (to be solved) in the given domain.
+     * A node may be fixed in one domain and unknown in another.
      */
-    public abstract double getValue();
+    public abstract boolean isUnknown(ModelType type);
 
-    /**
-     * Sets the value at this node.
-     *
-     * <p>For fixed nodes, implementations may silently ignore this call.
-     *
-     * @param value the new scalar value
-     */
-    public abstract void setValue(double value);
+    /** Returns the current scalar value for the given domain. */
+    public abstract double getValue(ModelType type);
+
+    /** Sets the value for the given domain. Fixed domains silently ignore this. */
+    public abstract void setValue(ModelType type, double value);
 }

@@ -1,19 +1,20 @@
-package com.rae.formicapi.simulation.nodal.thermal;
+package com.rae.formicapi.simulation.nodal.linear.thermal;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
 import com.rae.formicapi.simulation.nodal.core.Node;
 import com.rae.formicapi.simulation.nodal.core.SimulationComponent;
 import com.rae.formicapi.simulation.nodal.core.SimulationContext;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * Models convective heat transfer between two thermal nodes driven by a fluid flow.
  *
- * <p>This is a multi-physics component spanning the {@link PhysicsType#THERMAL} and
- * {@link PhysicsType#HYDRAULIC} domains. The mass flow rate ṁ is read from a hydraulic
+ * <p>This is a multi-physics component spanning the {@link ModelType#THERMAL} and
+ * {@link ModelType#HYDRAULIC} domains. The mass flow rate ṁ is read from a hydraulic
  * node (frozen from the previous hydraulic solve) and used to compute both:
  *
  * <ul>
@@ -47,30 +48,26 @@ public class Convection implements SimulationComponent {
         double compute(double absMassFlow);
     }
 
-    private final Node thermalA;
-    private final Node thermalB;
-    private final Node massFlowNode;
+    private final Node wall;
+    private final Node flowNode;
     private final double cp;
     private final HCorrelation hCorr;
 
     /**
-     * @param thermalA     first thermal node
+     * @param wall     first thermal node
      * @param thermalB     second thermal node
-     * @param massFlowNode hydraulic node providing ṁ [kg/s]
+     * @param flowNode hydraulic node providing ṁ [kg/s]
      * @param cp           fluid specific heat [J/(kg·K)]
      * @param hCorr        correlation giving h·A [W/K] as a function of |ṁ| [kg/s]
      */
-    public Convection(Node thermalA, Node thermalB, Node massFlowNode,
+    public Convection(Node wall, Node flowNode,
                       double cp, HCorrelation hCorr) {
-        if (thermalA.getDomain() != PhysicsType.THERMAL)
-            throw new IllegalArgumentException("thermalA must be THERMAL, got: " + thermalA.getDomain());
-        if (thermalB.getDomain() != PhysicsType.THERMAL)
-            throw new IllegalArgumentException("thermalB must be THERMAL, got: " + thermalB.getDomain());
-        if (massFlowNode.getDomain() != PhysicsType.HYDRAULIC)
-            throw new IllegalArgumentException("massFlowNode must be HYDRAULIC, got: " + massFlowNode.getDomain());
-        this.thermalA     = thermalA;
-        this.thermalB     = thermalB;
-        this.massFlowNode = massFlowNode;
+        if (!wall.participatesIn(ModelType.THERMAL))
+            throw new IllegalArgumentException("wall must be THERMAL, got: " + wall.getDomains());
+        if (!flowNode.participatesIn(ModelType.HYDRAULIC) || flowNode.participatesIn(ModelType.THERMAL) )
+            throw new IllegalArgumentException("massFlowNode must be HYDRAULIC and THERMAL, got: " + flowNode.getDomains());
+        this.wall = wall;
+        this.flowNode = flowNode;
         this.cp           = cp;
         this.hCorr        = hCorr;
     }
@@ -80,30 +77,35 @@ public class Convection implements SimulationComponent {
      *
      * @param hA fixed convective conductance h·A [W/K]
      */
-    public Convection(Node thermalA, Node thermalB, Node massFlowNode,
+    public Convection(Node wall, Node flowNode,
                       double cp, double hA) {
-        this(thermalA, thermalB, massFlowNode, cp, mDot -> hA);
+        this(wall, flowNode, cp, mDot -> hA);
     }
 
     @Override
-    public Set<PhysicsType> getDomains() {
-        return EnumSet.of(PhysicsType.THERMAL, PhysicsType.HYDRAULIC);
+    public Set<ModelType> getDomains() {
+        return EnumSet.of(ModelType.THERMAL, ModelType.HYDRAULIC);
     }
 
     @Override
-    public void stamp(Map<PhysicsType, SimulationContext> contexts) {
+    public List<Node> getInternalNodes() {
+        return List.of();
+    }
 
-        SimulationContext thermCtx = contexts.get(PhysicsType.THERMAL);
+    @Override
+    public void stamp(Map<ModelType, SimulationContext> contexts) {
+
+        SimulationContext thermCtx = contexts.get(ModelType.THERMAL);
         if (thermCtx == null) return;
 
-        double mDot = massFlowNode.getValue();
+        double mDot = flowNode.getValue(ModelType.HYDRAULIC);
         double hA   = hCorr.compute(Math.abs(mDot));
         double gAdv = mDot * cp;
 
-        boolean au = thermalA.isUnknown();
-        boolean bu = thermalB.isUnknown();
-        int i = thermalA.getId();
-        int j = thermalB.getId();
+        boolean au = wall.isUnknown(ModelType.THERMAL);
+        boolean bu = flowNode.isUnknown(ModelType.THERMAL);
+        int i = wall.getId(ModelType.THERMAL);
+        int j = flowNode.getId(ModelType.THERMAL);
 
         // diffusive part — symmetric
         if (au) {

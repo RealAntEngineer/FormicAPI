@@ -1,4 +1,4 @@
-package com.rae.formicapi.simulation.nodal.material;
+package com.rae.formicapi.simulation.material;
 
 import java.util.function.BiFunction;
 

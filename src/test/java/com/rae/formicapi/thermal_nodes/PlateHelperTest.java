@@ -1,13 +1,13 @@
 package com.rae.formicapi.thermal_nodes;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
 import com.rae.formicapi.simulation.nodal.core.FixedValueNode;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
 import com.rae.formicapi.simulation.nodal.core.LinearLink;
-import com.rae.formicapi.simulation.nodal.thermal.PlateNodeHelper;
-import com.rae.formicapi.simulation.nodal.core.SteadyStateSolver;
-import com.rae.formicapi.simulation.nodal.material.Material;
+import com.rae.formicapi.simulation.nodal.linear.thermal.PlateNodeHelper;
+import com.rae.formicapi.simulation.nodal.SteadyStateSolver;
+import com.rae.formicapi.simulation.material.Material;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -29,27 +29,27 @@ public class PlateHelperTest {
         int Nx = nodes.length;
         int Ny = nodes[0].length;
 
-        FixedValueNode ambient = new FixedValueNode(PhysicsType.THERMAL,25);
+        FixedValueNode ambient = new FixedValueNode(ModelType.THERMAL,25);
         model.addNode(ambient);
 
-        FixedValueNode hotPlate = new FixedValueNode(PhysicsType.THERMAL,120);
+        FixedValueNode hotPlate = new FixedValueNode(ModelType.THERMAL,120);
         model.addNode(hotPlate);
 
         double h = 10;
 
         // Heated bottom
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new LinearLink(hotPlate, node[0],PhysicsType.THERMAL, 20));
+            model.addComponent(new LinearLink(hotPlate, node[0], ModelType.THERMAL, 20));
         }
 
         // Convection elsewhere
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new LinearLink(node[Ny - 1], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(node[Ny - 1], ambient, ModelType.THERMAL, h));
         }
 
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(new LinearLink(nodes[0][j], ambient, PhysicsType.THERMAL, h));
-            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[0][j], ambient, ModelType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, ModelType.THERMAL, h));
         }
 
         SteadyStateSolver.solve(model);
@@ -72,27 +72,27 @@ public class PlateHelperTest {
         int Nx = nodes.length;
         int Ny = nodes[0].length;
 
-        FixedValueNode ambient = new FixedValueNode(PhysicsType.THERMAL,25);
+        FixedValueNode ambient = new FixedValueNode(ModelType.THERMAL,25);
         model.addNode(ambient);
 
-        FixedValueNode hotPlate = new FixedValueNode(PhysicsType.THERMAL,120);
+        FixedValueNode hotPlate = new FixedValueNode(ModelType.THERMAL,120);
         model.addNode(hotPlate);
 
         double h = 10;
 
         // Heated bottom
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new LinearLink(hotPlate, node[0],PhysicsType.THERMAL, 20));
+            model.addComponent(new LinearLink(hotPlate, node[0], ModelType.THERMAL, 20));
         }
 
         // Convection elsewhere
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new LinearLink(node[Ny - 1], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(node[Ny - 1], ambient, ModelType.THERMAL, h));
         }
 
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(new LinearLink(nodes[0][j], ambient, PhysicsType.THERMAL, h));
-            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[0][j], ambient, ModelType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, ModelType.THERMAL, h));
         }
 
         SteadyStateSolver.solve(model);
@@ -115,27 +115,27 @@ public class PlateHelperTest {
         int Nx = nodes.length;
         int Ny = nodes[0].length;
 
-        FixedValueNode ambient = new FixedValueNode(PhysicsType.THERMAL,25);
+        FixedValueNode ambient = new FixedValueNode(ModelType.THERMAL,25);
         model.addNode(ambient);
 
-        FixedValueNode hotPlate = new FixedValueNode(PhysicsType.THERMAL,120);
+        FixedValueNode hotPlate = new FixedValueNode(ModelType.THERMAL,120);
         model.addNode(hotPlate);
 
         double h = 10;
 
         // Heated bottom
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new LinearLink(hotPlate, node[0],PhysicsType.THERMAL, 20));
+            model.addComponent(new LinearLink(hotPlate, node[0], ModelType.THERMAL, 20));
         }
 
         // Convection elsewhere
         for (UnknownNode[] node : nodes) {
-            model.addComponent(new LinearLink(node[Ny - 1], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(node[Ny - 1], ambient, ModelType.THERMAL, h));
         }
 
         for (int j = 0; j < Ny; j++) {
-            model.addComponent(new LinearLink(nodes[0][j], ambient, PhysicsType.THERMAL, h));
-            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, PhysicsType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[0][j], ambient, ModelType.THERMAL, h));
+            model.addComponent(new LinearLink(nodes[Nx - 1][j], ambient, ModelType.THERMAL, h));
         }
 
         SteadyStateSolver.solve(model);

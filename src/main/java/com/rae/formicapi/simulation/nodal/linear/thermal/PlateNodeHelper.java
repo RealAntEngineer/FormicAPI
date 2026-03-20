@@ -1,10 +1,10 @@
-package com.rae.formicapi.simulation.nodal.thermal;
+package com.rae.formicapi.simulation.nodal.linear.thermal;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
 import com.rae.formicapi.simulation.nodal.core.LinearLink;
 import com.rae.formicapi.simulation.nodal.core.SimulationModel;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.simulation.nodal.material.Material;
+import com.rae.formicapi.simulation.material.Material;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +50,7 @@ public class PlateNodeHelper {
         UnknownNode[][] nodes = new UnknownNode[totalNx][totalNy];
         for (int i = 0; i < totalNx; i++)
             for (int j = 0; j < totalNy; j++) {
-                nodes[i][j] = new UnknownNode(PhysicsType.THERMAL, 25);
+                nodes[i][j] = new UnknownNode(ModelType.THERMAL);
                 model.addNode(nodes[i][j]);
             }
 
@@ -67,7 +67,7 @@ public class PlateNodeHelper {
                 for (int i = 0; i < layer.nx; i++) {
                     double G = layer.material.getConductivity() * dx / dy;
                     model.addComponent(new LinearLink(
-                            nodes[i][j], nodes[i][j + 1], PhysicsType.THERMAL, G));
+                            nodes[i][j], nodes[i][j + 1], ModelType.THERMAL, G));
                 }
             }
             nodeRowStart += layer.ny;
@@ -100,7 +100,7 @@ public class PlateNodeHelper {
                 for (int i = 0; i < layer.nx - 1; i++) {
                     double G = layer.material.getConductivity() * halfDy / dx;
                     model.addComponent(new LinearLink(
-                            nodes[i][j], nodes[i + 1][j], PhysicsType.THERMAL, G));
+                            nodes[i][j], nodes[i + 1][j], ModelType.THERMAL, G));
                 }
             }
             nodeRowStart += layer.ny;
@@ -132,7 +132,7 @@ public class PlateNodeHelper {
             for (int i = 0; i < bot.nx - 1; i++) {
                 model.addComponent(new LinearLink(
                         nodes[i][nodeRowStart], nodes[i + 1][nodeRowStart],
-                        PhysicsType.THERMAL, G_interface));
+                        ModelType.THERMAL, G_interface));
             }
         }
 

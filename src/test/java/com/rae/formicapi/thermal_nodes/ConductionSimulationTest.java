@@ -2,7 +2,8 @@ package com.rae.formicapi.thermal_nodes;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
+import com.rae.formicapi.simulation.nodal.SteadyStateSolver;
 import com.rae.formicapi.simulation.nodal.core.*;
 import org.junit.jupiter.api.Test;
 
@@ -12,17 +13,17 @@ public class ConductionSimulationTest {
     public void twoNodeConduction() {
 
         SimulationModel model = new SimulationModel();
-        UnknownNode a = new UnknownNode(PhysicsType.THERMAL,0);
-        FixedValueNode b = new FixedValueNode(PhysicsType.THERMAL,0);
+        UnknownNode a = new UnknownNode(ModelType.THERMAL);
+        FixedValueNode b = new FixedValueNode(ModelType.THERMAL,0);
         model.addNode(a);
         model.addNode(b);
 
-        model.addComponent(new LinearLink(a, b, PhysicsType.THERMAL,10));
-        model.addComponent(new Source(a, 100));
+        model.addComponent(new LinearLink(a, b, ModelType.THERMAL,10));
+        model.addComponent(new Source(a, ModelType.THERMAL,100));
 
         SteadyStateSolver.solve(model);
 
-        double delta = a.getValue() - b.getValue();
+        double delta = a.getValue(ModelType.THERMAL) - b.getValue(ModelType.THERMAL);
 
         assertEquals(10, delta, 1e-6);
     }

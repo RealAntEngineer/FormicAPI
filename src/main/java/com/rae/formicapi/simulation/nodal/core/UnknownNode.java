@@ -1,49 +1,63 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
- * A node whose value is unknown and solved for by the linear system.
+ * A node that is unknown and solved for in every domain it participates in.
  *
- * <p>Carries a capacitance term used by the time-integration layer for
- * transient simulations (e.g. thermal capacity, moment of inertia).
- * In steady-state solves, the capacitance has no effect.
- *
- * @see Node
- * @see PhysicsType
+ * <p>Stores one value per domain. The capacitance map carries storage terms
+ * for transient solves (thermal capacity, fluid compressibility, inertia, etc.).
+ *  * @see Node
+ *  * @see ModelType
  */
 public class UnknownNode extends Node {
 
-    private double value;
-    private final double capacitance;
+    private final Map<ModelType, Double> values       = new EnumMap<>(ModelType.class);
+    private final Map<ModelType, Double> capacitances = new EnumMap<>(ModelType.class);
 
     /**
-     * Creates an unknown node in the given domain.
+     * Constructs a node unknown in all given domains.
      *
-     * @param domain      the physical domain of this node
-     * @param capacitance the storage term (e.g. Cp [J/K], J [kg·m²])
+     * @param capacitance map of domain → storage term (use empty map for steady-state only)
+     * @param first        at least one domain required
+     * @param rest         additional domains
      */
-    public UnknownNode(PhysicsType domain, double capacitance) {
-        super(domain);
-        this.capacitance = capacitance;
+    public UnknownNode(Map<ModelType, Double> capacitance, ModelType first, ModelType... rest) {
+        super(first, rest);
+        for (ModelType t : getDomains()) {
+            values.put(t, 0.0);
+            this.capacitances.put(t, capacitance.getOrDefault(t, 0.0));
+        }
     }
 
-    /**
-     * Returns the storage term associated with this node.
-     *
-     * @return capacitance (e.g. Cp, J, C depending on domain)
-     */
-    public double getCapacitance() {
-        return capacitance;
+    /** Convenience constructor — zero capacitance in all domains. */
+    public UnknownNode(ModelType first, ModelType... rest) {
+        this(Map.of(), first, rest);
     }
 
-    @Override public boolean isUnknown()                { return true;  }
-    @Override public double getValue()                  { return value; }
-    @Override public void setValue(double value)        { this.value = value; }
+    @Override public boolean isUnknown(ModelType type) { return true; }
 
     @Override
-    public String toString() {
-        return String.format("UnknownNode[%s] id=%d  %s = %.4f",
-                getDomain().name(), getId(), getDomain().valueName, value);
+    public double getValue(ModelType type) {
+        assertParticipates(type);
+        return values.get(type);
+    }
+
+    @Override
+    public void setValue(ModelType type, double value) {
+        assertParticipates(type);
+        values.put(type, value);
+    }
+
+    public double getCapacitance(ModelType type) {
+        return capacitances.getOrDefault(type, 0.0);
+    }
+
+    private void assertParticipates(ModelType type) {
+        if (!participatesIn(type))
+            throw new IllegalArgumentException("Node does not participate in " + type);
     }
 }

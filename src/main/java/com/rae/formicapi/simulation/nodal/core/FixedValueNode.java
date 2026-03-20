@@ -1,6 +1,6 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
 
 /**
  * A node with a fixed, prescribed value acting as a Dirichlet boundary condition.
@@ -8,10 +8,10 @@ import com.rae.formicapi.simulation.nodal.PhysicsType;
  * <p>Fixed nodes do not contribute rows to the system matrix. Their known
  * values influence unknown nodes through the components that connect them.
  *
- * <p>Calls to {@link #setValue(double)} are silently ignored.
+ * <p>Calls to {@link #setValue(ModelType, double)} (double)} are silently ignored.
  *
  * @see Node
- * @see PhysicsType
+ * @see ModelType
  */
 public class FixedValueNode extends Node {
 
@@ -23,18 +23,23 @@ public class FixedValueNode extends Node {
      * @param domain the physical domain of this node
      * @param value  the prescribed scalar value (e.g. temperature, voltage)
      */
-    public FixedValueNode(PhysicsType domain, double value) {
+    public FixedValueNode(ModelType domain, double value) {
         super(domain);
         this.value = value;
     }
 
-    @Override public boolean isUnknown()             { return false; }
-    @Override public double getValue()               { return value; }
-    @Override public void setValue(double value)     { /* fixed — ignore */ }
+    @Override
+    public boolean isUnknown(ModelType type) {
+        return false;
+    }
 
     @Override
-    public String toString() {
-        return String.format("FixedNode[%s] id=%d  %s = %.4f",
-                getDomain().name(), getId(), getDomain().valueName, value);
+    public double getValue(ModelType type) {
+        return value;
+    }
+
+    @Override
+    public void setValue(ModelType type, double value) {
+
     }
 }

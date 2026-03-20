@@ -1,7 +1,8 @@
 package com.rae.formicapi.thermal_nodes;
 
+import com.rae.formicapi.simulation.nodal.ModelType;
 import com.rae.formicapi.simulation.nodal.core.UnknownNode;
-import com.rae.formicapi.simulation.nodal.thermal.PlateNodeHelper;
+import com.rae.formicapi.simulation.nodal.linear.thermal.PlateNodeHelper;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -64,7 +65,7 @@ public class Helper {
 
         for (int i = 0; i < Nx; i++) {
             for (int j = 0; j < Ny; j++) {
-                double T = nodes[i][j].getValue();
+                double T = nodes[i][j].getValue(ModelType.THERMAL);
                 if (T < T_min) T_min = T;
                 if (T > T_max) T_max = T;
             }
@@ -132,7 +133,7 @@ public class Helper {
                     for (int dj = -1; dj <= 2; dj++) {
                         double wj = cubicWeight(dj - tj);
                         int    cj = Math.max(0, Math.min(Ny - 1, j0 + dj));
-                        T += wi * wj * nodes[ci][cj].getValue();
+                        T += wi * wj * nodes[ci][cj].getValue(ModelType.THERMAL);
                     }
                 }
 

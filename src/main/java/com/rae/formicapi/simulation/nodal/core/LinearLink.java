@@ -1,6 +1,8 @@
 package com.rae.formicapi.simulation.nodal.core;
 
-import com.rae.formicapi.simulation.nodal.PhysicsType;
+import com.rae.formicapi.simulation.nodal.ModelType;
+
+import java.util.List;
 
 /**
  * Represents a generic linear flow link between two nodes in a nodal network.
@@ -45,7 +47,7 @@ public class LinearLink extends SingleDomainComponent {
 
     private final Node a;
     private final Node b;
-    private final PhysicsType type;
+    private final ModelType type;
     private final double conductance;
 
     /**
@@ -55,7 +57,7 @@ public class LinearLink extends SingleDomainComponent {
      * @param b second node
      * @param conductance linear transfer coefficient (must be positive)
      */
-    public LinearLink(Node a, Node b, PhysicsType type, double conductance) {
+    public LinearLink(Node a, Node b, ModelType type, double conductance) {
         this.a = a;
         this.b = b;
         this.type = type;
@@ -74,10 +76,10 @@ public class LinearLink extends SingleDomainComponent {
     @Override
     public void stamp(SimulationContext ctx) {
 
-        boolean au = a.isUnknown();
-        boolean bu = b.isUnknown();
-        int i = a.getId();
-        int j = b.getId();
+        boolean au = a.isUnknown(type);
+        boolean bu = b.isUnknown(type);
+        int i = a.getId(type);
+        int j = b.getId(type);
 
         if (au) {
             ctx.matrix.add(i, i, conductance);
@@ -93,7 +95,12 @@ public class LinearLink extends SingleDomainComponent {
     }
 
     @Override
-    public PhysicsType getDomain() {
+    public ModelType getDomain() {
         return type;
+    }
+
+    @Override
+    public List<Node> getInternalNodes() {
+        return List.of();//no internal node
     }
 }
