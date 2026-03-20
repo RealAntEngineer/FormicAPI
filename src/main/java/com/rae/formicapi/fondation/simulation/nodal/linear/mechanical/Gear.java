@@ -5,7 +5,7 @@ import com.rae.formicapi.fondation.simulation.nodal.core.ConstraintNode;
 import com.rae.formicapi.fondation.simulation.nodal.core.Node;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationContext;
 import com.rae.formicapi.fondation.simulation.nodal.core.SingleDomainComponent;
-import com.rae.formicapi.simulation.nodal.core.*;
+import com.rae.formicapi.fondation.simulation.nodal.core.*;
 
 import java.util.List;
 

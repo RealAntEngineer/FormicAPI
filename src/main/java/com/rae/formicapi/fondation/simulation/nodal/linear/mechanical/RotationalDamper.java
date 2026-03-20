@@ -4,7 +4,7 @@ import com.rae.formicapi.fondation.simulation.nodal.ModelType;
 import com.rae.formicapi.fondation.simulation.nodal.core.Node;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationComponent;
 import com.rae.formicapi.fondation.simulation.nodal.core.SimulationContext;
-import com.rae.formicapi.simulation.nodal.core.*;
+import com.rae.formicapi.fondation.simulation.nodal.core.*;
 
 import java.util.EnumSet;
 import java.util.List;
