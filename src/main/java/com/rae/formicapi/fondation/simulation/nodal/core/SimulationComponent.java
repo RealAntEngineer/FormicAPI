@@ -106,7 +106,7 @@ public interface SimulationComponent {
      * {@link DomainModel} and are connected to at least one other component.
      *
      * <p>This list documents the physical wiring contract of the component
-     * and may be used by validation or visualisation tooling to verify network
+     * and may be used by validation or visualization tooling to verify network
      * connectivity before solving.
      *
      * @return an unmodifiable list of externally owned interface nodes;
