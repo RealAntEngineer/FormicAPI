@@ -13,6 +13,7 @@
  * <p>The physical meaning of potential and flow changes with the domain:
  *
  * <table border="1" style="border-collapse:collapse; text-align:left">
+ *   <caption>Physical domains and their corresponding potential and flow quantities</caption>
  *   <tr><th>Domain</th><th>Potential</th><th>Flow</th></tr>
  *   <tr><td>THERMAL</td>   <td>Temperature [K]</td>        <td>Heat flux [W]</td></tr>
  *   <tr><td>MECHANICAL</td><td>Angular velocity [rad/s]</td><td>Torque [N·m]</td></tr>
