@@ -12,6 +12,5 @@ public class SimulationComponentWidget extends CompoundWidget {
         simulationComponent.getInternalNodes();
     }
 
-
-
+    //we need to have clickable widgets to create link bwn components. either
 }

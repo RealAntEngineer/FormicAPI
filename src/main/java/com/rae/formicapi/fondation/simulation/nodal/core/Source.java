@@ -17,9 +17,6 @@ public class Source extends SingleDomainComponent {
     }
 
     @Override
-    public List<Node> getInternalNodes() {
-        return List.of();
-    }    @Override
     public ModelType getDomain() {
         return type;
     }
