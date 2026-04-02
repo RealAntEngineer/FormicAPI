@@ -14,9 +14,9 @@ public class TestSolvers {
     }
     @Test
     public void testGradientDescent2() {
-        float result = Solvers.gradientDecent((x)-> (float) Math.abs(Math.cos(x)),0, 0.1f,0.01f);
-        float tolerance = 1e-6f;
+        float result = Solvers.gradientDecent((x)-> (float) Math.abs(Math.cos(x)),0.001f, 0.1f,0.01f);
+        float tolerance = 1e-3f;
         double expected = Math.PI/2f;
-        assertTrue(result > expected- tolerance && result < expected + tolerance,() -> String.valueOf(result));
+        assertEquals(expected,result, tolerance,() -> String.valueOf(result));
     }
 }

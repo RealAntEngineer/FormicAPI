@@ -44,6 +44,7 @@ import java.util.function.Consumer;
 /**
  * Structure Block for a MultiBlock, it always as a full hit-box
  */
+@NonnullDefault
 public class MBStructureBlock extends DirectionalBlock implements IWrenchable, IProxyHoveringInformation {
     public MBStructureBlock(Properties properties) {
         super(properties);
@@ -57,7 +58,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter getter, BlockPos pos, CollisionContext context) {
-        if (!(getter instanceof ClientLevel)) return Shapes.empty();
+        //if (!(getter instanceof ClientLevel)) return Shapes.empty();
         BlockPos masterPos = getMaster(getter, pos);
         BlockState masterState =  getter.getBlockState(masterPos);
         if (masterState.getBlock() instanceof IMBController masterBlock) {
@@ -114,7 +115,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         return IWrenchable.super.onSneakWrenched(state, context);
     }
 
-    @NonnullDefault
+    @Override
     public BlockState playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
         if (stillValid(pLevel, pPos, pState)) {
             BlockPos masterPos = getMaster(pLevel, pPos);
@@ -127,8 +128,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     @Override
-    @NonnullDefault
-    public @NotNull BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
+    public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
                                            BlockPos pCurrentPos, BlockPos pFacingPos) {
         if (stillValid(pLevel, pCurrentPos, pState)) {
             BlockPos masterPos = getMaster(pLevel, pCurrentPos);
@@ -180,7 +180,6 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     @Override
-    @NonnullDefault
     public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
         if (!stillValid(pLevel, pPos, pState)) {
             pLevel.setBlockAndUpdate(pPos, Blocks.AIR.defaultBlockState());

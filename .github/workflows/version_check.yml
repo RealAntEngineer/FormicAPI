@@ -1,0 +1,58 @@
+name: Version Check
+
+on:
+  push:
+    branches:
+      - '**'                        # every branch
+    paths:
+      - 'gradle.properties'         # only when this file changes
+
+jobs:
+  check-and-tag:
+    runs-on: ubuntu-latest
+
+    # Allow the job to push the new tag
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Checkout with enough history to read the previous commit ────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # ── 2. Read versions from the CURRENT commit ───────────────────────────
+      - name: Read current versions
+        id: current
+        run: |
+          MC=$(grep -E '^minecraft_version\s*=' gradle.properties \
+               | sed 's/.*=\s*//' | tr -d '[:space:]')
+          MOD=$(grep -E '^mod_version\s*=' gradle.properties \
+                | sed 's/.*=\s*//' | tr -d '[:space:]')
+          echo "mc=$MC"   >> "$GITHUB_OUTPUT"
+          echo "mod=$MOD" >> "$GITHUB_OUTPUT"
+          echo "Current  → minecraft: $MC  mod: $MOD"
+
+      # ── 3. Read mod_version from the PREVIOUS commit ───────────────────────
+      - name: Read previous mod_version
+        id: previous
+        run: |
+          PREV=$(git show HEAD~1:gradle.properties 2>/dev/null \
+                 | grep -E '^mod_version\s*=' \
+                 | sed 's/.*=\s*//' | tr -d '[:space:]' || echo "none")
+          echo "mod=$PREV" >> "$GITHUB_OUTPUT"
+          echo "Previous → mod: $PREV"
+
+      # ── 4. Create and push the tag if mod_version changed ─────────────────
+      - name: Tag new version
+        if: steps.current.outputs.mod != steps.previous.outputs.mod
+        run: |
+          TAG="v${{ steps.current.outputs.mc }}-${{ steps.current.outputs.mod }}"
+          echo "✅ Version changed → creating tag $TAG"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag "$TAG"
+          git push origin "$TAG"

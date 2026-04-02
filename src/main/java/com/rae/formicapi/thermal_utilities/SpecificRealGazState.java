@@ -1,12 +1,34 @@
 package com.rae.formicapi.thermal_utilities;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Objects;
 
 public record SpecificRealGazState(Float temperature, Float pressure, Float specificEnthalpy, Float vaporQuality) {
-    /*public Codec<SpecificRealGazState> CODEC = RecordCodecBuilder.create(
+    public static Codec<SpecificRealGazState> CODEC = RecordCodecBuilder.create(i ->
+            i.group(
+                            Codec.FLOAT.fieldOf("temperature").forGetter(p -> p.temperature),
+                            Codec.FLOAT.fieldOf("pressure").forGetter(p -> p.pressure),
+                            Codec.FLOAT.fieldOf("specific_enthalpy").forGetter(p -> p.specificEnthalpy),
+                            Codec.FLOAT.fieldOf("vapor_quality").forGetter(p -> p.vaporQuality)
+                    )
+                    .apply(i, SpecificRealGazState::new));
 
-    );*/
+    public static final StreamCodec<ByteBuf, SpecificRealGazState> STREAM_CODEC = new StreamCodec<>() {
+        public @NotNull SpecificRealGazState decode(@NotNull ByteBuf buffer) {
+            return new SpecificRealGazState(Objects.requireNonNull(FriendlyByteBuf.readNbt(buffer)));
+        }
 
+        public void encode(@NotNull ByteBuf buffer, SpecificRealGazState state) {
+            FriendlyByteBuf.writeNbt(buffer, state.serialize());
+        }
+    };
     public SpecificRealGazState(Float temperature, Float pressure, Float specificEnthalpy, Float vaporQuality){
         this.temperature = Math.max(0,temperature);
         this.pressure = Math.max(0,pressure);

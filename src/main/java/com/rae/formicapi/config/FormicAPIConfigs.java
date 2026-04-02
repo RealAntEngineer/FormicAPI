@@ -15,10 +15,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-// An example config class. This is not required, but it's a good idea to have one to keep your config organized.
-// Demonstrates how to use Forge's config APIs
 @EventBusSubscriber(bus = EventBusSubscriber.Bus.MOD)
-
 public class FormicAPIConfigs
 {
     private static final Map<ModConfig.Type, ConfigBase> CONFIGS = new EnumMap<>(ModConfig.Type.class);
@@ -44,7 +41,7 @@ public class FormicAPIConfigs
         return config;
     }
 
-    public static void registerConfigs(ModLoadingContext context, ModContainer container) {
+    public static void register(ModLoadingContext context, ModContainer container) {
         CLIENT = register(FormicAPICfgClient::new, ModConfig.Type.CLIENT);
         //COMMON = register(CSCfgCommon::new, ModConfig.Type.COMMON);
 

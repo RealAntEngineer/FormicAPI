@@ -1,13 +1,13 @@
 
 modLoader="javafml"
 loaderVersion="[1,)"
-license="MIT"
+license="${mod_license}"
 
 
 [[mods]]
-modId="formicapi"
-version = "1.6.8"
-displayName="Formic API"
+modId="${mod_id}"
+version = "${mod_version}"
+displayName="${mod_name}"
 logoFile = "logo.png"
 credits='''
 Source code:
@@ -19,7 +19,7 @@ description='''
 Core mod and API used in mods of the Engineer Colony team
 '''
 
-[[dependencies.formicapi]]
+[[dependencies.${mod_id}]]
 modId="create"
 mandatory=true
 versionRange="[0.6.0.1,)"
