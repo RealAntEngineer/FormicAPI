@@ -1,13 +1,12 @@
-name: Release
-
 on:
   push:
     tags:
-      - 'v*'  # Only run on version tags like v1.0.0
+      - 'v*'
   workflow_dispatch:
 
 permissions:
   contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -17,6 +16,16 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+
+      - name: Read versions from gradle.properties
+        id: versions
+        run: |
+          MC=$(grep -E '^minecraft_version\s*=' gradle.properties \
+               | sed 's/.*=\s*//' | tr -d '[:space:]')
+          MOD=$(grep -E '^mod_version\s*=' gradle.properties \
+                | sed 's/.*=\s*//' | tr -d '[:space:]')
+          echo "mc=$MC"   >> "$GITHUB_OUTPUT"
+          echo "mod=$MOD" >> "$GITHUB_OUTPUT"
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -33,4 +42,5 @@ jobs:
       - name: Upload JAR to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}-{1}', steps.versions.outputs.mc, steps.versions.outputs.mod) || github.ref_name }}
           files: build/libs/*.jar
