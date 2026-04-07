@@ -226,7 +226,7 @@ tasks.jarJar.finalizedBy('reobfJarJar')
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifactId = "FormicAPI" // ✅ no spaces or invalid chars
+            artifactId = "FormicAPI"
 
             from components.java
             fg.component(it)

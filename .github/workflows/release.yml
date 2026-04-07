@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'  # Only run on version tags like v1.0.0
+  workflow_dispatch:
+
 permissions:
   contents: write
 jobs:
