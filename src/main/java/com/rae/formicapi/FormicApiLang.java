@@ -1,9 +1,10 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.units.Pressure;
-import com.rae.formicapi.units.RadiationFlux;
-import com.rae.formicapi.units.Temperature;
-import com.rae.formicapi.config.FormicAPIConfigs;
+import com.rae.formicapi.fondation.units.IUnit;
+import com.rae.formicapi.fondation.units.Pressure;
+import com.rae.formicapi.fondation.units.IrradiationFlux;
+import com.rae.formicapi.fondation.units.Temperature;
+import com.rae.formicapi.content.config.FormicAPIConfigs;
 import com.simibubi.create.foundation.utility.CreateLang;
 import net.createmod.catnip.lang.Lang;
 import net.createmod.catnip.lang.LangBuilder;
@@ -14,7 +15,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class FormicApiLang extends Lang {
-    //blatant copy of CreateLang
     static TreeMap<Double, String> MULTIPLE_SYMBOLS = new TreeMap<>();
     static {
         MULTIPLE_SYMBOLS.put(1e18, "E");
@@ -38,10 +38,20 @@ public class FormicApiLang extends Lang {
         return new LangBuilder(FormicAPI.MODID);
     }
 
+    private static Component getUnitSymbol(IUnit unit){
+        if (unit instanceof Enum<?> enumUnit) {
+            String unitName = unit.getClass().getSimpleName();
+            return FormicApiLang.translate("units." + unitName.toLowerCase() + ".symbol." + enumUnit.name().toLowerCase()).component();
+        }
+        return Component.empty();
+    }
+
     public static LangBuilder numberWithSymbol(double d) {
         Map.Entry<Double, String> entry = MULTIPLE_SYMBOLS.floorEntry(d);
+        if (entry == null)
+            entry = MULTIPLE_SYMBOLS.ceilingEntry(d);
         if (entry == null) {
-            builder().text(LangNumberFormat.format(d)+ " ");
+            return builder().text(LangNumberFormat.format(d)+ " ");
         }
         return builder().text(LangNumberFormat.format(d/entry.getKey())+" "+entry.getValue());
     }
@@ -54,19 +64,19 @@ public class FormicApiLang extends Lang {
         Temperature unit = FormicAPIConfigs.CLIENT.units.temperature.get();
         return CreateLang.builder().add(Component.literal("T = "))
                 .text(LangNumberFormat.format(unit.convert(temperature))+ " ")
-                .add(unit.getSymbol());
+                .add(getUnitSymbol(unit));
     }
     public static LangBuilder formatPressure(float pressure) {
         Pressure unit = FormicAPIConfigs.CLIENT.units.pressure.get();
         return CreateLang.builder().add(Component.literal("P = "))
                 .add(numberWithSymbol(unit.convert(pressure)))
-                .add(unit.getSymbol());
+                .add(getUnitSymbol(unit));
     }
     public static LangBuilder formatRadiationFlux(float radiationFlux) {
-        RadiationFlux unit = FormicAPIConfigs.CLIENT.units.radiationFlux.get();
+        IrradiationFlux unit = FormicAPIConfigs.CLIENT.units.radiationFlux.get();
         return CreateLang.builder().add(Component.literal("activity : "))
                 .add(numberWithSymbol(unit.convert(radiationFlux)))
-                .add(unit.getSymbol());
+                .add(getUnitSymbol(unit));
     }
 
 }

@@ -1,7 +1,8 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.config.FormicAPIConfigs;
-import com.rae.formicapi.thermal_utilities.FullTableBased;
+import com.rae.formicapi.content.config.FormicAPIConfigs;
+import com.rae.formicapi.content.thermal_utilities.FullTableBased;
+import com.rae.formicapi.init.PacketInit;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -21,8 +22,11 @@ public class FormicAPI {
         IEventBus forgeEventBus = NeoForge.EVENT_BUS;
         ModLoadingContext modLoadingContext = ModLoadingContext.get();
 
-        forgeEventBus.addListener(FormicAPI::onAddReloadListeners);
         FormicAPIConfigs.register(modLoadingContext, modContainer);
+        PacketInit.register();
+
+        forgeEventBus.addListener(FormicAPI::onAddReloadListeners);
+
 
 
 
