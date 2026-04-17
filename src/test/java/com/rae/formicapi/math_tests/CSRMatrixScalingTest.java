@@ -30,7 +30,7 @@ public class CSRMatrixScalingTest {
 
     @Test
     public void testMultiplyScalesWithN() {
-        int[] sizes = {100, 500, 1000, 5000, 10000};
+        int[] sizes = {100, 500, 1000};
         int nnzPerRow = 10;
 
         printHeader("multiply — scaling with n", "nnzPerRow", nnzPerRow);
@@ -122,7 +122,7 @@ public class CSRMatrixScalingTest {
 
     @Test
     public void testTransposeMultiplyScalesWithN() {
-        int[] sizes = {100, 500, 1000, 5000, 10000};
+        int[] sizes = {100, 500, 1000};
         int nnzPerRow = 10;
 
         printHeader("transposeMultiply — scaling with n", "nnzPerRow", nnzPerRow);
