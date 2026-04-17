@@ -19,7 +19,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public enum PacketInit {
-    UPDATE_STEAM_FLOW_DATA(FullTableBased.SynchTablesPacket.class, FullTableBased.SynchTablesPacket::new, NetworkDirection.PLAY_TO_CLIENT);
+    SYNCH_TABLES(FullTableBased.SynchTablesPacket.class, FullTableBased.SynchTablesPacket::new, NetworkDirection.PLAY_TO_CLIENT),
+    CLEAR_TABLES(FullTableBased.ClearTablesPacket.class, FullTableBased.ClearTablesPacket::new, NetworkDirection.PLAY_TO_CLIENT);
+
 
     public static final ResourceLocation CHANNEL_NAME = FormicAPI.resource("main");
     public static final int NETWORK_VERSION = 3;

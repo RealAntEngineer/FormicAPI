@@ -2,6 +2,7 @@ package com.rae.formicapi;
 
 import com.rae.formicapi.content.config.FormicAPIConfigs;
 import com.rae.formicapi.content.thermal_utilities.FullTableBased;
+import com.rae.formicapi.init.PacketInit;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
@@ -25,7 +26,10 @@ public class FormicAPI {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
         ModLoadingContext modLoadingContext = ModLoadingContext.get();
+
         FormicAPIConfigs.registerConfigs(modLoadingContext);
+        PacketInit.registerPackets();
+
         modEventBus.addListener(EventPriority.NORMAL, this::gatherData);
         forgeEventBus.addListener(FormicAPI::onAddReloadListeners);
 

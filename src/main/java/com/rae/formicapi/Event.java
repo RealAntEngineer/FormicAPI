@@ -34,13 +34,7 @@ public class Event {
 
     @SubscribeEvent
     public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
-        Player player = event.getEntity();
-        if (player instanceof ServerPlayer serverPlayer){
-            PacketInit.getChannel().send(
-                    PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> serverPlayer),
-                    new FullTableBased.SynchTablesPacket()
-            );
-        }
+        FullTableBased.onPlayerJoin(event);
     }
 
     public static <T> Registry<T> getSideAwareRegistry(ResourceKey<Registry<T>> registryKey) {

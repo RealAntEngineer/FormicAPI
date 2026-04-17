@@ -3,6 +3,8 @@ package com.rae.formicapi.fondation.math.data;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -136,5 +138,48 @@ public class TwoDSparseTabulatedFunction {
 
         float t = (xInput - x1) / (x2 - x1);
         return v1 * (1 - t) + v2 * t;
+    }
+
+    public void mergeFrom(TwoDSparseTabulatedFunction other, boolean overwrite) {
+        for (Map.Entry<Float, TreeMap<Float, Float>> xEntry : other.table.entrySet()) {
+            float x = xEntry.getKey();
+            TreeMap<Float, Float> otherRow = xEntry.getValue();
+
+            TreeMap<Float, Float> thisRow = this.table.computeIfAbsent(x, k -> new TreeMap<>());
+
+            for (Map.Entry<Float, Float> yEntry : otherRow.entrySet()) {
+                if (overwrite || !thisRow.containsKey(yEntry.getKey())) {
+                    thisRow.put(yEntry.getKey(), yEntry.getValue());
+                }
+            }
+        }
+    }
+
+    public List<TwoDSparseTabulatedFunction> split(int maxElements) {
+        List<TwoDSparseTabulatedFunction> result = new ArrayList<>();
+
+        TreeMap<Float, TreeMap<Float, Float>> current = new TreeMap<>();
+        int count = 0;
+
+        for (Map.Entry<Float, TreeMap<Float, Float>> entry : table.entrySet()) {
+            current.put(entry.getKey(), entry.getValue());
+            count+= entry.getValue().size();
+
+            if (count >= maxElements) {
+                result.add(new TwoDSparseTabulatedFunction(new TreeMap<>(current), clamp));
+                current.clear();
+                count = 0;
+            }
+        }
+
+        if (!current.isEmpty()) {
+            result.add(new TwoDSparseTabulatedFunction(new TreeMap<>(current), clamp));
+        }
+
+        return result;
+    }
+
+    public void clear() {
+        table.clear();
     }
 }

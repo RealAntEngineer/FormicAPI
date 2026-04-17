@@ -2,13 +2,22 @@ package com.rae.formicapi.content.thermal_utilities;
 
 import com.rae.formicapi.FormicAPI;
 import com.rae.formicapi.content.data.managers.TwoDSparceTabulatedFunctionLoader;
+import com.rae.formicapi.init.PacketInit;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.AddReloadListenerEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.PacketDistributor;
+import net.minecraftforge.network.simple.SimpleChannel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+import java.util.Objects;
 
 public class FullTableBased {
     public static final SpecificRealGazState DEFAULT_STATE = new SpecificRealGazState(300f, 101_300f, 112_665f, 0f);
@@ -151,45 +160,100 @@ public class FullTableBased {
         event.addListener(WATER_SP_H);
     }
 
+    public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
+        Player player = event.getEntity();
+        if (player instanceof ServerPlayer serverPlayer){
+            //we need to cut this into smaller packets
+            var channel = PacketInit.getChannel();
+
+            // 1. Clear client tables first
+            channel.send(
+                    PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> serverPlayer),
+                    new ClearTablesPacket()
+            );
+
+            // 2. Send all tables in chunks
+            sendTable(channel, serverPlayer, WATER_HP_T.splitSerialize(), TableType.HP_T);
+            sendTable(channel, serverPlayer, WATER_HP_S.splitSerialize(), TableType.HP_S);
+            sendTable(channel, serverPlayer, WATER_HP_X.splitSerialize(), TableType.HP_X);
+            sendTable(channel, serverPlayer, WATER_SP_H.splitSerialize(), TableType.SP_H);
+        }
+    }
+
+    private static void sendTable(SimpleChannel channel,
+                                  ServerPlayer player,
+                                  List<CompoundTag> chunks,
+                                  TableType type) {
+
+        for (CompoundTag tag : chunks) {
+            channel.send(
+                    PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
+                    new SynchTablesPacket(tag, type)
+            );
+        }
+    }
+
+    public static class ClearTablesPacket extends SimplePacketBase {
+        public ClearTablesPacket() {
+        }
+
+        public ClearTablesPacket(@NotNull FriendlyByteBuf buffer) {
+        }
+
+        public void write(FriendlyByteBuf buffer) {
+        }
+
+        public boolean handle(NetworkEvent.Context context) {
+            context.enqueueWork(
+                    () ->{
+                        WATER_HP_T.clearFunction();
+                        WATER_HP_S.clearFunction();
+                        WATER_HP_X.clearFunction();
+                        WATER_SP_H.clearFunction();
+                    }
+            );
+            return true;
+        }
+    }
+
+    public enum TableType {
+        HP_T, HP_S, HP_X, SP_H
+    }
+
     public static class SynchTablesPacket extends SimplePacketBase {
-        private final @Nullable CompoundTag water_hp_t;
-        private final @Nullable CompoundTag water_hp_s;
-        private final @Nullable CompoundTag water_hp_x;
-        private final @Nullable CompoundTag water_sp_h;
+        private final @Nullable CompoundTag nbt;
+        private final @Nullable TableType type;
 
 
         // Construct from server data
-        public SynchTablesPacket() {
-            this.water_hp_t = WATER_HP_T.serialize();
-            this.water_hp_s = WATER_HP_S.serialize();
-            this.water_hp_x = WATER_HP_X.serialize();
-            this.water_sp_h = WATER_SP_H.serialize();
+        public SynchTablesPacket(@NotNull CompoundTag nbt, @NotNull TableType type) {
+            this.nbt = nbt;
+            this.type = type;
         }
 
         // Construct from network buffer
         public SynchTablesPacket(@NotNull FriendlyByteBuf buffer) {
-            this.water_hp_t = buffer.readNbt();
-            this.water_hp_s = buffer.readNbt();
-            this.water_hp_x = buffer.readNbt();
-            this.water_sp_h = buffer.readNbt();
+            this.nbt = buffer.readNbt();
+            this.type = buffer.readEnum(TableType.class);
         }
 
         @Override
         public void write(FriendlyByteBuf buffer) {
-            buffer.writeNbt(water_hp_t);
-            buffer.writeNbt(water_hp_s);
-            buffer.writeNbt(water_hp_x);
-            buffer.writeNbt(water_sp_h);
+            buffer.writeNbt(nbt);
+            assert type != null;
+            buffer.writeEnum(type);
         }
 
         @Override
         public boolean handle(NetworkEvent.Context context) {
             context.enqueueWork(
                     () -> {
-                        WATER_HP_T.reloadFromNBT(water_hp_t);
-                        WATER_HP_S.reloadFromNBT(water_hp_s);
-                        WATER_HP_X.reloadFromNBT(water_hp_x);
-                        WATER_SP_H.reloadFromNBT(water_sp_h);
+                        switch (Objects.requireNonNull(type)) {
+                            case HP_T -> WATER_HP_T.mergeFromNBT(nbt);
+                            case HP_S -> WATER_HP_S.mergeFromNBT(nbt);
+                            case HP_X -> WATER_HP_X.mergeFromNBT(nbt);
+                            case SP_H -> WATER_SP_H.mergeFromNBT(nbt);
+                        }
                     }
             );
             return true;

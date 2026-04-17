@@ -10,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.GsonHelper;
@@ -18,6 +17,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
+import java.util.List;
 import java.util.Map;
 
 public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadListener {
@@ -26,6 +26,8 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     private static final String FOLDER = "sparce_tabulated_functions";
     private final ResourceLocation FILE_NAME;
     private TwoDSparseTabulatedFunction FUNCTION;
+
+    //private static Map<String, TwoDSparseTabulatedFunction> FUNCTIONS_HOLDERS = ;
 
     public TwoDSparceTabulatedFunctionLoader(String modId, String fileName) {
         super(GSON, FOLDER);
@@ -66,14 +68,21 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
         return FUNCTION != null;
     }
 
-    public CompoundTag serialize(){
-        return (CompoundTag) TwoDSparseTabulatedFunction.CODEC.encode(
-                FUNCTION, NbtOps.INSTANCE, new CompoundTag())
-                .getOrThrow(false, (s) -> {});
+    public List<CompoundTag> splitSerialize(){
+        List<TwoDSparseTabulatedFunction> splitTables = FUNCTION.split(1000);
+
+        return splitTables.parallelStream().map(
+                (f) -> (CompoundTag) TwoDSparseTabulatedFunction.CODEC.encode(
+                                f, NbtOps.INSTANCE, new CompoundTag())
+                        .getOrThrow(false, (s) -> {})
+        ).toList();
     }
 
-    public void reloadFromNBT(CompoundTag tag){
+    public void mergeFromNBT(CompoundTag tag){
         FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
                 .getOrThrow(false, s -> {}).getFirst();
+    }
+    public void clearFunction(){
+        FUNCTION.clear();
     }
 }
