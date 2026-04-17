@@ -7,9 +7,9 @@
   "formicapi.units.temperature.symbol.celsius": "°C",
   "formicapi.units.temperature.symbol.fahrenheit": "°F",
 
-  "formicapi.units.radiation_flux.symbol.becquerels": "Bq",
-  "formicapi.units.radiation_flux.symbol.curies": "Ci",
-  "formicapi.units.radiation_flux.symbol.gray_per_seconds": "Gray/s",
-  "formicapi.units.radiation_flux.symbol.rad_per_seconds": "Rad/s",
-  "formicapi.units.radiation_flux.symbol.sievert_per_seconds": "Sv/s"
+  "formicapi.units.irradiationflux.symbol.becquerels": "Bq",
+  "formicapi.units.irradiationflux.symbol.curies": "Ci",
+  "formicapi.units.irradiationflux.symbol.gray_per_seconds": "Gray/s",
+  "formicapi.units.irradiationflux.symbol.rad_per_seconds": "Rad/s",
+  "formicapi.units.irradiation_lux.symbol.sievert_per_seconds": "Sv/s"
 }
