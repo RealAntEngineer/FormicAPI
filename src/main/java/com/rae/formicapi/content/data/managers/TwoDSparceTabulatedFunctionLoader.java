@@ -6,7 +6,11 @@ import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.JsonOps;
 import com.rae.formicapi.fondation.math.data.TwoDSparseTabulatedFunction;
+import net.minecraft.client.Minecraft;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.GsonHelper;
@@ -45,12 +49,31 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     }
 
     public float getValue(float x, float y) {
-        return FUNCTION.evaluate(x, y);
+        if (loaded()) {
+            return FUNCTION.evaluate(x, y);
+        } else {
+            boolean local  = Minecraft.getInstance().isLocalServer();
+            throw new RuntimeException("Function called before table could be loaded " +
+                    (
+                            local ?
+                                    "on a local instance ??":
+                                    "on a distant machine check if you have optimisation mod preventing synchronisation"
+                    ));
+        }
     }
 
     public boolean loaded() {
         return FUNCTION != null;
     }
 
+    public CompoundTag serialize(){
+        return (CompoundTag) TwoDSparseTabulatedFunction.CODEC.encode(
+                FUNCTION, NbtOps.INSTANCE, new CompoundTag())
+                .getOrThrow(false, (s) -> {});
+    }
 
+    public void reloadFromNBT(CompoundTag tag){
+        FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
+                .getOrThrow(false, s -> {}).getFirst();
+    }
 }
