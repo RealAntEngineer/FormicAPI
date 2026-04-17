@@ -259,5 +259,4 @@ public class FullTableBased {
             return true;
         }
     }
-
 }

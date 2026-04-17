@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class FormicApiLang extends Lang {
-    //blatant copy of CreateLang
     static TreeMap<Double, String> MULTIPLE_SYMBOLS = new TreeMap<>();
     static {
         MULTIPLE_SYMBOLS.put(1e18, "E");
@@ -49,8 +48,10 @@ public class FormicApiLang extends Lang {
 
     public static LangBuilder numberWithSymbol(double d) {
         Map.Entry<Double, String> entry = MULTIPLE_SYMBOLS.floorEntry(d);
+        if (entry == null)
+            entry = MULTIPLE_SYMBOLS.ceilingEntry(d);
         if (entry == null) {
-            builder().text(LangNumberFormat.format(d)+ " ");
+            return builder().text(LangNumberFormat.format(d)+ " ");
         }
         return builder().text(LangNumberFormat.format(d/entry.getKey())+" "+entry.getValue());
     }
