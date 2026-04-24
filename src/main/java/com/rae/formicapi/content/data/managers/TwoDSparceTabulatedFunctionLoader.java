@@ -76,8 +76,13 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     }
 
     public void mergeFromNBT(CompoundTag tag){
-        FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
+        if (FUNCTION == null)
+            FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
                 .getOrThrow().getFirst();
+        else {
+            FUNCTION.mergeFrom(TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
+                    .getOrThrow().getFirst(), false);
+        }
     }
     public void clearFunction(){
         FUNCTION.clear();

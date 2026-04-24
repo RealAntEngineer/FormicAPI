@@ -105,7 +105,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         super.createBlockStateDefinition(pBuilder.add(FACING));
     }
 
-    @OnlyIn(Dist.CLIENT)
+    @Override
     public void initializeClient(Consumer<IClientBlockExtensions> consumer) {
         consumer.accept(new RenderProperties());
     }

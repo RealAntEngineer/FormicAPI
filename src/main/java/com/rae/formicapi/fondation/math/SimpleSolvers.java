@@ -2,7 +2,7 @@ package com.rae.formicapi.fondation.math;
 
 import java.util.function.Function;
 
-public class Solvers {
+public class SimpleSolvers {
     /**
      *
      * @param function the equation you want to solve
@@ -11,7 +11,7 @@ public class Solvers {
      * @param epsilon  tolerance
      * @return the Solution if there is one or 0.
      */
-    public static float dichotomy(Function<Float, Float> function, float a, float b, float epsilon) {
+    public static float binarySearch(Function<Float, Float> function, float a, float b, float epsilon) {
         float fa = function.apply(a);
         float fb = function.apply(b);
 

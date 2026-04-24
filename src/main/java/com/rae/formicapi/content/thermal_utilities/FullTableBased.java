@@ -46,9 +46,9 @@ public class FullTableBased {
         // Initial guess from table interpolation
         float h = getH(sTarget, finalPressure);
 
-        final float EPS = 1e-4f * P1;     // derivative step
-        final float TOL = 1e-1f;     // convergence tolerance
-        final int MAX_ITER = 20;
+        final float EPS      = 1e-4f * P1;     // derivative step
+        final float TOL      = 1e-1f;     // convergence tolerance
+        final int   MAX_ITER = 20;
 
         for (int i = 0; i < MAX_ITER; i++) {
             float s = getS(h, finalPressure);
@@ -125,9 +125,9 @@ public class FullTableBased {
         if (specific_heat == 0) {
             return fluidState;
         } else {
-            float newH = fluidState.specificEnthalpy() + specific_heat;
-            float newPressure = fluidState.pressure();
-            float newT = getT(newH, newPressure);
+            float newH            = fluidState.specificEnthalpy() + specific_heat;
+            float newPressure     = fluidState.pressure();
+            float newT            = getT(newH, newPressure);
             float newVaporQuality = getX(newH, newPressure);
             return new SpecificRealGazState(newT, newPressure, newH, newVaporQuality);
         }
@@ -161,19 +161,25 @@ public class FullTableBased {
         event.addListener(WATER_SP_H);
     }
 
-    public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event){
+    public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         Player player = event.getEntity();
-        if (player instanceof ServerPlayer serverPlayer){
-            //we need to cut this into smaller packets
-            // 1. Clear client tables first
+        //ONLY DO THIS IF IT'S A DISTANT SERVER
+        if (player instanceof ServerPlayer serverPlayer) {
+
+            List<CompoundTag> chunkHPT = WATER_HP_T.splitSerialize();
+            List<CompoundTag> chunkHPS = WATER_HP_S.splitSerialize();
+            List<CompoundTag> chunkHPX = WATER_HP_X.splitSerialize();
+            List<CompoundTag> chunkSPH = WATER_SP_H.splitSerialize();
+
+            FormicAPI.LOGGER.info("Asking Player to clear it's tables");
             PacketDistributor.sendToPlayer(serverPlayer,
                     new ClearTablesPacket());
 
-            // 2. Send all tables in chunks
-            sendTable(serverPlayer, WATER_HP_T.splitSerialize(), TableType.HP_T);
-            sendTable( serverPlayer, WATER_HP_S.splitSerialize(), TableType.HP_S);
-            sendTable( serverPlayer, WATER_HP_X.splitSerialize(), TableType.HP_X);
-            sendTable( serverPlayer, WATER_SP_H.splitSerialize(), TableType.SP_H);
+            FormicAPI.LOGGER.info("Sending tables to the client");
+            sendTable(serverPlayer, chunkHPT, TableType.HP_T);
+            sendTable(serverPlayer, chunkHPS, TableType.HP_S);
+            sendTable(serverPlayer, chunkHPX, TableType.HP_X);
+            sendTable(serverPlayer, chunkSPH, TableType.SP_H);
         }
     }
 
@@ -188,11 +194,16 @@ public class FullTableBased {
         }
     }
 
+    public enum TableType {
+        HP_T, HP_S, HP_X, SP_H
+    }
+
     public static class ClearTablesPacket implements ClientboundPacketPayload {
 
-        public static final         StreamCodec<RegistryFriendlyByteBuf, ClearTablesPacket> STREAM_CODEC = StreamCodec.of(
+        public static final StreamCodec<RegistryFriendlyByteBuf, ClearTablesPacket> STREAM_CODEC = StreamCodec.of(
                 (byteBuf, packet) -> packet.write(byteBuf),
                 ClearTablesPacket::new);
+
         public ClearTablesPacket() {
         }
 
@@ -217,16 +228,12 @@ public class FullTableBased {
         }
     }
 
-    public enum TableType {
-        HP_T, HP_S, HP_X, SP_H
-    }
-
     public static class SynchTablesPacket implements ClientboundPacketPayload {
-        private final @Nullable CompoundTag nbt;
-        private final @Nullable TableType                                                   type;
-        public static final         StreamCodec<RegistryFriendlyByteBuf, SynchTablesPacket> STREAM_CODEC = StreamCodec.of(
+        public static final     StreamCodec<RegistryFriendlyByteBuf, SynchTablesPacket> STREAM_CODEC = StreamCodec.of(
                 (byteBuf, packet) -> packet.write(byteBuf),
                 SynchTablesPacket::new);
+        private final @Nullable CompoundTag                                             nbt;
+        private final @Nullable TableType                                               type;
 
         // Construct from server data
         public SynchTablesPacket(@NotNull CompoundTag nbt, @NotNull TableType type) {
