@@ -182,4 +182,8 @@ public class TwoDSparseTabulatedFunction {
     public void clear() {
         table.clear();
     }
+
+    public boolean isEmpty() {
+        return table.isEmpty();
+    }
 }

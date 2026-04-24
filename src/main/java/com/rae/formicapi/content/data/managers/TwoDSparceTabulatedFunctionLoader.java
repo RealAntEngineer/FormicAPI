@@ -62,7 +62,7 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     }
 
     public boolean loaded() {
-        return FUNCTION != null;
+        return FUNCTION != null && !FUNCTION.isEmpty();
     }
 
     public List<CompoundTag> splitSerialize(){
