@@ -10,8 +10,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -163,25 +166,26 @@ public class FullTableBased {
     }
 
     public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-        Player player = event.getEntity();
         //ONLY DO THIS IF IT'S A DISTANT SERVER
-        boolean local  = Minecraft.getInstance().isLocalServer();
-        if (player instanceof ServerPlayer serverPlayer && !local) {
+        if (FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
+            Player player = event.getEntity();
+            if (player instanceof ServerPlayer serverPlayer) {
 
-            List<CompoundTag> chunkHPT = WATER_HP_T.splitSerialize();
-            List<CompoundTag> chunkHPS = WATER_HP_S.splitSerialize();
-            List<CompoundTag> chunkHPX = WATER_HP_X.splitSerialize();
-            List<CompoundTag> chunkSPH = WATER_SP_H.splitSerialize();
+                List<CompoundTag> chunkHPT = WATER_HP_T.splitSerialize();
+                List<CompoundTag> chunkHPS = WATER_HP_S.splitSerialize();
+                List<CompoundTag> chunkHPX = WATER_HP_X.splitSerialize();
+                List<CompoundTag> chunkSPH = WATER_SP_H.splitSerialize();
 
-            FormicAPI.LOGGER.info("Asking Player to clear it's tables");
-            PacketDistributor.sendToPlayer(serverPlayer,
-                    new ClearTablesPacket());
+                FormicAPI.LOGGER.info("Asking Player to clear it's tables");
+                PacketDistributor.sendToPlayer(serverPlayer,
+                        new ClearTablesPacket());
 
-            FormicAPI.LOGGER.info("Sending tables to the client");
-            sendTable(serverPlayer, chunkHPT, TableType.HP_T);
-            sendTable(serverPlayer, chunkHPS, TableType.HP_S);
-            sendTable(serverPlayer, chunkHPX, TableType.HP_X);
-            sendTable(serverPlayer, chunkSPH, TableType.SP_H);
+                FormicAPI.LOGGER.info("Sending tables to the client");
+                sendTable(serverPlayer, chunkHPT, TableType.HP_T);
+                sendTable(serverPlayer, chunkHPS, TableType.HP_S);
+                sendTable(serverPlayer, chunkHPX, TableType.HP_X);
+                sendTable(serverPlayer, chunkSPH, TableType.SP_H);
+            }
         }
     }
 
