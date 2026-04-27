@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.JsonOps;
+import com.rae.formicapi.FormicAPI;
 import com.rae.formicapi.fondation.math.data.TwoDSparseTabulatedFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -85,6 +86,12 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
         }
     }
     public void clearFunction(){
-        FUNCTION.clear();
+        if (FUNCTION!=null) {
+            FUNCTION.clear();
+        }
+        else {
+            FormicAPI.LOGGER.debug("Useless call to clear a table : {} the table hasn't being loaded yet, " +
+                    "the player is probably joining a world for the first time in this session", FILE_NAME);
+        }
     }
 }

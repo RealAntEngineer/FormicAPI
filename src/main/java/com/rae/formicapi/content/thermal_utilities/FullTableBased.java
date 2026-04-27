@@ -4,13 +4,11 @@ import com.rae.formicapi.FormicAPI;
 import com.rae.formicapi.content.data.managers.TwoDSparceTabulatedFunctionLoader;
 import com.rae.formicapi.init.PacketInit;
 import net.createmod.catnip.net.base.ClientboundPacketPayload;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
@@ -68,16 +66,18 @@ public class FullTableBased {
 
             // Safety check
             if (Math.abs(df) < 1e-8f) {
+                FormicAPI.LOGGER.info("early break in isentropic computation cause by derivative too small");
                 break; // derivative too small → avoid explosion
             }
 
             h -= f / df;
         }
 
-        float Tfinal = getT(finalPressure, h);
+        float TFinal = getT(finalPressure, h);
         float xFinal = getX(finalPressure, h);
+        float sFinal = getS(finalPressure, h);
 
-        return new SpecificRealGasState(finalPressure, h, Tfinal, sTarget, xFinal);
+        return new SpecificRealGasState(finalPressure, h, TFinal, sFinal, xFinal);
     }
 
     public static float getS(float P, float H) {
