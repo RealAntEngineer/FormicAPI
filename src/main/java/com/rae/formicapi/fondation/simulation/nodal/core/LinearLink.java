@@ -103,4 +103,8 @@ public class LinearLink extends SingleDomainComponent {
     public List<Node> getInternalNodes() {
         return List.of();//no internal node
     }
+
+    public double getConductance() {
+        return conductance;
+    }
 }

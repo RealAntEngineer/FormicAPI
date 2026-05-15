@@ -11,8 +11,7 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '6.+'
     id 'org.spongepowered.mixin' version '0.7.+'
-    id 'org.jreleaser' version '1.17.0'
-
+    id 'me.champeau.jmh' version '0.7.2'
 }
 
 version = minecraft_version + "-" + mod_version
@@ -197,15 +196,6 @@ jar {
         ])
     }
 }
-task jarJarRelease {
-    group = 'jarjar'
-    doLast {
-        tasks.jarJar {
-            archiveClassifier = ''
-        }
-    }
-    finalizedBy tasks.jarJar
-}
 
 java {
     withSourcesJar()
@@ -217,11 +207,23 @@ tasks.test {
     //debug = true;
 }
 
+jmh {
+    iterations = 10          // Measurement iterations (was BENCH_REPS)
+    warmupIterations = 5     // Warmup iterations (was WARMUP_REPS)
+    fork = 2                 // Run in separate JVM forks for isolation
+    benchmarkMode = ['avgt'] // Average time mode
+    timeUnit = 'ns'          // Nanoseconds
+    resultFormat = 'CSV'
+    resultsFile = project.file("${project.buildDir}/reports/jmh/results.csv")
+
+    zip64 = true
+
+    // Optional: reduce jar size by including only your benchmarks
+    includes = ['.*Benchmark.*']
+}
+
 jar.finalizedBy('reobfJar')
 tasks.jarJar.finalizedBy('reobfJarJar')
-// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
-
-// Example configuration to allow publishing using the maven-publish plugin
 
 publishing {
     publications {

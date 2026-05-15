@@ -2,8 +2,6 @@ package com.rae.formicapi.fondation.simulation.nodal.core;
 
 import com.rae.formicapi.fondation.simulation.nodal.ModelType;
 
-import java.util.List;
-
 public class Source extends SingleDomainComponent {
 
     private final Node node;
@@ -31,4 +29,7 @@ public class Source extends SingleDomainComponent {
     }
 
 
+    public double getFlux() {
+        return flux;
+    }
 }

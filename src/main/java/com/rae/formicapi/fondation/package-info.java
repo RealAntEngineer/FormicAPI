@@ -40,5 +40,8 @@
  *       accumulate independently and correctly.</li>
  * </ul>
  */
+@ParametersAreNonnullByDefault
 
 package com.rae.formicapi.fondation;
+
+import javax.annotation.ParametersAreNonnullByDefault;

@@ -2,7 +2,9 @@ package com.rae.formicapi.fondation.math.solvers;
 
 import com.rae.formicapi.fondation.math.operators.Matrix;
 import com.rae.formicapi.fondation.math.operators.MutableMatrix;
+import org.lwjgl.system.NonnullDefault;
 
+@NonnullDefault
 public class ConjugateGradient {
 
     // Convenience overload

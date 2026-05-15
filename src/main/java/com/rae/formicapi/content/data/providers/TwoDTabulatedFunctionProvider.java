@@ -2,6 +2,7 @@ package com.rae.formicapi.content.data.providers;
 
 import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
+import com.rae.formicapi.content.data.managers.TwoDTabulatedFunctionLoader;
 import com.rae.formicapi.fondation.math.data.StepMode;
 import com.rae.formicapi.fondation.math.data.TwoDTabulatedFunction;
 import net.minecraft.data.CachedOutput;
@@ -60,7 +61,7 @@ public class TwoDTabulatedFunctionProvider implements DataProvider {
                 clamp
         );
 
-        JsonElement json = TwoDTabulatedFunction.CODEC.encodeStart(JsonOps.INSTANCE, function)
+        JsonElement json = TwoDTabulatedFunctionLoader.CODEC.encodeStart(JsonOps.INSTANCE, function)
                 .getOrThrow(false, s -> {
                 });
         Path path = output.getOutputFolder()

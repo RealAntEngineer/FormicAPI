@@ -7,6 +7,7 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.rae.formicapi.fondation.math.data.SplineBased2DFunction;
 import com.rae.formicapi.fondation.math.data.TwoDSparseTabulatedFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -23,26 +24,39 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadListener {
+public class Spline2DFunctionLoader extends SimpleJsonResourceReloadListener {
     public static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new Gson();
     private static final String FOLDER = "sparce_tabulated_functions";
     private final ResourceLocation FILE_NAME;
-    private TwoDSparseTabulatedFunction FUNCTION;
+    private SplineBased2DFunction FUNCTION;
 
     //private static Map<String, TwoDSparseTabulatedFunction> FUNCTIONS_HOLDERS = ;
+    public static final Codec<List<SplineBased2DFunction.Vec2>> CONTROL_POINTS_CODEC =
+            SplineBased2DFunction.Vec2.CODEC.listOf();
 
-    public static final Codec<TreeMap<Float, Float>>       INNER_MAP_CODEC = Codec.unboundedMap(
-            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
-    ).xmap(TreeMap::new, TreeMap::new);
-    // Codec for the entire TwoDTabulatedFunction table
-    public static final Codec<TwoDSparseTabulatedFunction> CODEC           = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
-                    .forGetter(TwoDSparseTabulatedFunction::table),
-            Codec.BOOL.fieldOf("clamp").forGetter(TwoDSparseTabulatedFunction::clamp)
-    ).apply(instance, TwoDSparseTabulatedFunction::new));
+    // Codec for a single iso-line
+    public static final Codec<SplineBased2DFunction.IsoLine> ISO_LINE_CODEC = RecordCodecBuilder.create(instance ->
+            instance.group(
+                    Codec.FLOAT.fieldOf("value").forGetter(SplineBased2DFunction.IsoLine::getValue),
+                    CONTROL_POINTS_CODEC.fieldOf("controlPoints").forGetter(SplineBased2DFunction.IsoLine::getControlPoints),
+                    Codec.STRING.optionalFieldOf("splineType", "catmull_rom")
+                            .forGetter(SplineBased2DFunction.IsoLine::getSplineType)
+            ).apply(instance, SplineBased2DFunction.IsoLine::new)
+    );
 
-    public TwoDSparceTabulatedFunctionLoader(String modId, String fileName) {
+    // Codec for the entire function
+    public static final Codec<SplineBased2DFunction> CODEC = RecordCodecBuilder.create(instance ->
+            instance.group(
+                    ISO_LINE_CODEC.listOf().fieldOf("isoLines").forGetter(SplineBased2DFunction::isoLines),
+                    Codec.BOOL.optionalFieldOf("clamp", true).forGetter(SplineBased2DFunction::clamp),
+                    Codec.STRING.xmap(SplineBased2DFunction.InterpolationType::valueOf, Enum::toString).optionalFieldOf("interpolationType", SplineBased2DFunction.InterpolationType.CUBIC)
+                            .forGetter(SplineBased2DFunction::interpolationType)
+            ).apply(instance, SplineBased2DFunction::new)
+    );
+
+
+    public Spline2DFunctionLoader(String modId, String fileName) {
         super(GSON, FOLDER);
         FILE_NAME = new ResourceLocation(modId, fileName);
     }
@@ -81,6 +95,7 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
         return FUNCTION != null;
     }
 
+    /*
     public List<CompoundTag> splitSerialize(){
         List<TwoDSparseTabulatedFunction> splitTables = FUNCTION.split(1000);
 
@@ -97,5 +112,5 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     }
     public void clearFunction(){
         FUNCTION.clear();
-    }
+    }*/
 }

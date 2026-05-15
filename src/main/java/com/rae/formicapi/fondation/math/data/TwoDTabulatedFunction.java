@@ -1,43 +1,14 @@
 package com.rae.formicapi.fondation.math.data;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
-
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.BiFunction;
 
-public class TwoDTabulatedFunction {
-    // Codec for individual inner maps (Y -> Value)
-    public static final Codec<TreeMap<Float, Float>> INNER_MAP_CODEC = Codec.unboundedMap(
-            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
-    ).xmap(TreeMap::new, TreeMap::new);
-    // Codec for the entire TwoDTabulatedFunction table
-    public static final Codec<TwoDTabulatedFunction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
-                    .forGetter(f -> f.table),
-            Codec.FLOAT.fieldOf("x_step").forGetter(f -> f.xStep),
-            Codec.FLOAT.fieldOf("y_step").forGetter(f -> f.yStep),
-            StepMode.CODEC.fieldOf("x_mode").forGetter(f -> f.xMode),
-            StepMode.CODEC.fieldOf("y_mode").forGetter(f -> f.yMode),
-            Codec.BOOL.fieldOf("clamp").forGetter(f -> f.clamp)
-    ).apply(instance, TwoDTabulatedFunction::new));
-    // table: X -> (Y -> Value)
-    private final TreeMap<Float, TreeMap<Float, Float>> table;
-    private final float xStep;
-    private final float yStep;
-    private final StepMode xMode;
-    private final StepMode yMode;
-    private final boolean clamp;
-
-    public TwoDTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, float xStep, float yStep, StepMode xMode, StepMode yMode, boolean clamp) {
-        this.table = table;
-        this.xStep = xStep;
-        this.yStep = yStep;
-        this.xMode = xMode;
-        this.yMode = yMode;
-        this.clamp = clamp;
-    }
+/**
+ * @param table table: X -> (Y -> Value)
+ */
+public record TwoDTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, float xStep, float yStep,
+                                    StepMode xMode, StepMode yMode, boolean clamp) {
 
     public static TwoDTabulatedFunction populate(
             BiFunction<Float, Float, Float> f,
@@ -98,7 +69,7 @@ public class TwoDTabulatedFunction {
         float x2 = upperX.getKey();
         float v1 = evaluate1D(yInput, lowerX.getValue());
         float v2 = evaluate1D(yInput, upperX.getValue());
-        float t = (xInput - x1) / (x2 - x1);
+        float t  = (xInput - x1) / (x2 - x1);
         return v1 * (1 - t) + v2 * t;
     }
 
@@ -129,7 +100,7 @@ public class TwoDTabulatedFunction {
         float y2 = upperY.getKey();
         float v1 = lowerY.getValue();
         float v2 = upperY.getValue();
-        float t = (yInput - y1) / (y2 - y1);
+        float t  = (yInput - y1) / (y2 - y1);
         return v1 * (1 - t) + v2 * t;
     }
 
@@ -140,7 +111,7 @@ public class TwoDTabulatedFunction {
         if (lower == null) {
             // extrapolate below using first two points
             Map.Entry<Float, Float> first = row.firstEntry();
-            Map.Entry<Float, Float> next = row.higherEntry(first.getKey());
+            Map.Entry<Float, Float> next  = row.higherEntry(first.getKey());
             if (next == null) return first.getValue();
             return linear(yInput, first, next);
         }
@@ -160,7 +131,7 @@ public class TwoDTabulatedFunction {
         float x2 = b.getKey();
         float y1 = a.getValue();
         float y2 = b.getValue();
-        float t = (query - x1) / (x2 - x1);
+        float t  = (query - x1) / (x2 - x1);
         return y1 * (1 - t) + y2 * t;
     }
 
