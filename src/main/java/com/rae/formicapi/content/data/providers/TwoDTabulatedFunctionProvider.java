@@ -61,9 +61,8 @@ public class TwoDTabulatedFunctionProvider implements DataProvider {
                 clamp
         );
 
-        JsonElement json = TwoDTabulatedFunctionLoader.CODEC.encodeStart(JsonOps.INSTANCE, function)
-                .getOrThrow(false, s -> {
-                });
+        JsonElement json = TwoDTabulatedFunction.CODEC.encodeStart(JsonOps.INSTANCE, function)
+                .getOrThrow();
         Path path = output.getOutputFolder()
                 .resolve("data/" + location.getNamespace() + "/tabulated_functions/" + location.getPath() + ".json");
 

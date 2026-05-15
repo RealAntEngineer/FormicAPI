@@ -4,9 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.rae.formicapi.FormicAPI;
 import com.rae.formicapi.fondation.math.data.TwoDSparseTabulatedFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -21,7 +20,6 @@ import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadListener {
     public static final Logger LOGGER = LogUtils.getLogger();
@@ -31,16 +29,6 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     private TwoDSparseTabulatedFunction FUNCTION;
 
     //private static Map<String, TwoDSparseTabulatedFunction> FUNCTIONS_HOLDERS = ;
-
-    public static final Codec<TreeMap<Float, Float>>       INNER_MAP_CODEC = Codec.unboundedMap(
-            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
-    ).xmap(TreeMap::new, TreeMap::new);
-    // Codec for the entire TwoDTabulatedFunction table
-    public static final Codec<TwoDSparseTabulatedFunction> CODEC           = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
-                    .forGetter(TwoDSparseTabulatedFunction::table),
-            Codec.BOOL.fieldOf("clamp").forGetter(TwoDSparseTabulatedFunction::clamp)
-    ).apply(instance, TwoDSparseTabulatedFunction::new));
 
     public TwoDSparceTabulatedFunctionLoader(String modId, String fileName) {
         super(GSON, FOLDER);
@@ -55,7 +43,7 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
             if (!entry.getKey().equals(FILE_NAME)) continue;
             try {
                 JsonObject json = GsonHelper.convertToJsonObject(entry.getValue(), "sparce tabulated function");
-                FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
+                FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow(false, s -> {}).getFirst();
             } catch (Exception e) {
                 LOGGER.error("Failed to load float data from {}", entry.getKey(), e);
             }
@@ -93,10 +81,10 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     public void mergeFromNBT(CompoundTag tag){
         if (FUNCTION == null)
             FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
-                .getOrThrow().getFirst();
+                .getOrThrow(false, s -> {}).getFirst();
         else {
             FUNCTION.mergeFrom(TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
-                    .getOrThrow().getFirst(), false);
+                    .getOrThrow(false, s -> {}).getFirst(), false);
         }
     }
     public void clearFunction(){
