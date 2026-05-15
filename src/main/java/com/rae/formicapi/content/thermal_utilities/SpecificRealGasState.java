@@ -3,10 +3,8 @@ package com.rae.formicapi.content.thermal_utilities;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.rae.formicapi.FormicAPI;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.util.Mth;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,15 +13,7 @@ import java.util.Objects;
 public class SpecificRealGasState {
 
     public static final SpecificRealGasState DEFAULT_STATE = new SpecificRealGasState(101_300f, 112_665f, null, null, null);
-    public static final StreamCodec<ByteBuf, SpecificRealGasState> STREAM_CODEC = new StreamCodec<>() {
-        public @NotNull SpecificRealGasState decode(@NotNull ByteBuf buffer) {
-            return new SpecificRealGasState(Objects.requireNonNull(FriendlyByteBuf.readNbt(buffer)));
-        }
 
-        public void encode(@NotNull ByteBuf buffer, SpecificRealGasState state) {
-            FriendlyByteBuf.writeNbt(buffer, state.serialize());
-        }
-    };
     public static final Codec<SpecificRealGasState>                CODEC        = RecordCodecBuilder.create(i ->
             i.group(
                             Codec.FLOAT.fieldOf("pressure").forGetter(p -> p.pressure),
@@ -54,7 +44,7 @@ public class SpecificRealGasState {
         if (vaporQuality != null && vaporQuality > 1) {
             FormicAPI.LOGGER.warn("vapor quality > 1 given, check your code");
         }
-        this.vaporQuality = vaporQuality == null ? null : Math.clamp(vaporQuality, 0, 1);
+        this.vaporQuality = vaporQuality == null ? null : Mth.clamp(vaporQuality, 0, 1);
     }
 
     @Override
@@ -115,6 +105,6 @@ public class SpecificRealGasState {
 
     @Override
     public int hashCode() {
-        return Objects.hash(pressure, specificEnthalpy, temperature, specificEntropy, vaporQuality);
+        return Objects.hash(pressure, specificEnthalpy);
     }
 }
