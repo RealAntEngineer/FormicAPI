@@ -22,7 +22,7 @@ package com.rae.formicapi.fondation.math.operators;
 public class DynamicCSRMatrix implements MutableMatrix {
 
     private final HashSparseMatrix buffer;
-    private CSRMatrix csr = null;
+    private       CSRMatrix        csr = null;
 
     /**
      * Creates a dynamic CSR matrix of the given dimensions.

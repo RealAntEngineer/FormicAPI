@@ -1,14 +1,32 @@
 package com.rae.formicapi.fondation.math.data;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * @param table table: X -> (Y -> Value)
- */
-public record TwoDSparseTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, boolean clamp) {
+public class TwoDSparseTabulatedFunction {
+    // Codec for individual inner maps (Y -> Value)
+    public static final Codec<TreeMap<Float, Float>> INNER_MAP_CODEC = Codec.unboundedMap(
+            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
+    ).xmap(TreeMap::new, TreeMap::new);
+    // Codec for the entire TwoDTabulatedFunction table
+    public static final Codec<TwoDSparseTabulatedFunction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
+                    .forGetter(f -> f.table),
+            Codec.BOOL.fieldOf("clamp").forGetter(f -> f.clamp)
+    ).apply(instance, TwoDSparseTabulatedFunction::new));
+    // table: X -> (Y -> Value)
+    private final TreeMap<Float, TreeMap<Float, Float>> table;
+    private final       boolean                      clamp;
+
+    public TwoDSparseTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, boolean clamp) {
+        this.table = table;
+        this.clamp = clamp;
+    }
 
     public float evaluate(float xInput, float yInput) {
         if (table.isEmpty()) {
@@ -124,7 +142,7 @@ public record TwoDSparseTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> 
 
     public void mergeFrom(TwoDSparseTabulatedFunction other, boolean overwrite) {
         for (Map.Entry<Float, TreeMap<Float, Float>> xEntry : other.table.entrySet()) {
-            float                 x        = xEntry.getKey();
+            float x = xEntry.getKey();
             TreeMap<Float, Float> otherRow = xEntry.getValue();
 
             TreeMap<Float, Float> thisRow = this.table.computeIfAbsent(x, k -> new TreeMap<>());
@@ -141,11 +159,11 @@ public record TwoDSparseTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> 
         List<TwoDSparseTabulatedFunction> result = new ArrayList<>();
 
         TreeMap<Float, TreeMap<Float, Float>> current = new TreeMap<>();
-        int                                   count   = 0;
+        int count = 0;
 
         for (Map.Entry<Float, TreeMap<Float, Float>> entry : table.entrySet()) {
             current.put(entry.getKey(), entry.getValue());
-            count += entry.getValue().size();
+            count+= entry.getValue().size();
 
             if (count >= maxElements) {
                 result.add(new TwoDSparseTabulatedFunction(new TreeMap<>(current), clamp));
@@ -163,5 +181,9 @@ public record TwoDSparseTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> 
 
     public void clear() {
         table.clear();
+    }
+
+    public boolean isEmpty() {
+        return table.isEmpty();
     }
 }

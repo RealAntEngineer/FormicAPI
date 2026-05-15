@@ -31,7 +31,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.extensions.common.IClientBlockExtensions;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.NonnullDefault;
 
@@ -43,6 +42,7 @@ import java.util.function.Consumer;
 /**
  * Structure Block for a MultiBlock, it always as a full hit-box
  */
+@NonnullDefault
 public class MBStructureBlock extends DirectionalBlock implements IWrenchable, IProxyHoveringInformation {
     public MBStructureBlock(Properties properties) {
         super(properties);
@@ -76,6 +76,41 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         consumer.accept(new RenderProperties());
     }
 
+    public static boolean stillValid(BlockGetter level, BlockPos pos, BlockState state) {
+        if (!(state.getBlock() instanceof MBStructureBlock))
+            return false;
+
+        Direction  direction     = state.getValue(FACING);
+        BlockPos   targetedPos   = pos.relative(direction);
+        BlockState targetedState = level.getBlockState(targetedPos);
+        return targetedState.getBlock() instanceof MBStructureBlock ||
+                (targetedState.getBlock() instanceof IMBController mb && state.is(mb.getStructure()));
+    }
+
+    //TODO rewrite this
+    public static BlockPos getMaster(BlockGetter level, BlockPos initialPos) {
+        //makeSomething to prevent stackOverFlow -> while
+        ArrayList<BlockPos> posDiscovered = new ArrayList<>();
+        //posDiscovered.add(pos);
+        BlockState targetedState;
+        BlockPos   targetedPos = initialPos.immutable();
+        int        i           = 0;
+        while (i < 10) {
+            targetedState = level.getBlockState(targetedPos);
+
+            if (targetedState.getBlock() instanceof MBStructureBlock) {
+                posDiscovered.add(targetedPos);
+                Direction direction = level.getBlockState(targetedPos).getValue(FACING);
+                targetedPos = targetedPos.relative(direction);
+            } else if (targetedState.getBlock() instanceof IMBController) {
+                return targetedPos;
+            }
+            i++;
+        }
+
+        return targetedPos;
+    }
+
     @Override
     public InteractionResult onWrenched(BlockState state, UseOnContext context) {
         return InteractionResult.PASS;
@@ -84,7 +119,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     @Override
     public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
         BlockPos clickedPos = context.getClickedPos();
-        Level level = context.getLevel();
+        Level    level      = context.getLevel();
 
         if (stillValid(level, clickedPos, state)) {
             BlockPos masterPos = getMaster(level, clickedPos);
@@ -97,21 +132,10 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         return IWrenchable.super.onSneakWrenched(state, context);
     }
 
-    public static boolean stillValid(BlockGetter level, BlockPos pos, BlockState state) {
-        if (!(state.getBlock() instanceof MBStructureBlock))
-            return false;
-
-        Direction direction = state.getValue(FACING);
-        BlockPos targetedPos = pos.relative(direction);
-        BlockState targetedState = level.getBlockState(targetedPos);
-        return targetedState.getBlock() instanceof MBStructureBlock ||
-                (targetedState.getBlock() instanceof IMBController mb && state.is(mb.getStructure()));
-    }
-
     @Override
     @NonnullDefault
-    public @NotNull BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
-                                           BlockPos pCurrentPos, BlockPos pFacingPos) {
+    public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
+                                  BlockPos pCurrentPos, BlockPos pFacingPos) {
         if (stillValid(pLevel, pCurrentPos, pState)) {
             BlockPos masterPos = getMaster(pLevel, pCurrentPos);
             if (!pLevel.getBlockTicks()
@@ -135,9 +159,9 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
 
     @Override
     @NonnullDefault
-    public @NotNull VoxelShape getShape(BlockState state, BlockGetter getter, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter getter, BlockPos pos, CollisionContext context) {
         if (!(getter instanceof Level level && level.isClientSide)) return Shapes.empty();
-        BlockPos masterPos = getMaster(getter, pos);
+        BlockPos   masterPos   = getMaster(getter, pos);
         BlockState masterState = getter.getBlockState(masterPos);
         if (masterState.getBlock() instanceof IMBController masterBlock) {
             VoxelShape shape = masterBlock.getGlobalShape(masterState, getter, masterPos, context);
@@ -145,30 +169,6 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
         }
         return Shapes.block();
         //need to be intersected with a box.
-    }
-
-    //TODO rewrite this
-    public static BlockPos getMaster(BlockGetter level, BlockPos initialPos) {
-        //makeSomething to prevent stackOverFlow -> while
-        ArrayList<BlockPos> posDiscovered = new ArrayList<>();
-        //posDiscovered.add(pos);
-        BlockState targetedState;
-        BlockPos targetedPos = initialPos.immutable();
-        int i = 0;
-        while (i < 10) {
-            targetedState = level.getBlockState(targetedPos);
-
-            if (targetedState.getBlock() instanceof MBStructureBlock) {
-                posDiscovered.add(targetedPos);
-                Direction direction = level.getBlockState(targetedPos).getValue(FACING);
-                targetedPos = targetedPos.relative(direction);
-            } else if (targetedState.getBlock() instanceof IMBController) {
-                return targetedPos;
-            }
-            i++;
-        }
-
-        return targetedPos;
     }
 
     @Override

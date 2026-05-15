@@ -48,9 +48,9 @@ public class ConjugateGradient {
             );
         }
 
-        double[] x = x_init.clone();
-        double[] r = new double[n];
-        double[] p = new double[n];
+        double[] x  = x_init.clone();
+        double[] r  = new double[n];
+        double[] p  = new double[n];
         double[] Ap = new double[n];
 
         // r = b - A * x

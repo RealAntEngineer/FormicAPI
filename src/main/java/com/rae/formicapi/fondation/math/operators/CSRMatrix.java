@@ -23,8 +23,8 @@ public class CSRMatrix implements Matrix {
     private final int cols;
 
     private final double[] values;
-    private final int[] colIndex;
-    private final int[] rowPtr;
+    private final int[]    colIndex;
+    private final int[]    rowPtr;
 
     /**
      * Constructs a CSR matrix from raw arrays.
@@ -68,10 +68,10 @@ public class CSRMatrix implements Matrix {
         int rows = hash.rows();
         int cols = hash.cols();
 
-        List<Double> valuesList = new ArrayList<>();
+        List<Double>  valuesList   = new ArrayList<>();
         List<Integer> colIndexList = new ArrayList<>();
-        int[] rowPtr = new int[rows + 1];
-        int count = 0;
+        int[]         rowPtr       = new int[rows + 1];
+        int           count        = 0;
 
         for (int r = 0; r < rows; r++) {
             rowPtr[r] = count;
@@ -93,8 +93,8 @@ public class CSRMatrix implements Matrix {
 
         rowPtr[rows] = count;
 
-        double[] values = new double[count];
-        int[] colIndex = new int[count];
+        double[] values   = new double[count];
+        int[]    colIndex = new int[count];
 
         for (int i = 0; i < count; i++) {
             values[i] = valuesList.get(i);

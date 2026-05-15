@@ -74,7 +74,7 @@ public class HashSparseMatrix implements MutableMatrix {
     public void transposeMultiply(double[] x, double[] result) {
         Arrays.fill(result, 0);
         for (var rowEntry : data.entrySet()) {
-            int r = rowEntry.getKey();
+            int    r  = rowEntry.getKey();
             double xr = x[r];
             for (var colEntry : rowEntry.getValue().entrySet())
                 result[colEntry.getKey()] += colEntry.getValue() * xr;

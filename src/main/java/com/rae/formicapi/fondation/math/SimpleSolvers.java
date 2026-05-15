@@ -2,7 +2,7 @@ package com.rae.formicapi.fondation.math;
 
 import java.util.function.Function;
 
-public class Solvers {
+public class SimpleSolvers {
     /**
      *
      * @param function the equation you want to solve
@@ -23,10 +23,10 @@ public class Solvers {
             throw new RuntimeException("Wrong boundaries in dichotomy solver: a=" + a + " f(a)=" + fa + " | b=" + b + " f(b)=" + fb);
         }
 
-        float m = (a + b) / 2f;
-        float fm = function.apply(m);
-        int maxIterations = 10000;
-        int i = 0;
+        float m             = (a + b) / 2f;
+        float fm            = function.apply(m);
+        int   maxIterations = 10000;
+        int   i             = 0;
         while (Math.abs(b - a) > epsilon && i < maxIterations) {
             // Check for NaN
             i++;
@@ -70,19 +70,19 @@ public class Solvers {
      * @return the estimated x value at which the function has a minimum, return NaN if there is no solution found
      */
     public static float gradientDecent(Function<Float, Float> function, float start, float step, float dx) {
-        float x = start;
-        float learningRate = step;
-        int maxIterations = 10000;
-        float tolerance = 1e-6f;
-        float decay = 0.9f; // How fast the step shrinks when progress slows
-        float minStep = 1e-6f;
+        float x             = start;
+        float learningRate  = step;
+        int   maxIterations = 10000;
+        float tolerance     = 1e-6f;
+        float decay         = 0.9f; // How fast the step shrinks when progress slows
+        float minStep       = 1e-6f;
 
         for (int i = 0; i < maxIterations; i++) {
             float derivative = (function.apply(x + dx) - function.apply(x - dx)) / (2 * dx);
-            float newX = x - learningRate * derivative;
+            float newX       = x - learningRate * derivative;
 
             float currentValue = function.apply(x);
-            float newValue = function.apply(newX);
+            float newValue     = function.apply(newX);
 
             if (newValue < currentValue) {
                 // Improvement, keep going
@@ -117,19 +117,19 @@ public class Solvers {
      * @return the estimated x value at which the function has a minimum, return NaN if there is no solution found
      */
     public static float gradientDecent(Function<Float, Float> function, float start, float step, float dx, float tolerance) {
-        float x = start;
-        float learningRate = step;
-        int maxIterations = 10000;
-        float decay = 0.9f; // How fast the step shrinks when progress slows
-        float minStep = 1e-6f;
+        float x             = start;
+        float learningRate  = step;
+        int   maxIterations = 10000;
+        float decay         = 0.9f; // How fast the step shrinks when progress slows
+        float minStep       = 1e-6f;
 
         for (int i = 0; i < maxIterations; i++) {
             //TODO do a NaN catch and trow an exception
             float derivative = (function.apply(x + dx) - function.apply(x - dx)) / (2 * dx);
-            float newX = x - learningRate * derivative;
+            float newX       = x - learningRate * derivative;
 
             float currentValue = function.apply(x);
-            float newValue = function.apply(newX);
+            float newValue     = function.apply(newX);
             if (Float.isNaN(newX)) {
                 System.out.println("weird");
             }
@@ -166,8 +166,8 @@ public class Solvers {
         c /= a;
         d /= a;
 
-        double q = (3.0 * c - b * b) / 9.0;
-        double r = (9.0 * b * c - 27.0 * d - 2.0 * b * b * b) / 54.0;
+        double q            = (3.0 * c - b * b) / 9.0;
+        double r            = (9.0 * b * c - 27.0 * d - 2.0 * b * b * b) / 54.0;
         double discriminant = q * q * q + r * r;
 
         double[] roots = new double[3];

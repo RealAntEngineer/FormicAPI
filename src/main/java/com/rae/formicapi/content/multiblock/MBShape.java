@@ -18,10 +18,10 @@ import java.util.Map;
  */
 public class MBShape {
     //default is north
-    private final MBStructureBlock structure;
+    private final MBStructureBlock                                structure;
     private final HashMap<Direction, List<List<List<Direction>>>> shapes;// X, Y, Z
-    private final Vec3i defaultOffset;
-    private final Vec3i defaultSize;
+    private final Vec3i                                           defaultOffset;
+    private final Vec3i                                           defaultSize;
     public MBShape(MBStructureBlock structure, Vec3i defaultSize, Vec3i defaultOffset, HashMap<Direction, List<List<List<Direction>>>> shapes) {
         this.structure = structure;
         this.defaultOffset = defaultOffset;
@@ -60,10 +60,10 @@ public class MBShape {
      */
     public void repairStructure(Level level, BlockPos controlPos, Direction facing) {
         try {
-            List<List<List<Direction>>> shape = getShape(facing);//iteration over the structure, maybe do a function that takes a BlockPos consumer
-            Vec3i off = getOffset(facing, false);
-            Vec3i size = getSize(facing);
-            boolean negative = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE;
+            List<List<List<Direction>>> shape    = getShape(facing);//iteration over the structure, maybe do a function that takes a BlockPos consumer
+            Vec3i                       off      = getOffset(facing, false);
+            Vec3i                       size     = getSize(facing);
+            boolean                     negative = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE;
             for (int x = -off.getX(); x < size.getX() - off.getX(); x++) {
                 for (int y = -off.getY(); y < size.getY() - off.getY(); y++) {
                     for (int z = -off.getZ(); z < size.getZ() - off.getZ(); z++) {

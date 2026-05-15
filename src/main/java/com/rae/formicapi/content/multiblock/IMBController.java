@@ -22,11 +22,11 @@ public interface IMBController {
     default void repairStructure(Level level, BlockPos controlPos, Direction facing) {
         if (level.isClientSide()) return;
         MBStructureBlock structure = getStructure();
-        Set<BlockPos> visited = new HashSet<>();
-        Queue<Node> toVisit = new ArrayDeque<>();
+        Set<BlockPos>    visited   = new HashSet<>();
+        Queue<Node>      toVisit   = new ArrayDeque<>();
 
-        Vec3i off = getOffset(facing, false);
-        Vec3i size = getSize(facing);
+        Vec3i    off       = getOffset(facing, false);
+        Vec3i    size      = getSize(facing);
         BlockPos minCorner = controlPos.offset(off);
 
         for (Direction dir : Direction.values()) {
@@ -38,7 +38,7 @@ public interface IMBController {
         }
         int i = 0;
         while (!toVisit.isEmpty()) {
-            Node node = toVisit.poll();
+            Node       node    = toVisit.poll();
             BlockState current = level.getBlockState(node.pos);
 
 
@@ -66,8 +66,8 @@ public interface IMBController {
     MBStructureBlock getStructure();
 
     default Vec3i getOffset(Direction facing, boolean mirrorOnDir) {
-        final int dirMultiply = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE && mirrorOnDir ? -1 : 1;
-        Vec3i defaultOffset = getDefaultOffset();
+        final int dirMultiply   = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE && mirrorOnDir ? -1 : 1;
+        Vec3i     defaultOffset = getDefaultOffset();
         return switch (facing.getAxis()) {
             case Z -> new Vec3i(defaultOffset.getZ(), defaultOffset.getY(), dirMultiply * defaultOffset.getX());
             case Y -> new Vec3i(defaultOffset.getY(), dirMultiply * defaultOffset.getX(), defaultOffset.getZ());

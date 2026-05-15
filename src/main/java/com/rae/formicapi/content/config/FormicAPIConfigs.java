@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 public class FormicAPIConfigs {
     private static final Map<ModConfig.Type, ConfigBase> CONFIGS = new EnumMap<>(ModConfig.Type.class);
 
-    public static FormicAPICfgClient CLIENT;
+    public static FormicAPICfgCommon COMMON;
 
     public FormicAPIConfigs() {
     }
@@ -30,7 +30,7 @@ public class FormicAPIConfigs {
     }
 
     public static void registerConfigs(ModLoadingContext context) {
-        CLIENT = register(FormicAPICfgClient::new, ModConfig.Type.CLIENT);
+        COMMON = register(FormicAPICfgCommon::new, ModConfig.Type.COMMON);
         //COMMON = register(CSCfgCommon::new, ModConfig.Type.COMMON);
 
         for (Map.Entry<ModConfig.Type, ConfigBase> pair : CONFIGS.entrySet())

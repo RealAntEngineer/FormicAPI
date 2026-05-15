@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 5, time = 1)
+@Warmup(iterations = 2, time = 1)
 @Measurement(iterations = 10, time = 1)
 @Fork(2)
 public class LeastSquareBenchmark {
@@ -21,13 +21,13 @@ public class LeastSquareBenchmark {
     private static final int MAX_ITER = 1_000;
     private static final double TOL = 1e-6;
 
-    @Param({"100", "500", "1000", "2000", "5000"})
+    @Param({"100", "500", "1000"})
     private int n;
 
-    @Param({"7"})
+    @Param({"5", "25", "50"})
     private int nnzPerRow;
 
-    private double[] b;
+    private double[]         b;
     private double[]         x0;
     private DenseMatrix      dense;
     private HashSparseMatrix hash;

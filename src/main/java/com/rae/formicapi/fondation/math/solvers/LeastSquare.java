@@ -51,9 +51,9 @@ public class LeastSquare {
         int n = A.rows();
         int m = A.cols();
 
-        double[] r = new double[m]; // residual
-        double[] p = new double[m]; // search direction
-        double[] Ap = new double[m]; // AᵀA * p
+        double[] r    = new double[m]; // residual
+        double[] p    = new double[m]; // search direction
+        double[] Ap   = new double[m]; // AᵀA * p
         double[] temp = new double[n]; // temp = A*p
 
         // r = Atb - Aᵀ(A*x)

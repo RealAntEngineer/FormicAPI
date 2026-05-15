@@ -5,9 +5,9 @@ import java.util.TreeMap;
 
 public class OneDTabulatedFunction {
     private final TreeMap<Float, Float> table;
-    private final float step;
-    private final StepMode mode;
-    private final boolean clamp;
+    private final float                 step;
+    private final StepMode              mode;
+    private final boolean               clamp;
 
     /**
      * @param table Sorted data: x -> y
@@ -59,9 +59,9 @@ public class OneDTabulatedFunction {
     }
 
     private float interpolate(double input) {
-        float index = (float) (mode.forward.applyAsDouble(input) / step);
-        int lowerIndex = (int) Math.floor(index);
-        float frac = index - lowerIndex;
+        float index      = (float) (mode.forward.applyAsDouble(input) / step);
+        int   lowerIndex = (int) Math.floor(index);
+        float frac       = index - lowerIndex;
 
         float X1 = (float) mode.inverse.applyAsDouble(lowerIndex * step);
         float X2 = (float) mode.inverse.applyAsDouble((lowerIndex + 1) * step);
@@ -95,7 +95,7 @@ public class OneDTabulatedFunction {
         float x2 = b.getKey();
         float y1 = a.getValue();
         float y2 = b.getValue();
-        float t = (query - x1) / (x2 - x1);
+        float t  = (query - x1) / (x2 - x1);
         return y1 * (1 - t) + y2 * t;
     }
 }

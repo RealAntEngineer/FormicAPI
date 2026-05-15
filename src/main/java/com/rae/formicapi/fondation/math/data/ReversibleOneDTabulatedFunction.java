@@ -40,8 +40,8 @@ public class ReversibleOneDTabulatedFunction {
 
         // Determine the log pressure range
         float logP_start = (float) stepMode.forward.applyAsDouble(entries.get(0).getValue());
-        float logP_end = (float) stepMode.forward.applyAsDouble(entries.get(entries.size() - 1).getValue());
-        int numSteps = (int) ((logP_end - logP_start) / step);
+        float logP_end   = (float) stepMode.forward.applyAsDouble(entries.get(entries.size() - 1).getValue());
+        int   numSteps   = (int) ((logP_end - logP_start) / step);
 
 
         for (int i = 0; i < numSteps; i++) {
@@ -49,14 +49,14 @@ public class ReversibleOneDTabulatedFunction {
 
             // Find where targetLogP fits between logP1 and logP2
             for (int j = 0; j < entries.size() - 1; j++) {
-                float T1 = entries.get(j).getKey();
-                float T2 = entries.get(j + 1).getKey();
+                float T1    = entries.get(j).getKey();
+                float T2    = entries.get(j + 1).getKey();
                 float logP1 = (float) stepMode.forward.applyAsDouble(entries.get(j).getValue());
                 float logP2 = (float) stepMode.forward.applyAsDouble(entries.get(j + 1).getValue());
 
                 if (targetLogP >= logP1 && targetLogP <= logP2 && logP1 != logP2) {
                     // Linear interpolation in logP
-                    float t = (targetLogP - logP1) / (logP2 - logP1);
+                    float t        = (targetLogP - logP1) / (logP2 - logP1);
                     float T_interp = T1 + t * (T2 - T1);
 
                     inverted.put((float) stepMode.inverse.applyAsDouble(targetLogP), T_interp);

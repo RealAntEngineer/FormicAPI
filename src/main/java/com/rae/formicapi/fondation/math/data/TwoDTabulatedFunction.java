@@ -1,14 +1,43 @@
 package com.rae.formicapi.fondation.math.data;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.BiFunction;
 
-/**
- * @param table table: X -> (Y -> Value)
- */
-public record TwoDTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, float xStep, float yStep,
-                                    StepMode xMode, StepMode yMode, boolean clamp) {
+public class TwoDTabulatedFunction {
+    // Codec for individual inner maps (Y -> Value)
+    public static final Codec<TreeMap<Float, Float>>          INNER_MAP_CODEC = Codec.unboundedMap(
+            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
+    ).xmap(TreeMap::new, TreeMap::new);
+    // Codec for the entire TwoDTabulatedFunction table
+    public static final Codec<TwoDTabulatedFunction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
+                    .forGetter(f -> f.table),
+            Codec.FLOAT.fieldOf("x_step").forGetter(f -> f.xStep),
+            Codec.FLOAT.fieldOf("y_step").forGetter(f -> f.yStep),
+            StepMode.CODEC.fieldOf("x_mode").forGetter(f -> f.xMode),
+            StepMode.CODEC.fieldOf("y_mode").forGetter(f -> f.yMode),
+            Codec.BOOL.fieldOf("clamp").forGetter(f -> f.clamp)
+    ).apply(instance, TwoDTabulatedFunction::new));
+    // table: X -> (Y -> Value)
+    private final       TreeMap<Float, TreeMap<Float, Float>> table;
+    private final       float                                 xStep;
+    private final       float                                 yStep;
+    private final       StepMode                              xMode;
+    private final       StepMode                              yMode;
+    private final       boolean                               clamp;
+
+    public TwoDTabulatedFunction(TreeMap<Float, TreeMap<Float, Float>> table, float xStep, float yStep, StepMode xMode, StepMode yMode, boolean clamp) {
+        this.table = table;
+        this.xStep = xStep;
+        this.yStep = yStep;
+        this.xMode = xMode;
+        this.yMode = yMode;
+        this.clamp = clamp;
+    }
 
     public static TwoDTabulatedFunction populate(
             BiFunction<Float, Float, Float> f,

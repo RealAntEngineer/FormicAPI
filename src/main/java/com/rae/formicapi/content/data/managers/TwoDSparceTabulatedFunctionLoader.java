@@ -55,8 +55,7 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
             if (!entry.getKey().equals(FILE_NAME)) continue;
             try {
                 JsonObject json = GsonHelper.convertToJsonObject(entry.getValue(), "sparce tabulated function");
-                FUNCTION = CODEC.decode(JsonOps.INSTANCE, json).getOrThrow(false, s -> {
-                }).getFirst();
+                FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
             } catch (Exception e) {
                 LOGGER.error("Failed to load float data from {}", entry.getKey(), e);
             }
@@ -78,24 +77,35 @@ public class TwoDSparceTabulatedFunctionLoader extends SimpleJsonResourceReloadL
     }
 
     public boolean loaded() {
-        return FUNCTION != null;
+        return FUNCTION != null && !FUNCTION.isEmpty();
     }
 
     public List<CompoundTag> splitSerialize(){
         List<TwoDSparseTabulatedFunction> splitTables = FUNCTION.split(1000);
 
         return splitTables.parallelStream().map(
-                (f) -> (CompoundTag) CODEC.encode(
+                (f) -> (CompoundTag) TwoDSparseTabulatedFunction.CODEC.encode(
                                 f, NbtOps.INSTANCE, new CompoundTag())
                         .getOrThrow(false, (s) -> {})
         ).toList();
     }
 
     public void mergeFromNBT(CompoundTag tag){
-        FUNCTION = CODEC.decode(NbtOps.INSTANCE, tag)
-                .getOrThrow(false, s -> {}).getFirst();
+        if (FUNCTION == null)
+            FUNCTION = TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
+                .getOrThrow().getFirst();
+        else {
+            FUNCTION.mergeFrom(TwoDSparseTabulatedFunction.CODEC.decode(NbtOps.INSTANCE, tag)
+                    .getOrThrow().getFirst(), false);
+        }
     }
     public void clearFunction(){
-        FUNCTION.clear();
+        if (FUNCTION!=null) {
+            FUNCTION.clear();
+        }
+        else {
+            FormicAPI.LOGGER.debug("Useless call to clear a table : {} the table hasn't being loaded yet, " +
+                    "the player is probably joining a world for the first time in this session", FILE_NAME);
+        }
     }
 }
