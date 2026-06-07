@@ -4,8 +4,8 @@ import com.rae.formicapi.fondation.simulation.nodal.ModelType;
 
 public class Source extends SingleDomainComponent {
 
-    private final Node node;
-    private final double flux;
+    private final Node      node;
+    private final double    flux;
     private final ModelType type;
 
     public Source(Node node, ModelType type, double flux) {

@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public class UnknownNode extends Node {
 
-    private final Map<ModelType, Double> values = new EnumMap<>(ModelType.class);
+    private final Map<ModelType, Double> values       = new EnumMap<>(ModelType.class);
     private final Map<ModelType, Double> capacitances = new EnumMap<>(ModelType.class);
 
     /**

@@ -91,7 +91,7 @@ public interface SimulationComponent {
      * nodes into the appropriate {@link DomainModel} when the component is added.
      *
      * @return an unmodifiable list of internally owned nodes;
-     *         empty by default for components that require no extra rows
+     * empty by default for components that require no extra rows
      */
     default List<Node> getInternalNodes() {
         return List.of();
@@ -110,7 +110,7 @@ public interface SimulationComponent {
      * connectivity before solving.
      *
      * @return an unmodifiable list of externally owned interface nodes;
-     *         empty by default
+     * empty by default
      */
     default List<Node> getInterfaceNodes() {
         return List.of();

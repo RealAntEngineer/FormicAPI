@@ -7,7 +7,7 @@ import com.rae.formicapi.fondation.math.operators.MutableMatrix;
 public class SimulationContext {
 
     public final MutableMatrix matrix;   // the assembly matrix
-    public final double[] rhs;           // right-hand side
+    public final double[]      rhs;           // right-hand side
 
     public SimulationContext(int numNodes, boolean useDense) {
         if (useDense) {

@@ -45,10 +45,10 @@ import java.util.List;
  */
 public class LinearLink extends SingleDomainComponent {
 
-    private final Node a;
-    private final Node b;
+    private final Node      a;
+    private final Node      b;
     private final ModelType type;
-    private final double conductance;
+    private final double    conductance;
 
     /**
      * Creates a linear link between two nodes.
@@ -83,8 +83,8 @@ public class LinearLink extends SingleDomainComponent {
 
         boolean au = a.isUnknown(type);
         boolean bu = b.isUnknown(type);
-        int i = a.getId(type);
-        int j = b.getId(type);
+        int     i  = a.getId(type);
+        int     j  = b.getId(type);
 
         if (au) {
             ctx.matrix.add(i, i, conductance);

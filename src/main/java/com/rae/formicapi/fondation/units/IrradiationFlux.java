@@ -1,7 +1,7 @@
 package com.rae.formicapi.fondation.units;
 
 public enum IrradiationFlux implements IUnit {
-    // Assuming base unit is MBq (Becquerels)
+    // Assuming base unit is Bq (Becquerels)
     BECQUERELS(1e6f),
     CURIES(1 / (37e9f)),         // 1 Ci = 37 GBq = 37_000 MBq
     // Approximations for absorbed dose rate assuming 1 MeV per decay and full absorption in 1 kg

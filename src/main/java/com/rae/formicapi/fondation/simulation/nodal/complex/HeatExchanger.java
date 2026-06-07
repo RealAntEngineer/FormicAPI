@@ -85,32 +85,32 @@ public class HeatExchanger implements SimulationComponent {
      * @param cp2          stream-2 specific heat [J/(kg·K)]
      * @param totalHa1     total h·A for stream-1 side of wall [W/K]
      * @param totalHa2     total h·A for stream-2 side of wall [W/K]
-     * @param totalR1  total hydraulic resistance of stream 1 [Pa·s/kg]
-     * @param totalR2  total hydraulic resistance of stream 2 [Pa·s/kg]
+     * @param totalR1      total hydraulic resistance of stream 1 [Pa·s/kg]
+     * @param totalR2      total hydraulic resistance of stream 2 [Pa·s/kg]
      * @param points       number of axial segments (≥ 1)
      */
-    public HeatExchanger(Node fluidInput1,  Node fluidOutput1,
-                         Node fluidInput2,  Node fluidOutput2,
-                         double cp1,        double cp2,
-                         double totalHa1,   double totalHa2,
-                         double totalR1,    double totalR2,
+    public HeatExchanger(Node fluidInput1, Node fluidOutput1,
+                         Node fluidInput2, Node fluidOutput2,
+                         double cp1, double cp2,
+                         double totalHa1, double totalHa2,
+                         double totalR1, double totalR2,
                          int points) {
 
         if (points < 1)
             throw new IllegalArgumentException("points must be ≥ 1, got: " + points);
 
-        validateFluidNode(fluidInput1,  "fluidInput1");
+        validateFluidNode(fluidInput1, "fluidInput1");
         validateFluidNode(fluidOutput1, "fluidOutput1");
-        validateFluidNode(fluidInput2,  "fluidInput2");
+        validateFluidNode(fluidInput2, "fluidInput2");
         validateFluidNode(fluidOutput2, "fluidOutput2");
 
-        this.fluidInput1  = fluidInput1;
+        this.fluidInput1 = fluidInput1;
         this.fluidOutput1 = fluidOutput1;
-        this.fluidInput2  = fluidInput2;
+        this.fluidInput2 = fluidInput2;
         this.fluidOutput2 = fluidOutput2;
-        this.cp1    = cp1;
-        this.cp2    = cp2;
-        this.N      = points;
+        this.cp1 = cp1;
+        this.cp2 = cp2;
+        this.N = points;
         this.segHa1 = totalHa1 / points;
         this.segHa2 = totalHa2 / points;
         // Segments are in series → R_seg = R_total / N → G_seg = N / R_total

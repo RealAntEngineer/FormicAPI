@@ -10,8 +10,8 @@ import java.util.Map;
 public class SimulationModel {
     private static final List<ModelType> SOLVE_ORDER = List.of(ModelType.MECHANICAL, ModelType.HYDRAULIC, ModelType.THERMAL);
 
-    private final Map<ModelType, DomainModel> domains = new EnumMap<>(ModelType.class);
-    private final List<SimulationComponent> components = new ArrayList<>();
+    private final Map<ModelType, DomainModel> domains    = new EnumMap<>(ModelType.class);
+    private final List<SimulationComponent>   components = new ArrayList<>();
 
     public void addComponent(SimulationComponent coupling) {
         components.add(coupling);

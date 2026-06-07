@@ -7,9 +7,9 @@ import java.util.List;
 
 public class DomainModel {
 
-    private final ModelType type;
-    private final List<Node> nodes = new ArrayList<>();
-    private SimulationContext context;
+    private final ModelType         type;
+    private final List<Node>        nodes = new ArrayList<>();
+    private       SimulationContext context;
 
     public DomainModel(ModelType type) {
         this.type = type;
