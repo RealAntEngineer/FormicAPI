@@ -24,14 +24,14 @@ import java.util.Set;
 import static com.rae.formicapi.Event.getSideAwareRegistry;
 
 public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
-    public static final Logger LOGGER = LogUtils.getLogger();
-    private static final Gson GSON = new Gson();
-    private static final String FOLDER = "float_map";
-    private static final Set<FloatMapDataLoader<?>> VALUES = new HashSet<>();
-    private final ResourceKey<Registry<T>> registryKey;
-    private final ResourceLocation FILE_NAME;
-    private final HashMap<ResourceLocation, Float> FLOAT_MAP = new HashMap<>();
-    private final HashMap<TagKey<T>, Float> TAG_FLOAT_MAP = new HashMap<>();
+    public static final  Logger                           LOGGER        = LogUtils.getLogger();
+    private static final Gson                             GSON          = new Gson();
+    private static final String                           FOLDER        = "float_map";
+    private static final Set<FloatMapDataLoader<?>>       VALUES        = new HashSet<>();
+    private final        ResourceKey<Registry<T>>         registryKey;
+    private final        ResourceLocation                 FILE_NAME;
+    private final        HashMap<ResourceLocation, Float> FLOAT_MAP     = new HashMap<>();
+    private final        HashMap<TagKey<T>, Float>        TAG_FLOAT_MAP = new HashMap<>();
     Registry<T> registry = null;
     private boolean tagLoaded = false;
 
@@ -54,9 +54,9 @@ public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> map, @NotNull ResourceManager resourceManager, @NotNull ProfilerFiller profiler) {
         LOGGER.info("Reloading FloatMapDataLoader for: {}", FILE_NAME);
-        boolean replace = false;
-        Map<ResourceLocation, Float> newValues = new HashMap<>();
-        Map<TagKey<T>, Float> newTagValues = new HashMap<>();
+        boolean                      replace      = false;
+        Map<ResourceLocation, Float> newValues    = new HashMap<>();
+        Map<TagKey<T>, Float>        newTagValues = new HashMap<>();
 
         for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
             if (!entry.getKey().equals(FILE_NAME)) continue;
@@ -66,8 +66,8 @@ public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
                 JsonObject values = GsonHelper.getAsJsonObject(json, "values");
 
                 for (Map.Entry<String, JsonElement> valueEntry : values.entrySet()) {
-                    String key = valueEntry.getKey();
-                    float value = valueEntry.getValue().getAsFloat();
+                    String key   = valueEntry.getKey();
+                    float  value = valueEntry.getValue().getAsFloat();
 
                     if (key.startsWith("#")) {
                         // Handle tags

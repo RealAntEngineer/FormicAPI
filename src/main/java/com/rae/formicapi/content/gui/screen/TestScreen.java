@@ -15,24 +15,21 @@ import org.lwjgl.system.NonnullDefault;
 @NonnullDefault
 public class TestScreen extends AbstractSimiScreen {
 
+    private static final int     NODE_SPACING = 200;
     private SimulationModel model;
-    private UnknownNode    nodeA;
-    private FixedValueNode nodeB;
-    private LinearLink thermalLink;
-    private Source     heatSource;
-
-    private NodeWidget widgetA;
+    private UnknownNode     nodeA;
+    private FixedValueNode  nodeB;
+    private LinearLink      thermalLink;
+    private Source          heatSource;
+    private NodeWidget                widgetA;
     private NodeWidget                widgetB;
     private SimulationComponentWidget linkWidget;
     private SimulationComponentWidget sourceWidget;
-
     private Button  solveButton;
     private Button  resetButton;
     private EditBox sourceValueBox;
     private EditBox conductanceValueBox;
-
-    private boolean isSolved = false;
-    private static final int NODE_SPACING = 200;
+    private              boolean isSolved     = false;
 
     @Override
     protected void init() {
@@ -174,6 +171,11 @@ public class TestScreen extends AbstractSimiScreen {
     }
 
     @Override
+    public boolean isPauseScreen() {
+        return false;
+    }
+
+    @Override
     protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
         /*// Render background
         graphics.fill(0, 0, this.width, this.height, 0x90000000);
@@ -202,9 +204,9 @@ public class TestScreen extends AbstractSimiScreen {
     }
 
     private void renderInfoPanel(GuiGraphics graphics) {
-        int panelX = this.width - 220;
-        int panelY = 40;
-        int panelWidth = 200;
+        int panelX      = this.width - 220;
+        int panelY      = 40;
+        int panelWidth  = 200;
         int panelHeight = 120;
 
         // Panel background
@@ -215,8 +217,8 @@ public class TestScreen extends AbstractSimiScreen {
         graphics.drawString(this.font, "Simulation Info", panelX + 10, panelY + 10, 0xFFFFD700);
 
         // Status
-        String status = isSolved ? "Solved" : "Not Solved";
-        int statusColor = isSolved ? 0xFF00FF00 : 0xFFFF4500;
+        String status      = isSolved ? "Solved" : "Not Solved";
+        int    statusColor = isSolved ? 0xFF00FF00 : 0xFFFF4500;
         graphics.drawString(this.font, "Status: " + status, panelX + 10, panelY + 30, statusColor);
 
         if (isSolved) {
@@ -256,6 +258,12 @@ public class TestScreen extends AbstractSimiScreen {
                 midX, midY, 0xFFFFFFFF);
     }
 
+    private void drawThickLine(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color, int thickness) {
+        for (int i = -thickness / 2; i <= thickness / 2; i++) {
+            graphics.fill(x1, y1 + i, x2, y2 + i, color);
+        }
+    }
+
     private void renderHeatFlow(GuiGraphics graphics) {
         // Render animated heat flow arrows if solved
         int sourceX = widgetA.getX() - 50;
@@ -271,6 +279,16 @@ public class TestScreen extends AbstractSimiScreen {
                 sourceX - 30, sourceY - 10, 0xFFFFD700);
     }
 
+    private void drawArrow(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
+        // Draw line
+        drawThickLine(graphics, x1, y1, x2, y2, color, 2);
+
+        // Draw arrowhead
+        int arrowSize = 8;
+        graphics.fill(x2 - arrowSize, y2 - arrowSize / 2, x2, y2, color);
+        graphics.fill(x2 - arrowSize, y2, x2, y2 + arrowSize / 2, color);
+    }
+
     private void renderResults(GuiGraphics graphics) {
         // Additional results visualization at the bottom
         int y = this.height - 140;
@@ -280,28 +298,7 @@ public class TestScreen extends AbstractSimiScreen {
         double delta = tempA - nodeB.getValue(ModelType.THERMAL);
 
         String result = String.format("Temperature difference: %.2f°C (Expected: 10°C)", delta);
-        int color = Math.abs(delta - 10.0) < 0.01 ? 0xFF00FF00 : 0xFFFFFFFF;
+        int    color  = Math.abs(delta - 10.0) < 0.01 ? 0xFF00FF00 : 0xFFFFFFFF;
         graphics.drawCenteredString(this.font, result, this.width / 2, y + 15, color);
-    }
-
-    private void drawThickLine(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color, int thickness) {
-        for (int i = -thickness/2; i <= thickness/2; i++) {
-            graphics.fill(x1, y1 + i, x2, y2 + i, color);
-        }
-    }
-
-    private void drawArrow(GuiGraphics graphics, int x1, int y1, int x2, int y2, int color) {
-        // Draw line
-        drawThickLine(graphics, x1, y1, x2, y2, color, 2);
-
-        // Draw arrowhead
-        int arrowSize = 8;
-        graphics.fill(x2 - arrowSize, y2 - arrowSize/2, x2, y2, color);
-        graphics.fill(x2 - arrowSize, y2, x2, y2 + arrowSize/2, color);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
     }
 }

@@ -12,7 +12,7 @@ public class FormicAPICfgCommon extends ConfigBase {
 
     @Override
     public @NotNull String getName() {
-        return FormicAPI.MODID + ".client";
+        return FormicAPI.MODID + ".common";
     }
 
     private static class Comments {

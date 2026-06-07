@@ -35,7 +35,7 @@ public class CommandsInit {
                 Commands.literal("formicapi").then(Commands.literal("testScreen").executes(
                         context -> {
                             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                                Minecraft.getInstance().setScreen(new TestScreen());
+                                //Minecraft.getInstance().setScreen(new TestScreen());
                             });
                             return Command.SINGLE_SUCCESS;
                         }

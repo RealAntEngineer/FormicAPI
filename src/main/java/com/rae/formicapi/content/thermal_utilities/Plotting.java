@@ -27,7 +27,7 @@ public class Plotting {
                 .height(600);
 
         for (double s : entropies) {
-            List<Double> pressures = new ArrayList<>();
+            List<Double> pressures  = new ArrayList<>();
             List<Double> enthalpies = new ArrayList<>();
 
             for (float p = pMin; p <= pMax; p *= 1.01f) {
@@ -61,7 +61,7 @@ public class Plotting {
                 .height(600);
 
         for (double s : entropies) {
-            List<Double> pressures = new ArrayList<>();
+            List<Double> pressures    = new ArrayList<>();
             List<Double> temperatures = new ArrayList<>();
 
             for (float p = pMin; p <= pMax; p *= 1.01f) {
@@ -77,7 +77,7 @@ public class Plotting {
 
             plot.addSeries(String.format("s=%.2f kJ/kg·K", s), temperatures, pressures);
         }
-        List<Double> pressures = new ArrayList<>();
+        List<Double> pressures    = new ArrayList<>();
         List<Double> temperatures = new ArrayList<>();
 
         /*for (float p = pMin; p <= pMax; p *= 1.01f) {

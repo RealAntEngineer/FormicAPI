@@ -5,16 +5,14 @@ import com.rae.formicapi.fondation.simulation.nodal.core.Node;
 import net.createmod.catnip.gui.widget.AbstractSimiWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import org.jetbrains.annotations.NotNull;
 import org.lwjgl.system.NonnullDefault;
 
 @NonnullDefault
 public class NodeWidget extends AbstractSimiWidget {
-    public Node node;
-
-    private static final int NODE_SIZE = 40;
+    private static final int NODE_SIZE      = 40;
     private static final int VALUE_OFFSET_Y = 15;
     private static final int DOMAIN_SPACING = 12;
+    public Node node;
 
     public NodeWidget(Node node, int x, int y) {
         super(x, y);
@@ -34,7 +32,7 @@ public class NodeWidget extends AbstractSimiWidget {
         // Draw node circle/shape
         int centerX = getX() + width / 2;
         int centerY = getY() + height / 2;
-        int radius = NODE_SIZE / 2;
+        int radius  = NODE_SIZE / 2;
 
         // Background circle
         int nodeColor = isHovered ? 0xFF4A90E2 : 0xFF2C5F8D;
@@ -82,6 +80,31 @@ public class NodeWidget extends AbstractSimiWidget {
     }
 
     /**
+     * Check if this node is currently active/selected
+     */
+    public boolean isActive() {
+        // Implement your active state logic
+        return false;
+    }
+
+    /**
+     * Draw a circle border
+     */
+    private void drawCircleBorder(GuiGraphics graphics, int centerX, int centerY,
+                                  int radius, int color, int thickness) {
+        for (int t = 0; t < thickness; t++) {
+            int r = radius + t;
+            // Simple circle approximation using rectangles
+            for (int angle = 0; angle < 360; angle += 5) {
+                double rad = Math.toRadians(angle);
+                int    x   = centerX + (int) (r * Math.cos(rad));
+                int    y   = centerY + (int) (r * Math.sin(rad));
+                graphics.fill(x, y, x + 1, y + 1, color);
+            }
+        }
+    }
+
+    /**
      * Format the value based on the model type
      */
     private String formatValue(ModelType model, Object value) {
@@ -111,35 +134,10 @@ public class NodeWidget extends AbstractSimiWidget {
     }
 
     /**
-     * Draw a circle border
-     */
-    private void drawCircleBorder(GuiGraphics graphics, int centerX, int centerY,
-                                  int radius, int color, int thickness) {
-        for (int t = 0; t < thickness; t++) {
-            int r = radius + t;
-            // Simple circle approximation using rectangles
-            for (int angle = 0; angle < 360; angle += 5) {
-                double rad = Math.toRadians(angle);
-                int x = centerX + (int) (r * Math.cos(rad));
-                int y = centerY + (int) (r * Math.sin(rad));
-                graphics.fill(x, y, x + 1, y + 1, color);
-            }
-        }
-    }
-
-    /**
      * Render connections to other nodes (if applicable)
      */
     private void renderConnections(GuiGraphics graphics, int mouseX, int mouseY) {
         // Implement edge rendering if your nodes have connections
         // Example: draw lines to connected nodes
-    }
-
-    /**
-     * Check if this node is currently active/selected
-     */
-    public boolean isActive() {
-        // Implement your active state logic
-        return false;
     }
 }

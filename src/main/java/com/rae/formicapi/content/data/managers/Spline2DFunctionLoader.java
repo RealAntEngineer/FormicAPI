@@ -8,10 +8,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.rae.formicapi.fondation.math.data.SplineBased2DFunction;
-import com.rae.formicapi.fondation.math.data.TwoDSparseTabulatedFunction;
 import net.minecraft.client.Minecraft;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -22,19 +19,12 @@ import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 public class Spline2DFunctionLoader extends SimpleJsonResourceReloadListener {
-    public static final Logger LOGGER = LogUtils.getLogger();
-    private static final Gson GSON = new Gson();
-    private static final String FOLDER = "sparce_tabulated_functions";
-    private final ResourceLocation FILE_NAME;
-    private SplineBased2DFunction FUNCTION;
-
+    public static final  Logger                LOGGER = LogUtils.getLogger();
     //private static Map<String, TwoDSparseTabulatedFunction> FUNCTIONS_HOLDERS = ;
     public static final Codec<List<SplineBased2DFunction.Vec2>> CONTROL_POINTS_CODEC =
             SplineBased2DFunction.Vec2.CODEC.listOf();
-
     // Codec for a single iso-line
     public static final Codec<SplineBased2DFunction.IsoLine> ISO_LINE_CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
@@ -44,7 +34,6 @@ public class Spline2DFunctionLoader extends SimpleJsonResourceReloadListener {
                             .forGetter(SplineBased2DFunction.IsoLine::getSplineType)
             ).apply(instance, SplineBased2DFunction.IsoLine::new)
     );
-
     // Codec for the entire function
     public static final Codec<SplineBased2DFunction> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
@@ -54,6 +43,10 @@ public class Spline2DFunctionLoader extends SimpleJsonResourceReloadListener {
                             .forGetter(SplineBased2DFunction::interpolationType)
             ).apply(instance, SplineBased2DFunction::new)
     );
+    private static final Gson                  GSON   = new Gson();
+    private static final String                FOLDER = "sparce_tabulated_functions";
+    private final        ResourceLocation      FILE_NAME;
+    private              SplineBased2DFunction FUNCTION;
 
 
     public Spline2DFunctionLoader(String modId, String fileName) {
@@ -81,11 +74,11 @@ public class Spline2DFunctionLoader extends SimpleJsonResourceReloadListener {
         if (loaded()) {
             return FUNCTION.evaluate(x, y);
         } else {
-            boolean local  = Minecraft.getInstance().isLocalServer();
+            boolean local = Minecraft.getInstance().isLocalServer();
             throw new RuntimeException("Function called before table could be loaded " +
                     (
                             local ?
-                                    "on a local instance ??":
+                                    "on a local instance ??" :
                                     "on a distant machine check if you have optimisation mod preventing synchronisation"
                     ));
         }

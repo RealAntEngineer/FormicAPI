@@ -2,7 +2,6 @@ package com.rae.formicapi.content.data.providers;
 
 import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
-import com.rae.formicapi.content.data.managers.TwoDTabulatedFunctionLoader;
 import com.rae.formicapi.fondation.math.data.StepMode;
 import com.rae.formicapi.fondation.math.data.TwoDTabulatedFunction;
 import net.minecraft.data.CachedOutput;
@@ -17,18 +16,18 @@ import java.util.function.BiFunction;
 
 public class TwoDTabulatedFunctionProvider implements DataProvider {
 
-    private final PackOutput output;
-    private final ResourceLocation location;
+    private final PackOutput                      output;
+    private final ResourceLocation                location;
     private final BiFunction<Float, Float, Float> f;
-    private final float xStart;
-    private final float yStart;
-    private final float xEnd;
-    private final float yEnd;
-    private final int xNbr;
-    private final int yNbr;
-    private final StepMode xMode;
-    private final StepMode yMode;
-    private final boolean clamp;
+    private final float                           xStart;
+    private final float                           yStart;
+    private final float                           xEnd;
+    private final float                           yEnd;
+    private final int                             xNbr;
+    private final int                             yNbr;
+    private final StepMode                        xMode;
+    private final StepMode                        yMode;
+    private final boolean                         clamp;
 
     public TwoDTabulatedFunctionProvider(PackOutput output, ResourceLocation location, BiFunction<Float, Float, Float> f,
                                          float xStart, float yStart,
@@ -62,7 +61,8 @@ public class TwoDTabulatedFunctionProvider implements DataProvider {
         );
 
         JsonElement json = TwoDTabulatedFunction.CODEC.encodeStart(JsonOps.INSTANCE, function)
-                .getOrThrow(false, s -> {});
+                .getOrThrow(false, s -> {
+                });
         Path path = output.getOutputFolder()
                 .resolve("data/" + location.getNamespace() + "/tabulated_functions/" + location.getPath() + ".json");
 

@@ -1,4 +1,3 @@
-
 /**
  * This package contains everything that is minecraft dependent
  */

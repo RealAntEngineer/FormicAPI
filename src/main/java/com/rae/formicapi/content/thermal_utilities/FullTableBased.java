@@ -79,20 +79,20 @@ public class FullTableBased {
         return new SpecificRealGasState(finalPressure, h, TFinal, sFinal, xFinal);
     }
 
-    public static float getS(float P, float H) {
-        if (!WATER_HP_S.loaded()) {
-            FormicAPI.LOGGER.warn("Enthalpy | Pressure -> Entropy : table not loaded, returning a default value");
-            return 350;
-        }
-        return WATER_HP_S.getValue(H, P);
-    }
-
     public static float getH(float P, float S) {
         if (!WATER_SP_H.loaded()) {
             FormicAPI.LOGGER.warn("Entropy | Pressure -> Enthalpy : table not loaded, returning a default value");
             return 121_100;
         }
         return WATER_SP_H.getValue(S, P);
+    }
+
+    public static float getS(float P, float H) {
+        if (!WATER_HP_S.loaded()) {
+            FormicAPI.LOGGER.warn("Enthalpy | Pressure -> Entropy : table not loaded, returning a default value");
+            return 350;
+        }
+        return WATER_HP_S.getValue(H, P);
     }
 
     public static float getT(float P, float H) {
@@ -206,6 +206,10 @@ public class FullTableBased {
         }
     }
 
+    public enum TableType {
+        HP_T, HP_S, HP_X, SP_H
+    }
+
     public static class ClearTablesPacket extends SimplePacketBase {
         public ClearTablesPacket() {
         }
@@ -218,7 +222,7 @@ public class FullTableBased {
 
         public boolean handle(NetworkEvent.Context context) {
             context.enqueueWork(
-                    () ->{
+                    () -> {
                         WATER_HP_T.clearFunction();
                         WATER_HP_S.clearFunction();
                         WATER_HP_X.clearFunction();
@@ -229,13 +233,9 @@ public class FullTableBased {
         }
     }
 
-    public enum TableType {
-        HP_T, HP_S, HP_X, SP_H
-    }
-
     public static class SynchTablesPacket extends SimplePacketBase {
         private final @Nullable CompoundTag nbt;
-        private final @Nullable TableType type;
+        private final @Nullable TableType   type;
 
 
         // Construct from server data

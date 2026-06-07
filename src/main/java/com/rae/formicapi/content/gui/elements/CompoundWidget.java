@@ -33,9 +33,11 @@ import java.util.List;
  */
 public abstract class CompoundWidget extends AbstractSimiWidget {
 
-    /** The list of child widgets contained in this widget. */
+    /**
+     * The list of child widgets contained in this widget.
+     */
     protected final List<AbstractWidget> children = new ArrayList<>();
-    protected AbstractWidget focused;
+    protected       AbstractWidget       focused;
 
     /**
      * Constructs a new CompoundedWidget at the given position.
@@ -75,7 +77,7 @@ public abstract class CompoundWidget extends AbstractSimiWidget {
     @Override
     public void tick() {
         for (AbstractWidget child : children) {
-            if (child.visible ) {
+            if (child.visible) {
                 if (child instanceof TickableGuiEventListener tickable) {
                     tickable.tick();
                 } else if (child instanceof EditBox editBox) {
@@ -89,115 +91,6 @@ public abstract class CompoundWidget extends AbstractSimiWidget {
     // ------------------------
     // EVENT PROPAGATION
     // ------------------------
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (focused != null) {
-            focused.setFocused(false);//clear the focuse first
-            focused = null;
-        }
-        for (int i = children.size() - 1; i >= 0; i--) {
-
-            AbstractWidget child = children.get(i);
-
-            if (child.mouseClicked(mouseX, mouseY, button)) {
-                this.setFocused(child); // needed for EditBox
-                return true;
-            }
-        }
-
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        for (AbstractWidget child : children) {
-
-            if (child.mouseReleased(mouseX, mouseY, button)) {
-                return true;
-            }
-        }
-
-        return super.mouseReleased(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-
-        for (AbstractWidget child : children) {
-
-            if (!child.visible)
-                continue;
-
-            if (!child.isMouseOver(mouseX, mouseY))
-                continue;
-
-            if (child.mouseScrolled(mouseX, mouseY, delta))
-                return true;
-        }
-
-        return super.mouseScrolled(mouseX, mouseY, delta);
-    }
-
-    @Override
-    public boolean keyPressed(int key, int scanCode, int modifiers) {
-        for (AbstractWidget child : children) {
-            if (child.keyPressed(key, scanCode, modifiers)) {
-                return true;
-            }
-        }
-
-        return super.keyPressed(key, scanCode, modifiers);
-    }
-
-    private void setFocused(AbstractWidget widget) {
-
-        widget.setFocused(true);
-        focused = widget;
-    }
-
-    @Override
-    public boolean mouseDragged(double p_93645_, double p_93646_, int p_93647_, double p_93648_, double p_93649_) {
-        return super.mouseDragged(p_93645_, p_93646_, p_93647_, p_93648_, p_93649_);
-    }
-
-    @Override
-    public void mouseMoved(double p_94758_, double p_94759_) {
-        super.mouseMoved(p_94758_, p_94759_);
-    }
-
-    @Override
-    public boolean charTyped(char character, int modifiers) {
-
-        if (focused != null)
-            return focused.charTyped(character, modifiers);
-
-
-        return false;
-    }
-    /*@Override
-    public boolean charTyped(char character, int modifiers) {
-        boolean flag = false;
-        for (AbstractWidget child : children) {
-            //let everyone get it -> if one consume a character then return true else false.
-            flag = child.charTyped(character, modifiers) || flag;
-        }
-
-        return flag;
-    }*/
-
-    @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        if (super.isMouseOver(mouseX, mouseY)) return true;
-
-        for (AbstractWidget child : children) {
-            if (child.isMouseOver(mouseX, mouseY)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     /**
      * Renders this widget and all children, respecting Z order.
@@ -244,6 +137,55 @@ public abstract class CompoundWidget extends AbstractSimiWidget {
                 );
     }
 
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (focused != null) {
+            focused.setFocused(false);//clear the focuse first
+            focused = null;
+        }
+        for (int i = children.size() - 1; i >= 0; i--) {
+
+            AbstractWidget child = children.get(i);
+
+            if (child.mouseClicked(mouseX, mouseY, button)) {
+                this.setFocused(child); // needed for EditBox
+                return true;
+            }
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        for (AbstractWidget child : children) {
+
+            if (child.mouseReleased(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double p_93645_, double p_93646_, int p_93647_, double p_93648_, double p_93649_) {
+        return super.mouseDragged(p_93645_, p_93646_, p_93647_, p_93648_, p_93649_);
+    }
+
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        if (super.isMouseOver(mouseX, mouseY)) return true;
+
+        for (AbstractWidget child : children) {
+            if (child.isMouseOver(mouseX, mouseY)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Returns true if this widget or any child is hovered.
      */
@@ -251,6 +193,66 @@ public abstract class CompoundWidget extends AbstractSimiWidget {
     public boolean isHoveredOrFocused() {
         if (super.isHoveredOrFocused()) return true;
         return children.stream().anyMatch(AbstractWidget::isHoveredOrFocused);
+    }
+
+    private void setFocused(AbstractWidget widget) {
+
+        widget.setFocused(true);
+        focused = widget;
+    }
+    /*@Override
+    public boolean charTyped(char character, int modifiers) {
+        boolean flag = false;
+        for (AbstractWidget child : children) {
+            //let everyone get it -> if one consume a character then return true else false.
+            flag = child.charTyped(character, modifiers) || flag;
+        }
+
+        return flag;
+    }*/
+
+    @Override
+    public void mouseMoved(double p_94758_, double p_94759_) {
+        super.mouseMoved(p_94758_, p_94759_);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+
+        for (AbstractWidget child : children) {
+
+            if (!child.visible)
+                continue;
+
+            if (!child.isMouseOver(mouseX, mouseY))
+                continue;
+
+            if (child.mouseScrolled(mouseX, mouseY, delta))
+                return true;
+        }
+
+        return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scanCode, int modifiers) {
+        for (AbstractWidget child : children) {
+            if (child.keyPressed(key, scanCode, modifiers)) {
+                return true;
+            }
+        }
+
+        return super.keyPressed(key, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char character, int modifiers) {
+
+        if (focused != null)
+            return focused.charTyped(character, modifiers);
+
+
+        return false;
     }
 
     /**

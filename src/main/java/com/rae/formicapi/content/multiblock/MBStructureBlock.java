@@ -49,12 +49,11 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     @Override
-    @NonnullDefault
     public boolean propagatesSkylightDown(BlockState pState, BlockGetter pReader, BlockPos pPos) {
         return true;
     }
 
-    @NonnullDefault
+    @Override
     public void playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
         if (stillValid(pLevel, pPos, pState)) {
             BlockPos masterPos = getMaster(pLevel, pPos);
@@ -133,7 +132,6 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     @Override
-    @NonnullDefault
     public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
                                   BlockPos pCurrentPos, BlockPos pFacingPos) {
         if (stillValid(pLevel, pCurrentPos, pState)) {
@@ -152,13 +150,11 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     @Override
-    @NonnullDefault
     public float getShadeBrightness(BlockState pState, BlockGetter pLevel, BlockPos pPos) {
         return 1.0F;
     }
 
     @Override
-    @NonnullDefault
     public VoxelShape getShape(BlockState state, BlockGetter getter, BlockPos pos, CollisionContext context) {
         if (!(getter instanceof Level level && level.isClientSide)) return Shapes.empty();
         BlockPos   masterPos   = getMaster(getter, pos);
@@ -172,7 +168,6 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     @Override
-    @NonnullDefault
     public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
         if (!stillValid(pLevel, pPos, pState)) {
             pLevel.setBlockAndUpdate(pPos, Blocks.AIR.defaultBlockState());

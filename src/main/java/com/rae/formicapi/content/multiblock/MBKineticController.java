@@ -8,8 +8,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.system.NonnullDefault;
 
 import java.util.Objects;
 
@@ -17,6 +17,7 @@ import java.util.Objects;
  * the main block for the multiblock, this the block that is used for the model, to make the model work you will need
  * to look at the default offset given in the MBShape for the size chosen
  */
+@NonnullDefault
 public abstract class MBKineticController extends DirectionalKineticBlock implements IMBController {
     final MBStructureBlock structure;
 
@@ -27,12 +28,12 @@ public abstract class MBKineticController extends DirectionalKineticBlock implem
     }
 
     @Override
-    public void setPlacedBy(@NotNull Level worldIn, @NotNull BlockPos pos, @NotNull BlockState state, @Nullable LivingEntity entity, @NotNull ItemStack stack) {
+    public void setPlacedBy(Level worldIn, BlockPos pos, BlockState state, @Nullable LivingEntity entity, ItemStack stack) {
         super.setPlacedBy(worldIn, pos, state, entity, stack);
         repairStructure(worldIn, pos, state.getValue(FACING));
     }
 
-    public BlockState getStateForPlacement(@NotNull BlockPlaceContext context) {
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
         return Objects.requireNonNull(super.getStateForPlacement(context)).setValue(FACING, context.getClickedFace());
 
     }

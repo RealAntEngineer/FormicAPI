@@ -22,6 +22,7 @@ public class MBShape {
     private final HashMap<Direction, List<List<List<Direction>>>> shapes;// X, Y, Z
     private final Vec3i                                           defaultOffset;
     private final Vec3i                                           defaultSize;
+
     public MBShape(MBStructureBlock structure, Vec3i defaultSize, Vec3i defaultOffset, HashMap<Direction, List<List<List<Direction>>>> shapes) {
         this.structure = structure;
         this.defaultOffset = defaultOffset;

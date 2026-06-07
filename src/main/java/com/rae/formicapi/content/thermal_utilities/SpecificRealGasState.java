@@ -14,7 +14,7 @@ public class SpecificRealGasState {
 
     public static final SpecificRealGasState DEFAULT_STATE = new SpecificRealGasState(101_300f, 112_665f, null, null, null);
 
-    public static final Codec<SpecificRealGasState>                CODEC        = RecordCodecBuilder.create(i ->
+    public static final Codec<SpecificRealGasState> CODEC = RecordCodecBuilder.create(i ->
             i.group(
                             Codec.FLOAT.fieldOf("pressure").forGetter(p -> p.pressure),
                             Codec.FLOAT.fieldOf("specific_enthalpy").forGetter(p -> p.specificEnthalpy),
@@ -45,17 +45,6 @@ public class SpecificRealGasState {
             FormicAPI.LOGGER.warn("vapor quality > 1 given, check your code");
         }
         this.vaporQuality = vaporQuality == null ? null : Mth.clamp(vaporQuality, 0, 1);
-    }
-
-    @Override
-    public @NotNull String toString() {
-        return "SpecificRealGasState{" +
-                "temperature=" + temperature +
-                ", pressure=" + pressure +
-                ", specific_enthalpy=" + specificEnthalpy +
-                ", specific_entropy=" + specificEntropy +
-                ", vaporQuality=" + vaporQuality +
-                '}';
     }
 
     public CompoundTag serialize() {
@@ -98,13 +87,24 @@ public class SpecificRealGasState {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(pressure, specificEnthalpy);
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (!(o instanceof SpecificRealGasState that)) return false;
         return Objects.equals(pressure, that.pressure) && Objects.equals(specificEnthalpy, that.specificEnthalpy);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(pressure, specificEnthalpy);
+    public @NotNull String toString() {
+        return "SpecificRealGasState{" +
+                "temperature=" + temperature +
+                ", pressure=" + pressure +
+                ", specific_enthalpy=" + specificEnthalpy +
+                ", specific_entropy=" + specificEntropy +
+                ", vaporQuality=" + vaporQuality +
+                '}';
     }
 }
