@@ -28,11 +28,11 @@ public class FormicApiLang extends Lang {
         MULTIPLE_SYMBOLS.put(1e9,   "G");  // giga
         MULTIPLE_SYMBOLS.put(1e6,   "M");  // mega
         MULTIPLE_SYMBOLS.put(1e3,   "k");  // kilo
-        MULTIPLE_SYMBOLS.put(1e2,   "h");  // hecto
-        MULTIPLE_SYMBOLS.put(1e1,   "da"); // deca
+        //MULTIPLE_SYMBOLS.put(1e2,   "h");  // hecto
+        //MULTIPLE_SYMBOLS.put(1e1,   "da"); // deca
         MULTIPLE_SYMBOLS.put(1.0,   "");
-        MULTIPLE_SYMBOLS.put(1e-1,  "d");  // deci
-        MULTIPLE_SYMBOLS.put(1e-2,  "c");  // centi
+        //MULTIPLE_SYMBOLS.put(1e-1,  "d");  // deci
+        //MULTIPLE_SYMBOLS.put(1e-2,  "c");  // centi
         MULTIPLE_SYMBOLS.put(1e-3,  "m");  // milli
         MULTIPLE_SYMBOLS.put(1e-6,  "µ");  // micro
         MULTIPLE_SYMBOLS.put(1e-9,  "n");  // nano
