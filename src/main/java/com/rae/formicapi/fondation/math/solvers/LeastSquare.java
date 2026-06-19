@@ -16,6 +16,13 @@ public class LeastSquare {
                 new double[m], new double[m], new double[m], new double[m], new double[m], new double[n]);
     }
 
+    public static double[] solve(Matrix A, double[] b,double[] x0,int maxIter, float tol) {
+        int m = A.cols();
+        int n = A.rows();
+        return solve(A, b, maxIter, tol,
+                x0, new double[m], new double[m], new double[m], new double[m], new double[n]);
+    }
+
     /**
      * Solve {@code Ax = b} in the least-squares sense using CG on the normal equations
      * {@code AᵀA x = Aᵀb}, with caller-supplied working buffers.

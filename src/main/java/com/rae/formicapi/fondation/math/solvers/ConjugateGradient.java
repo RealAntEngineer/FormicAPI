@@ -7,27 +7,16 @@ import com.rae.formicapi.fondation.math.operators.Matrix;
  *
  * <p>Prefer this over {@link LeastSquare} (CGNE on {@code AᵀAx = Aᵀb}) when the matrix
  * is known to be SPD. CGNE squares the condition number, which causes slow or incorrect
- * convergence for weakly-diagonal-dominant rows (e.g. diffusion voxels with low resilience).
+ * convergence for weakly-diagonal-dominant rows.
  * Plain CG works directly on {@code A} and converges in at most {@code n} iterations for
  * an exactly SPD system.
- *
- * <p>The physics matrix is SPD by construction:
- * <ul>
- *   <li>Diagonal: {@code 1 + res*β + Σcoeff > 0}</li>
- *   <li>Off-diagonals: {@code -coeff} symmetric (harmonic mean conductivity is the same
- *       in both directions)</li>
- *   <li>Diagonal dominance: {@code diag = 1 + res*β + Σcoeff > Σcoeff}</li>
- * </ul>
  */
-public class ConjugateGradient2 {
-
-    // -------------------------------------------------------------------------
-    // Convenience overloads — allocate internally, for non-hot paths
-    // -------------------------------------------------------------------------
+@SuppressWarnings("unused")
+public class ConjugateGradient {
 
     /**
      * Solve {@code Ax = b} with a zero initial guess, allocating working buffers internally.
-     * Use only outside hot paths — prefer the pre-allocated overload at 20 ticks/s.
+     * Use only outside hot paths — prefer the pre-allocated if you will solve repeatedly.
      */
     public static double[] solve(Matrix A, double[] b, int maxIter, double tol) {
         int n = A.rows();
@@ -37,16 +26,13 @@ public class ConjugateGradient2 {
 
     /**
      * Solve {@code Ax = b} from an initial guess, allocating working buffers internally.
+     * Use only outside hot paths — prefer the pre-allocated if you will solve repeatedly.
      */
     public static double[] solve(Matrix A, double[] x_init, double[] b, int maxIter, double tol) {
         int n = A.rows();
         return solve(A, x_init, b, maxIter, tol,
                 new double[n], new double[n], new double[n]);
     }
-
-    // -------------------------------------------------------------------------
-    // Primary overload — zero allocation, warm start, in-place
-    // -------------------------------------------------------------------------
 
     /**
      * Solve {@code Ax = b} using Conjugate Gradient, with a warm start and
@@ -120,10 +106,6 @@ public class ConjugateGradient2 {
 
         return x;
     }
-
-    // -------------------------------------------------------------------------
-    // Internal
-    // -------------------------------------------------------------------------
 
     private static double dot(double[] a, double[] b, int n) {
         double sum = 0;

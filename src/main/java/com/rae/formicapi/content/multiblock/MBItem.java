@@ -17,6 +17,7 @@ import org.lwjgl.system.NonnullDefault;
 import java.util.Objects;
 
 @NonnullDefault
+@SuppressWarnings("unused")
 public class MBItem extends BlockItem {
     public MBItem(Block block, Properties properties) {
         super(block, properties);

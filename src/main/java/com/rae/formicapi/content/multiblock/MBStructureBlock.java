@@ -92,7 +92,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
             if (posDiscovered.contains(targetedPos))
                 return null;
 
-            if (targetedState.getBlock() instanceof MBStructureBlock structureBlock) {
+            if (targetedState.getBlock() instanceof MBStructureBlock) {
                 posDiscovered.add(targetedPos);
                 Direction direction = targetedState.getValue(FACING);
                 targetedPos = targetedPos.relative(direction);

@@ -23,6 +23,7 @@ import java.util.Objects;
  * to look at the default offset given in the MBShape for the size chosen
  */
 @NonnullDefault
+@SuppressWarnings("unused")
 public abstract class MBKineticController extends DirectionalKineticBlock implements IMBController {
     final MBStructureBlock structure;
 

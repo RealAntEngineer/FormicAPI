@@ -23,6 +23,7 @@ import java.util.Arrays;
  *     <li>Large sparse systems with fixed connectivity</li>
  * </ul>
  */
+@SuppressWarnings("unused")
 public class PaddedCSRMatrix implements MutableMatrix {
 
     private final int rows;

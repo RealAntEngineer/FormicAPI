@@ -26,6 +26,7 @@ import java.util.Objects;
  * to look at the default offset given in the MBShape for the size chosen
  */
 @NonnullDefault
+@SuppressWarnings("unused")
 public abstract class MBController extends DirectionalBlock implements IMBController {
     final MBStructureBlock structure;
 
@@ -61,6 +62,4 @@ public abstract class MBController extends DirectionalBlock implements IMBContro
     public MBStructureBlock getStructure() {
         return structure;
     }
-
-
 }
