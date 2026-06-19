@@ -41,5 +41,5 @@ jobs:
       - name: Upload JAR to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}-{1}-dev', steps.versions.outputs.mc, steps.versions.outputs.mod) || github.ref_name }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}-{1}', steps.versions.outputs.mc, steps.versions.outputs.mod) || github.ref_name }}
           files: build/libs/*.jar

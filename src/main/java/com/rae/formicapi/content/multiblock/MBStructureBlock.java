@@ -31,7 +31,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.system.NonnullDefault;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,9 +38,10 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Structure Block for a MultiBlock, it always as a full hit-box
+ * Structure Block for a MultiBlock. Its hit-box mirrors the slice of the controller's
+ * global shape that occupies this position, so it is not always a full block - it falls
+ * back to a full block only when no valid master is found.
  */
-@NonnullDefault
 public class MBStructureBlock extends DirectionalBlock implements IWrenchable, IProxyHoveringInformation {
     public static final MapCodec<MBStructureBlock> CODEC = simpleCodec(MBStructureBlock::new);
 
@@ -76,7 +76,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     //TODO rewrite this
-    @SuppressWarnings("")
+    @SuppressWarnings("ConstantConditions")
     public static @Nullable BlockPos getMaster(BlockGetter level, BlockPos initialPos) {
         //makeSomething to prevent stackOverFlow -> while
         ArrayList<BlockPos> posDiscovered = new ArrayList<>();

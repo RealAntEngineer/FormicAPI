@@ -46,7 +46,7 @@ jobs:
       - name: Tag new version
         if: steps.current.outputs.mod != steps.previous.outputs.mod
         run: |
-          TAG="v${{ steps.current.outputs.mc }}-${{ steps.current.outputs.mod }}-dev"
+          TAG="v${{ steps.current.outputs.mc }}-${{ steps.current.outputs.mod }}"
           echo "✅ Version changed → creating tag $TAG"
 
           git config user.name  "github-actions[bot]"
