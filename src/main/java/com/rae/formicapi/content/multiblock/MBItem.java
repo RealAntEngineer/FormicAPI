@@ -12,10 +12,11 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.NotNull;
+import org.lwjgl.system.NonnullDefault;
 
 import java.util.Objects;
 
+@NonnullDefault
 public class MBItem extends BlockItem {
     public MBItem(Block block, Properties properties) {
         super(block, properties);
@@ -25,7 +26,7 @@ public class MBItem extends BlockItem {
     }
 
     @Override
-    protected boolean canPlace(BlockPlaceContext pContext, @NotNull BlockState pState) {
+    protected boolean canPlace(BlockPlaceContext pContext, BlockState pState) {
         IMBController main    = (IMBController) getBlock();
         Level         lvl     = pContext.getLevel();
         Direction     facing  = pContext.getClickedFace();
@@ -53,7 +54,7 @@ public class MBItem extends BlockItem {
     }
 
     @Override
-    protected boolean placeBlock(BlockPlaceContext pContext, @NotNull BlockState pState) {
+    protected boolean placeBlock(BlockPlaceContext pContext, BlockState pState) {
         Block    main    = getBlock();
         Level    lvl     = pContext.getLevel();
         BlockPos mainPos = pContext.getClickedPos();
