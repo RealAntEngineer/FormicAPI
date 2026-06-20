@@ -61,6 +61,7 @@ public class CommandsInit {
                         )
                 );
     }
+
     private static LiteralArgumentBuilder<CommandSourceStack> getHCommand() {
         return Commands.literal("getH")
                 .then(Commands.argument("P", FloatArgumentType.floatArg(0))
@@ -100,6 +101,7 @@ public class CommandsInit {
                         )
                 );
     }
+
     private static LiteralArgumentBuilder<CommandSourceStack> getXCommand() {
         return Commands.literal("getX")
                 .then(Commands.argument("P", FloatArgumentType.floatArg(0))
@@ -119,9 +121,10 @@ public class CommandsInit {
                         )
                 );
     }
+
     private static int executeIsotropesCommand(CommandContext<CommandSourceStack> ctx) {
-        float sMin = FloatArgumentType.getFloat(ctx, "sMin");
-        float sMax = FloatArgumentType.getFloat(ctx, "sMax");
+        float sMin  = FloatArgumentType.getFloat(ctx, "sMin");
+        float sMax  = FloatArgumentType.getFloat(ctx, "sMax");
         float sStep = FloatArgumentType.getFloat(ctx, "sStep");
 
         float pMin = FloatArgumentType.getFloat(ctx, "pMin");
@@ -157,12 +160,10 @@ public class CommandsInit {
 
         });
 
-        ctx.getSource().sendSuccess( () -> Component.literal("Isentrope plot generated!"),
+        ctx.getSource().sendSuccess(() -> Component.literal("Isentrope plot generated!"),
                 true
         );
 
         return 1;
     }
-
-
 }

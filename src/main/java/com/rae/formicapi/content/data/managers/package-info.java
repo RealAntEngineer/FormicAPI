@@ -1,4 +1,4 @@
 @NonnullDefault
-package com.rae.formicapi;
+package com.rae.formicapi.content.data.managers;
 
 import org.lwjgl.system.NonnullDefault;

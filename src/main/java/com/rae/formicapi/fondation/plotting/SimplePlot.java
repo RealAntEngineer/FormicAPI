@@ -14,16 +14,16 @@ import java.util.List;
 public class SimplePlot {
 
     private final List<Series> seriesList = new ArrayList<>();
-    private boolean xLog = false;
-    private boolean yLog = false;
-    private boolean showLegend = false;
-    private String xLabel = "";
-    private String yLabel = "";
-    private String title = "";
-    private int width = 800;
-    private int height = 600;
-    private final int margin = 60;
-    private double xMin = Double.POSITIVE_INFINITY;
+    private       boolean      xLog       = false;
+    private       boolean      yLog       = false;
+    private       boolean      showLegend = false;
+    private       String       xLabel     = "";
+    private       String       yLabel     = "";
+    private       String       title      = "";
+    private int width  = 800;
+    private       int    height = 600;
+    private final int    margin = 60;
+    private       double xMin   = Double.POSITIVE_INFINITY;
     private double xMax = Double.NEGATIVE_INFINITY;
     private double yMin = Double.POSITIVE_INFINITY;
     private double yMax = Double.NEGATIVE_INFINITY;
@@ -100,7 +100,7 @@ public class SimplePlot {
     public void save(String fileName) {
         try {
             BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = image.createGraphics();
+            Graphics2D    g     = image.createGraphics();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             // Background
@@ -225,10 +225,10 @@ public class SimplePlot {
     }
 
     public static class Series {
-        public String label;
+        public String       label;
         public List<Double> x;
         public List<Double> y;
-        public Color color;
+        public Color        color;
 
         public Series(String label, List<Double> x, List<Double> y, Color color) {
             this.label = label;

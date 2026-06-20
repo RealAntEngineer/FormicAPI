@@ -40,8 +40,7 @@
  *       accumulate independently and correctly.</li>
  * </ul>
  */
-@ParametersAreNonnullByDefault
-
+@NonnullDefault
 package com.rae.formicapi.fondation;
 
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.lwjgl.system.NonnullDefault;

@@ -2,28 +2,25 @@ package com.rae.formicapi;
 
 import com.rae.formicapi.content.data.managers.FloatMapDataLoader;
 import com.rae.formicapi.content.thermal_utilities.FullTableBased;
-import com.rae.formicapi.init.PacketInit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.network.PacketDistributor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
 @Mod.EventBusSubscriber()
 public class Event {
-    private static final Logger LOGGER = LogManager.getLogger();
-    public static RegistryAccess.Frozen registryAccess = null;
+    private static final    Logger                LOGGER         = LogManager.getLogger();
+    public static @Nullable RegistryAccess.Frozen registryAccess = null;
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
@@ -52,6 +49,4 @@ public class Event {
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         CommandsInit.register(event.getDispatcher());
     }
-
-
 }

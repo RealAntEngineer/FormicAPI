@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 public class LeastSquareBenchmark {
 
     private static final int MAX_ITER = 1_000;
-    private static final double TOL = 1e-6;
+    private static final float TOL = 1e-6f;
 
     @Param({"100", "500", "1000"})
     private int n;

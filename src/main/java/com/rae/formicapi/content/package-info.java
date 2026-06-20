@@ -1,7 +1,7 @@
 /**
  * This package contains everything that is minecraft dependent
  */
-@ParametersAreNonnullByDefault
+@NonnullDefault
 package com.rae.formicapi.content;
 
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.lwjgl.system.NonnullDefault;

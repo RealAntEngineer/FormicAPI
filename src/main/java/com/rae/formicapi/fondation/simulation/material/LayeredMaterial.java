@@ -2,7 +2,7 @@ package com.rae.formicapi.fondation.simulation.material;
 
 public class LayeredMaterial implements MaterialField {
 
-    private final double splitY;
+    private final double   splitY;
     private final Material top;
     private final Material bottom;
 

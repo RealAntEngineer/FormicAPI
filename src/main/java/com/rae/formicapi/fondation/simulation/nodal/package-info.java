@@ -46,4 +46,7 @@
  * use a least-squares solver; the mechanical domain uses Newton-Raphson to handle
  * quadratic losses correctly.
  */
+@NonnullDefault
 package com.rae.formicapi.fondation.simulation.nodal;
+
+import org.lwjgl.system.NonnullDefault;

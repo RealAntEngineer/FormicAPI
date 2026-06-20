@@ -1,7 +1,8 @@
-package com.rae.formicapi.fondation.math;
+package com.rae.formicapi.fondation.math.solvers;
 
 import java.util.function.Function;
 
+@SuppressWarnings("unused")
 public class SimpleSolvers {
     /**
      *
