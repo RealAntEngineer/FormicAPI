@@ -16,7 +16,7 @@ public class LeastSquare {
                 new double[m], new double[m], new double[m], new double[m], new double[m], new double[n]);
     }
 
-    public static double[] solve(Matrix A, double[] b,double[] x0,int maxIter, float tol) {
+    public static double[] solve(Matrix A, double[] x0, double[] b, int maxIter, float tol) {
         int m = A.cols();
         int n = A.rows();
         return solve(A, b, maxIter, tol,

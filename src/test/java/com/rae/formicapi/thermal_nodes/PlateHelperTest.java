@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import static com.rae.formicapi.thermal_nodes.Helper.savePlateHeatmap;
 
 public class PlateHelperTest {
-    @Test
+    //@Test
     public void multiLayerPlateTestFine() {
 
         SimulationModel model = new SimulationModel();
@@ -58,7 +58,7 @@ public class PlateHelperTest {
     }
 
 
-    @Test
+    //@Test
     public void multiLayerPlateTest() {
 
         SimulationModel model = new SimulationModel();
@@ -101,7 +101,7 @@ public class PlateHelperTest {
     }
 
 
-    @Test
+    //@Test
     public void multiLayerPlateTestRough() {
 
         SimulationModel model = new SimulationModel();

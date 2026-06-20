@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class LeastSquareTest {
 
-    private static final double TOL = 1e-9;
+    private static final float TOL = 1e-9f;
     private static final int MAX_ITER = 10_000;
 
     // ------------------------------------------------

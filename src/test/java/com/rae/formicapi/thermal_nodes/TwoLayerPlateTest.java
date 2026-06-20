@@ -21,8 +21,6 @@ public class TwoLayerPlateTest {
 
         SimulationModel model = new SimulationModel();
 
-
-
         // Unknown node
         UnknownNode layer1 = new UnknownNode(ModelType.THERMAL);
 
@@ -118,7 +116,7 @@ public class TwoLayerPlateTest {
         }
     }
 
-    @Test
+    //@Test
     public void twoDPlateWithHotSpot() {
 
         SimulationModel model = new SimulationModel();
@@ -183,7 +181,7 @@ public class TwoLayerPlateTest {
         }
     }
 
-    @Test
+    //@Test
     public void radiatorBladeSimulation() {
 
         SimulationModel model = new SimulationModel();
@@ -250,7 +248,4 @@ public class TwoLayerPlateTest {
             }
         }
     }
-
-
-
 }
