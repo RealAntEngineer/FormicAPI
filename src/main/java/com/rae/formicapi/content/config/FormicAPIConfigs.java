@@ -1,7 +1,6 @@
 package com.rae.formicapi.content.config;
 
 import net.createmod.catnip.config.ConfigBase;
-
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModLoadingContext;
@@ -16,8 +15,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 @EventBusSubscriber
-public class FormicAPIConfigs
-{
+public class FormicAPIConfigs {
     private static final Map<ModConfig.Type, ConfigBase> CONFIGS = new EnumMap<>(ModConfig.Type.class);
 
     public static FormicAPICfgCommon COMMON;
@@ -27,6 +25,16 @@ public class FormicAPIConfigs
 
     public static ConfigBase byType(ModConfig.Type type) {
         return CONFIGS.get(type);
+    }
+
+    public static void register(ModLoadingContext context, ModContainer container) {
+        COMMON = register(FormicAPICfgCommon::new, ModConfig.Type.COMMON);
+        //COMMON = register(CSCfgCommon::new, ModConfig.Type.COMMON);
+
+        for (Map.Entry<ModConfig.Type, ConfigBase> pair : CONFIGS.entrySet())
+            container.registerConfig(pair.getKey(), pair.getValue().specification);
+
+        //BlockStressValues.registerProvider(context.getActiveNamespace(), SERVER.kinetics.stressValues);
     }
 
     private static <T extends ConfigBase> T register(Supplier<T> factory, ModConfig.Type side) {
@@ -39,16 +47,6 @@ public class FormicAPIConfigs
         config.specification = specPair.getRight();
         CONFIGS.put(side, config);
         return config;
-    }
-
-    public static void register(ModLoadingContext context, ModContainer container) {
-        COMMON = register(FormicAPICfgCommon::new, ModConfig.Type.COMMON);
-        //COMMON = register(CSCfgCommon::new, ModConfig.Type.COMMON);
-
-        for (Map.Entry<ModConfig.Type, ConfigBase> pair : CONFIGS.entrySet())
-            container.registerConfig(pair.getKey(), pair.getValue().specification);
-
-        //BlockStressValues.registerProvider(context.getActiveNamespace(), SERVER.kinetics.stressValues);
     }
 
     @SubscribeEvent

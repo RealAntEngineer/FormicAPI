@@ -27,9 +27,7 @@
  * @see com.rae.formicapi.content.multiblock.IMBController
  * @see com.rae.formicapi.content.multiblock.MBStructureBlock
  */
-@ParametersAreNonnullByDefault
 @NonnullDefault
 package com.rae.formicapi.content.multiblock;
 
 import org.lwjgl.system.NonnullDefault;
-import javax.annotation.ParametersAreNonnullByDefault;

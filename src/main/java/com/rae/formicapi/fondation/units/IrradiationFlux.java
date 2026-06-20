@@ -1,8 +1,5 @@
 package com.rae.formicapi.fondation.units;
 
-import com.rae.formicapi.FormicApiLang;
-import net.minecraft.network.chat.Component;
-
 public enum IrradiationFlux implements IUnit {
     // Assuming base unit is Bq (Becquerels)
     BECQUERELS(1e6f),

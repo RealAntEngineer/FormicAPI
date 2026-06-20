@@ -1,4 +1,4 @@
-package com.rae.formicapi;
+package com.rae.formicapi.init;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;

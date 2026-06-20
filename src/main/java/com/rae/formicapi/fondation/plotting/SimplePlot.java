@@ -1,9 +1,5 @@
 package com.rae.formicapi.fondation.plotting;
 
-
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -15,7 +11,6 @@ import java.util.List;
  * Minimalist Matplotlib-style plotting utility for Forge mods.
  * Supports multiple series, logarithmic axes, and PNG output.
  */
-@OnlyIn(Dist.CLIENT)
 public class SimplePlot {
 
     private final List<Series> seriesList = new ArrayList<>();

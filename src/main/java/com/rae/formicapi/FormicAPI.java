@@ -26,17 +26,11 @@ public class FormicAPI {
         PacketInit.register();
 
         forgeEventBus.addListener(FormicAPI::onAddReloadListeners);
-
-
-
-
     }
 
-    public static void onAddReloadListeners(AddReloadListenerEvent event)
-    {
+    public static void onAddReloadListeners(AddReloadListenerEvent event) {
         FullTableBased.addReloadListeners(event);
     }
-
 
     public static ResourceLocation resource(String name) {
         return ResourceLocation.fromNamespaceAndPath(MODID,name);

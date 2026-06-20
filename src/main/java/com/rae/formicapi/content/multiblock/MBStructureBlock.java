@@ -177,7 +177,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter getter, BlockPos pos, CollisionContext context) {
         //if (!(getter instanceof ClientLevel)) return Shapes.empty();
-        BlockPos   masterPos   = getMaster(getter, pos);
+        BlockPos masterPos = getMaster(getter, pos);
         if (masterPos != null && stillValid(getter, pos, state)) {
             BlockState masterState = getter.getBlockState(masterPos);
             if (masterState.getBlock() instanceof IMBController masterBlock) {
@@ -215,7 +215,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     @Override
     public BlockPos getInformationSource(Level level, BlockPos pos, BlockState state) {
         BlockPos masterPos = getMaster(level, pos);
-        return stillValid(level, pos, state) && masterPos!= null ? masterPos : pos;
+        return stillValid(level, pos, state) && masterPos != null ? masterPos : pos;
     }
 
     public static class RenderProperties implements IClientBlockExtensions, MultiPosDestructionHandler {

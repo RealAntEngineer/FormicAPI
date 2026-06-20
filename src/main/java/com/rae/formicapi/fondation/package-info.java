@@ -40,5 +40,7 @@
  *       accumulate independently and correctly.</li>
  * </ul>
  */
-
+@NonnullDefault
 package com.rae.formicapi.fondation;
+
+import org.lwjgl.system.NonnullDefault;
