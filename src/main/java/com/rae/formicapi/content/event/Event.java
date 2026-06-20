@@ -1,7 +1,8 @@
-package com.rae.formicapi;
+package com.rae.formicapi.content.event;
 
 import com.rae.formicapi.content.data.managers.FloatMapDataLoader;
 import com.rae.formicapi.content.thermal_utilities.FullTableBased;
+import com.rae.formicapi.init.CommandsInit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
