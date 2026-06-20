@@ -50,6 +50,7 @@ public interface IMBController {
      */
     default void repairStructure(Level level, BlockState state, BlockPos controlPos, Direction facing) {
         if (level.isClientSide()) return;
+
         MBStructureBlock structure = getStructure();
         Set<BlockPos>    visited   = new HashSet<>();
         Queue<Node>      toVisit   = new ArrayDeque<>();
@@ -57,6 +58,23 @@ public interface IMBController {
         Vec3i    off       = getOffset(state, facing, false);
         Vec3i    size      = getSize(state, facing);
         BlockPos minCorner = controlPos.offset(off);
+
+        // Remove stale structure blocks first
+        for (BlockPos pos : BlockPos.betweenClosed(
+                minCorner.offset(-1, -1, -1),
+                minCorner.offset(size).offset(1, 1, 1))) {
+
+            BlockState current = level.getBlockState(pos);
+
+            if (current.is(structure)) {
+                BlockPos master = MBStructureBlock.getMaster(level, pos);
+
+                if (controlPos.equals(master)
+                        && !isInsideBounds(pos, minCorner, size)) {
+                    level.removeBlock(pos, false);
+                }
+            }
+        }
 
         for (Direction dir : Direction.values()) {
             BlockPos neighborPos = controlPos.relative(dir);
@@ -89,6 +107,45 @@ public interface IMBController {
                 FormicAPI.LOGGER.warn("More than 100 blocks");
                 break;
             }
+        }
+    }
+
+
+    /**
+     * @param lvl        : the Level where the check will be run
+     * @param state      : the BlockState that hold the Controller block
+     * @param mainPos    : the BlockPos of the controller
+     * @param mainPlaced : if the main block is already placed and should be skipped.
+     * @return true if there is enough space, false otherwise.
+     */
+    default boolean hasSpace(Level lvl, BlockState state, BlockPos mainPos, boolean mainPlaced) {
+        if (state.getBlock() instanceof IMBController && state.hasProperty(DirectionalBlock.FACING)) {
+            Direction facing  = state.getValue(DirectionalBlock.FACING);
+            Vec3i     offset  = this.getOffset(state, facing, false);
+            boolean   flag    = true;
+            Vec3i     size    = this.getSize(state, facing);
+
+            for (int x = -offset.getX(); x < size.getX() - offset.getX(); x++) {
+                for (int y = -offset.getY(); y < size.getY() - offset.getY(); y++) {
+                    for (int z = -offset.getZ(); z < size.getZ() - offset.getZ(); z++) {
+                        if (!lvl.getBlockState(mainPos.offset(x, y, z)).isAir()
+                                && !(x == 0 && y == 0 && z == 0 || !mainPlaced)) {
+                            flag = false;
+                            break;
+                        }
+                    }
+                    if (!flag) {
+                        break;
+                    }
+                }
+                if (!flag) {
+                    break;
+                }
+            }
+            return flag;
+        }
+        else {
+            return false;
         }
     }
 

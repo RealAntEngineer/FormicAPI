@@ -1,8 +1,6 @@
 package com.rae.formicapi.content.multiblock;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
@@ -35,28 +33,8 @@ public class MBItem extends BlockItem {
     protected boolean canPlace(BlockPlaceContext placingContext, BlockState placedState) {
         IMBController main    = (IMBController) getBlock();
         Level         lvl     = placingContext.getLevel();
-        Direction     facing  = placingContext.getClickedFace();
-        Vec3i         offset  = main.getOffset(placedState, facing, false);//nope this isn't the correct offset to know where to verify the blocks
-        BlockPos      mainPos = placingContext.getClickedPos();//.offset(offset);
-        boolean       flag    = true;
-        Vec3i         size    = main.getSize(placedState, facing);
-        for (int x = -offset.getX(); x < size.getX() - offset.getX(); x++) {
-            for (int y = -offset.getY(); y < size.getY() - offset.getY(); y++) {
-                for (int z = -offset.getZ(); z < size.getZ() - offset.getZ(); z++) {
-                    if (!lvl.getBlockState(mainPos.offset(x, y, z)).isAir()) {
-                        flag = false;
-                        break;
-                    }
-                }
-                if (!flag) {
-                    break;
-                }
-            }
-            if (!flag) {
-                break;
-            }
-        }
-        return flag;
+        BlockPos      mainPos = placingContext.getClickedPos();
+        return main.hasSpace(lvl, placedState, mainPos, false);
     }
 
     /**
