@@ -47,9 +47,9 @@ import java.util.Set;
  */
 public class RotationalDamper implements SimulationComponent {
 
-    private final Node a;
-    private final Node b;
-    private final Node heat;
+    private final Node   a;
+    private final Node   b;
+    private final Node   heat;
     private final double damping;
 
     /**
@@ -91,15 +91,15 @@ public class RotationalDamper implements SimulationComponent {
     @Override
     public void stamp(Map<ModelType, SimulationContext> contexts) {
 
-        SimulationContext mechCtx = contexts.get(ModelType.MECHANICAL);
+        SimulationContext mechCtx  = contexts.get(ModelType.MECHANICAL);
         SimulationContext thermCtx = contexts.get(ModelType.THERMAL);
 
         // mechanical stamp
         if (mechCtx != null) {
             boolean au = a.isUnknown(ModelType.MECHANICAL);
             boolean bu = b.isUnknown(ModelType.MECHANICAL);
-            int i = a.getId(ModelType.MECHANICAL);
-            int j = b.getId(ModelType.MECHANICAL);
+            int     i  = a.getId(ModelType.MECHANICAL);
+            int     j  = b.getId(ModelType.MECHANICAL);
 
             if (au) {
                 mechCtx.matrix.add(i, i, damping);

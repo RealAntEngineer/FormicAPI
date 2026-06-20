@@ -200,12 +200,12 @@ public class HeatExchanger implements SimulationComponent {
     private void stampHydraulicChain(SimulationContext ctx,
                                      List<Node> chain, double segG) {
         for (int k = 0; k < chain.size() - 1; k++) {
-            Node a = chain.get(k);
-            Node b = chain.get(k + 1);
+            Node    a  = chain.get(k);
+            Node    b  = chain.get(k + 1);
             boolean au = a.isUnknown(ModelType.HYDRAULIC);
             boolean bu = b.isUnknown(ModelType.HYDRAULIC);
-            int ai = a.getId(ModelType.HYDRAULIC);
-            int bi = b.getId(ModelType.HYDRAULIC);
+            int     ai = a.getId(ModelType.HYDRAULIC);
+            int     bi = b.getId(ModelType.HYDRAULIC);
 
             if (au) { ctx.matrix.add(ai, ai,  segG); ctx.matrix.add(ai, bi, -segG); }
             if (bu) { ctx.matrix.add(bi, bi,  segG); ctx.matrix.add(bi, ai, -segG); }
@@ -238,25 +238,25 @@ public class HeatExchanger implements SimulationComponent {
             Node a = chain.get(k);
             Node b = chain.get(k + 1);
 
-            double Pa = a.getValue(ModelType.HYDRAULIC);
-            double Pb = b.getValue(ModelType.HYDRAULIC);
+            double Pa   = a.getValue(ModelType.HYDRAULIC);
+            double Pb   = b.getValue(ModelType.HYDRAULIC);
             double gAdv = segG * (Pa - Pb) * cp;  // ṁ·Cp for this segment
 
             if (Math.abs(gAdv) < 1e-12) continue;
 
             boolean au = a.isUnknown(ModelType.THERMAL);
             boolean bu = b.isUnknown(ModelType.THERMAL);
-            int ai = a.getId(ModelType.THERMAL);
-            int bi = b.getId(ModelType.THERMAL);
+            int     ai = a.getId(ModelType.THERMAL);
+            int     bi = b.getId(ModelType.THERMAL);
 
             if (gAdv > 0) {
                 // flow a → b, upstream temperature is Ta
-                if (au) ctx.matrix.add(ai, ai,  gAdv);
+                if (au) ctx.matrix.add(ai, ai, gAdv);
                 if (bu) ctx.matrix.add(bi, ai, -gAdv);
             } else {
                 // flow b → a, upstream temperature is Tb
                 double gAbs = -gAdv;
-                if (bu) ctx.matrix.add(bi, bi,  gAbs);
+                if (bu) ctx.matrix.add(bi, bi, gAbs);
                 if (au) ctx.matrix.add(ai, bi, -gAbs);
             }
         }

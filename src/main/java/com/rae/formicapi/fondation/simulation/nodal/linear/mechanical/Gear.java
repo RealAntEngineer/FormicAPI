@@ -10,9 +10,9 @@ import java.util.List;
 
 public class Gear extends SingleDomainComponent {
 
-    private final Node a;
-    private final Node b;
-    private final Node lambda;   // constraint node, added to domain on construction
+    private final Node   a;
+    private final Node   b;
+    private final Node   lambda;   // constraint node, added to domain on construction
     private final double ratio;
 
     public Gear(Node a, Node b, double ratio) {
@@ -30,9 +30,9 @@ public class Gear extends SingleDomainComponent {
     @Override
     public void stamp(SimulationContext ctx) {
 
-        int i = a.getId(ModelType.MECHANICAL);
-        int j = b.getId(ModelType.MECHANICAL);
-        int k = lambda.getId(ModelType.MECHANICAL);
+        int    i = a.getId(ModelType.MECHANICAL);
+        int    j = b.getId(ModelType.MECHANICAL);
+        int    k = lambda.getId(ModelType.MECHANICAL);
         double r = ratio;
 
         // torque reactions on physical nodes from λ

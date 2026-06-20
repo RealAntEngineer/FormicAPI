@@ -23,7 +23,7 @@ import java.util.Set;
  */
 public abstract class Node {
 
-    private final Set<ModelType> domains;
+    private final Set<ModelType>          domains;
     private final Map<ModelType, Integer> ids = new EnumMap<>(ModelType.class);
 
     protected Node(ModelType first, ModelType... rest) {

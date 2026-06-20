@@ -25,9 +25,9 @@ public enum ModelType {
     THERMAL("Temperature [K]", "Heat flux [W]") {
         @Override
         public void solve(DomainModel domain, List<SimulationComponent> components) {
-            SimulationContext ctx = domain.getContext();
-            double[] x0 = nodeValues(domain);
-            double[] result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
+            SimulationContext ctx    = domain.getContext();
+            double[]          x0     = nodeValues(domain);
+            double[]          result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
             applyResult(domain, result);
         }
     },
@@ -35,9 +35,9 @@ public enum ModelType {
     MECHANICAL("Angular velocity [rad/s]", "Torque [N·m]") {
         @Override
         public void solve(DomainModel domain, List<SimulationComponent> components) {
-            SimulationContext ctx = domain.getContext();
-            double[] x0 = nodeValues(domain);
-            double[] result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
+            SimulationContext ctx    = domain.getContext();
+            double[]          x0     = nodeValues(domain);
+            double[]          result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
             applyResult(domain, result);
         }
     },
@@ -45,9 +45,9 @@ public enum ModelType {
     HYDRAULIC("Pressure [Pa]", "Mass flow [kg/s]") {
         @Override
         public void solve(DomainModel domain, List<SimulationComponent> components) {
-            SimulationContext ctx = domain.getContext();
-            double[] x0 = nodeValues(domain);
-            double[] result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
+            SimulationContext ctx    = domain.getContext();
+            double[]          x0     = nodeValues(domain);
+            double[]          result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
             applyResult(domain, result);
         }
     };

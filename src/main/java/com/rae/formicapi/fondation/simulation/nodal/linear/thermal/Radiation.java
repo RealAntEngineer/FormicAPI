@@ -36,12 +36,12 @@ public class Radiation extends SingleDomainComponent {
         double Tb = b.getValue(ModelType.THERMAL);
 
         double Tm = 0.5 * (Ta + Tb);
-        double g = 4 * SIGMA * emissivity * area * Math.pow(Tm, 3);
+        double g  = 4 * SIGMA * emissivity * area * Math.pow(Tm, 3);
 
         boolean au = a.isUnknown(ModelType.THERMAL);
         boolean bu = b.isUnknown(ModelType.THERMAL);
-        int i = a.getId(ModelType.THERMAL);
-        int j = b.getId(ModelType.THERMAL);
+        int     i  = a.getId(ModelType.THERMAL);
+        int     j  = b.getId(ModelType.THERMAL);
 
         if (au) {
             ctx.matrix.add(i, i, g);

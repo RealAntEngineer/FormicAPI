@@ -39,10 +39,11 @@ import java.util.Set;
  */
 public class Convection implements SimulationComponent {
 
-    private final Node wall;
-    private final Node flowNode;
-    private final double cp;
+    private final Node         wall;
+    private final Node         flowNode;
+    private final double       cp;
     private final HCorrelation hCorr;
+
     /**
      * Convenience constructor with a constant h·A independent of flow.
      *
@@ -88,13 +89,13 @@ public class Convection implements SimulationComponent {
         if (thermCtx == null) return;
 
         double mDot = flowNode.getValue(ModelType.HYDRAULIC);
-        double hA = hCorr.compute(Math.abs(mDot));
+        double hA   = hCorr.compute(Math.abs(mDot));
         double gAdv = mDot * cp;
 
         boolean au = wall.isUnknown(ModelType.THERMAL);
         boolean bu = flowNode.isUnknown(ModelType.THERMAL);
-        int i = wall.getId(ModelType.THERMAL);
-        int j = flowNode.getId(ModelType.THERMAL);
+        int     i  = wall.getId(ModelType.THERMAL);
+        int     j  = flowNode.getId(ModelType.THERMAL);
 
         // diffusive part — symmetric
         if (au) {

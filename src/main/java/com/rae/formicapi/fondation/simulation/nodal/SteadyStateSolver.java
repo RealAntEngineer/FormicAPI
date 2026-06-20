@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class SteadyStateSolver {
 
-    private static final int MAX_ITER = 50;
+    private static final int    MAX_ITER  = 50;
     private static final double TOLERANCE = 1e-3;
 
     public static void solve(SimulationModel model) {
@@ -53,7 +53,7 @@ public class SteadyStateSolver {
     }
 
     private static double maxChange(DomainModel domain, double[] before) {
-        double max = 0;
+        double     max   = 0;
         List<Node> nodes = domain.getNodes();
         for (int i = 0; i < nodes.size(); i++)
             max = Math.max(max, Math.abs(nodes.get(i).getValue(domain.getType()) - before[i]));
