@@ -2,7 +2,6 @@ package com.rae.formicapi.foundation.math.pde;
 
 
 import com.rae.formicapi.foundation.math.pde.ast.*;
-import com.rae.formicapi.foundation.simulation.pde.ast.*;
 
 import java.util.HashMap;
 import java.util.Map;
