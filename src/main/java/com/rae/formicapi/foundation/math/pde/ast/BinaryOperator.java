@@ -5,28 +5,31 @@ import java.util.Optional;
 
 public enum BinaryOperator {
 
-    ADD("+", 0),
-    SUBTRACT("-", 0),
-    MULTIPLY("*", 1),
-    DIVIDE("/", 1),
-    POWER("^", 2);
+    ADD('+', 0, false),
+    SUBTRACT('-', 0, false),
+    MULTIPLY('*', 1, false),
+    DIVIDE('/', 1, false),
+    POWER('^', 2, true);
 
-    public final String representation;
+    public final char representation;
     public final int priority;
+    public final boolean rightAssociative;
 
-    BinaryOperator(String representation, int priority) {
+    BinaryOperator(char representation, int priority, boolean rightAssociative) {
         this.representation = representation;
         this.priority = priority;
+        this.rightAssociative = rightAssociative;
     }
 
-    public static Optional<BinaryOperator> parse(String value) {
-
+    public static Optional<BinaryOperator> parse(char value) {
         for (BinaryOperator op : values()) {
-
-            if(op.representation.equals(value))
+            if (op.representation == value)
                 return Optional.of(op);
         }
-
         return Optional.empty();
+    }
+
+    public static boolean isOperatorChar(char c) {
+        return parse(c).isPresent();
     }
 }

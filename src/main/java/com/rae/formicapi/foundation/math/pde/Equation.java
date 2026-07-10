@@ -3,16 +3,13 @@ package com.rae.formicapi.foundation.math.pde;
 
 import com.rae.formicapi.foundation.math.pde.ast.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 
 public final class Equation {
     private static final int MAX_DEPTH = 100;
 
-    private final Map<String, SymbolBinding> symbols =
-            new HashMap<>();
+    private final Map<String, SymbolBinding> symbols = new LinkedHashMap<>();
 
     private final Expression left;
     private final Expression right;
@@ -20,8 +17,10 @@ public final class Equation {
 
     public Equation(String expression, SymbolBinding... fieldBindings) {
         for (SymbolBinding bind : fieldBindings) {
-
-            symbols.put(bind.field().name(), bind);
+            SymbolBinding previous = symbols.put(bind.field().name(), bind);
+            if (previous != null) {
+                throw new IllegalArgumentException("Duplicate symbol: " + bind.field().name());
+            }
         }
         expression = expression.replaceAll("\\s+", " ");
         String[] split = expression.split("=");
@@ -68,126 +67,151 @@ public final class Equation {
         if (depth > MAX_DEPTH)
             throw new RuntimeException("Max depth reached");
 
-        //0. cleaning
-
         text = text.trim();
 
-        //1. march through characters until delimitation is hit  : ( or space.
-        // expression such as k_3i, k*i will be recognized as 1 identifier
+        List<Expression>     operands  = new ArrayList<>();
+        List<BinaryOperator> operators = new ArrayList<>();
 
-        String identifier      = text;
-        String remainingString = "";
+        String remaining = text;
 
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c == ' ') {
-                identifier = text.substring(0, i);
-                remainingString = text.substring(i + 1);//we remove the char if it's a " "
-                break;
-            } else if (c == '(' || c == '+' || c == '-' || c == '/' || c == '*') {
-                identifier = text.substring(0, i);
-                remainingString = text.substring(i);//we keep the parenthesis
-                break;
-            }
-        }
+        while (true) {
+            remaining = remaining.trim();
 
-        assert !identifier.contains(" ");
-        assert !identifier.contains("(");
+            Expression operand;
 
-        Expression left;
+            if (remaining.startsWith("(")) {
+                String[] splited = groupByParenthesis(remaining);
+                operand = parseExpression(splited[0], depth + 1);
+                remaining = splited[1];
 
-        if (identifier.isEmpty()) {
-            if (!remainingString.startsWith("(")) {
-                throw new RuntimeException("Expression is empty");//we can't begin with a ' ' since we trim
             } else {
-                String[] splited = groupByParenthesis(remainingString);
+                String identifier = remaining;
+                String rest = "";
 
-                left = parseExpression(splited[0], depth + 1);
-                remainingString = splited[1];
-
-            }
-        } else {
-            //2. once identifier is found we try to know what it is in this order : (value, Symbol, Operator)
-
-            if (identifier.startsWith("0") || identifier.startsWith("1") || identifier.startsWith("2")
-                    || identifier.startsWith("3") || identifier.startsWith("4") || identifier.startsWith("5")
-                    || identifier.startsWith("6") || identifier.startsWith("7") || identifier.startsWith("8")
-                    || identifier.startsWith("9")) {
-                try {
-                    double value = Double.parseDouble(identifier);
-                    left = new ConstantExpression(value);
-
-                } catch (NumberFormatException formatException) {
-                    throw new RuntimeException("Failed to parse value " + identifier + " in expression " + text, formatException);
+                for (int i = 0; i < remaining.length(); i++) {
+                    char c = remaining.charAt(i);
+                    if (c == ' ') {
+                        identifier = remaining.substring(0, i);
+                        rest = remaining.substring(i + 1);
+                        break;
+                    } else if (c == '(' || BinaryOperator.isOperatorChar(c)) {
+                        identifier = remaining.substring(0, i);
+                        rest = remaining.substring(i);
+                        break;
+                    }
                 }
-            } else if (symbols.containsKey(identifier)) {
-                left = new VariableExpression(symbols.get(identifier));
-            } else {
-                Optional<BinaryOperator> optionalBinary = BinaryOperator.parse(identifier);
 
-                if (optionalBinary.isPresent())
-                    throw new RuntimeException("Binary with no left expression is illegal");
+                if (identifier.isEmpty())
+                    throw new RuntimeException("Expression is empty");
 
-                Optional<UnaryOperator> optionalUnary = UnaryOperator.parse(identifier);
+                if (Character.isDigit(identifier.charAt(0))) {
+                    try {
+                        operand = new ConstantExpression(Double.parseDouble(identifier));
+                    } catch (NumberFormatException e) {
+                        throw new RuntimeException("Failed to parse value " + identifier + " in expression " + text, e);
+                    }
 
-                if (optionalUnary.isPresent()) {
-                    //same treatment as the no identifier
-                    String[] splited = groupByParenthesis(remainingString);
-
-                    left = new UnaryExpression(optionalUnary.get(), parseExpression(splited[0], depth + 1));
-                    remainingString = splited[1];
+                } else if (symbols.containsKey(identifier)) {
+                    operand = new VariableExpression(symbols.get(identifier));
 
                 } else {
-                    throw new RuntimeException("Unable to parse identifier : " + identifier);
+                    Optional<UnaryOperator> optionalUnary = UnaryOperator.parse(identifier);
+                    if (optionalUnary.isPresent()) {
+                        String[] splited = groupByParenthesis(rest);
+                        operand = new UnaryExpression(optionalUnary.get(), parseExpression(splited[0], depth + 1));
+                        rest = splited[1];
+                    } else {
+                        throw new RuntimeException("Unable to parse identifier : " + identifier);
+                    }
+                }
+                remaining = rest;
+            }
+
+            // implicit multiplication: operand directly followed by '(' , e.g. "2(3+4)"
+            remaining = remaining.trim();
+            while (remaining.startsWith("(")) {
+                String[] splited = groupByParenthesis(remaining);
+                Expression right = parseExpression(splited[0], depth + 1);
+                operand = new BinaryExpression(BinaryOperator.MULTIPLY, operand, right);
+                remaining = splited[1].trim();
+            }
+
+            operands.add(operand);
+
+            if (remaining.isEmpty())
+                break;
+
+            Optional<BinaryOperator> optionalBinary = BinaryOperator.parse(remaining.charAt(0));
+            if (optionalBinary.isEmpty())
+                throw new RuntimeException("Unable to parse binary operator : " + remaining.charAt(0));
+
+            operators.add(optionalBinary.get());
+            remaining = remaining.substring(1);
+        }
+
+        return buildTreeByPrecedence(operands, operators);
+    }
+
+    private Expression buildTreeByPrecedence(List<Expression> operands, List<BinaryOperator> operators) {
+        List<Expression> outOperands = new ArrayList<>(operands);
+        List<BinaryOperator> outOperators = new ArrayList<>(operators);
+
+        int maxPriority = 0;
+        for (BinaryOperator op : outOperators) {
+            maxPriority = Math.max(maxPriority, op.priority);
+        }
+
+        for (int priority = maxPriority; priority >= 0; priority--) {
+
+            boolean rightAssociative = isRightAssociativeLevel(outOperators, priority);
+
+            if (rightAssociative) {
+                // scan right-to-left, combine as we go
+                int i = outOperators.size() - 1;
+                while (i >= 0) {
+                    if (outOperators.get(i).priority == priority) {
+                        Expression combined = new BinaryExpression(
+                                outOperators.get(i),
+                                outOperands.get(i),
+                                outOperands.get(i + 1));
+
+                        outOperands.set(i, combined);
+                        outOperands.remove(i + 1);
+                        outOperators.remove(i);
+                    }
+                    i--;
+                }
+            } else {
+                // scan left-to-right, combine as we go
+                int i = 0;
+                while (i < outOperators.size()) {
+                    if (outOperators.get(i).priority == priority) {
+                        Expression combined = new BinaryExpression(
+                                outOperators.get(i),
+                                outOperands.get(i),
+                                outOperands.get(i + 1));
+
+                        outOperands.set(i, combined);
+                        outOperands.remove(i + 1);
+                        outOperators.remove(i);
+                        // don't advance: next operator shifted into position i
+                    } else {
+                        i++;
+                    }
                 }
             }
         }
 
+        return outOperands.getFirst();
+    }
 
-        while (!remainingString.isEmpty()) {
-            // remove useless spaces after identifier
-            remainingString = remainingString.trim();
-
-
-            if (remainingString.isEmpty()) {
-                return left;
-            }
-
-            //search for a binary operator, either explicit or implicit
-
-            if (remainingString.startsWith("(")) {// implicit multiplication
-
-
-                //group by parenthesis first
-                String[] splited = groupByParenthesis(remainingString);
-
-                left = new BinaryExpression(
-                        BinaryOperator.MULTIPLY,
-                        left, parseExpression(splited[0], depth + 1));
-                remainingString = splited[1];
-
-            } else {//explicit
-                //the binary operator is supposed to be only 1 character
-
-                Optional<BinaryOperator> optionalBinary = BinaryOperator.parse(String.valueOf(remainingString.charAt(0)));
-
-                if (optionalBinary.isEmpty()) {
-                    throw new RuntimeException("Unable to parse binary operator : " + remainingString.charAt(0));
-
-                }
-                //seems like this could cause priority issues. -> this creates implicit parenthesis so we could
-                // have issue depending on the priority level of the operator
-
-                String[] splited = groupByParenthesis("(" + remainingString.substring(1) + ")");
-
-                left = new BinaryExpression(
-                        optionalBinary.get(),
-                        left, parseExpression(splited[0], depth + 1));
-                remainingString = splited[1];
+    private boolean isRightAssociativeLevel(List<BinaryOperator> operators, int priority) {
+        for (BinaryOperator op : operators) {
+            if (op.priority == priority) {
+                return op.rightAssociative;
             }
         }
-
-        return left;
+        return false; // doesn't matter, no operator at this level
     }
 
     public Expression getLeft() {
@@ -200,10 +224,9 @@ public final class Equation {
 
     @Override
     public String toString() {
-        return "Equation{" +
-                "symbols=" + symbols +
-                ", " + Expression.print(left) +
+        return "Equation{" +Expression.print(left) +
                 " = " + Expression.print(right) +
+                ", symbols=" + Arrays.toString(symbols.values().toArray()) +
                 '}';
     }
 }
