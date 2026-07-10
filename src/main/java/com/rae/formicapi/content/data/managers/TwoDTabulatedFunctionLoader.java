@@ -5,7 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.JsonOps;
-import com.rae.formicapi.fondation.math.data.TwoDTabulatedFunction;
+import com.rae.formicapi.foundation.math.data.TwoDTabulatedFunction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;

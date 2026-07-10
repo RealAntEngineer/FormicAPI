@@ -7,20 +7,21 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.system.NonnullDefault;
 
 import java.util.Objects;
 
+@NonnullDefault
 public class SpecificRealGasState {
 
     public static final SpecificRealGasState DEFAULT_STATE = new SpecificRealGasState(101_300f, 112_665f, null, null, null);
     public static final StreamCodec<ByteBuf, SpecificRealGasState> STREAM_CODEC = new StreamCodec<>() {
-        public @NotNull SpecificRealGasState decode(@NotNull ByteBuf buffer) {
+        public SpecificRealGasState decode(ByteBuf buffer) {
             return new SpecificRealGasState(Objects.requireNonNull(FriendlyByteBuf.readNbt(buffer)));
         }
 
-        public void encode(@NotNull ByteBuf buffer, SpecificRealGasState state) {
+        public void encode(ByteBuf buffer, SpecificRealGasState state) {
             FriendlyByteBuf.writeNbt(buffer, state.serialize());
         }
     };
@@ -35,9 +36,9 @@ public class SpecificRealGasState {
                     .apply(i, SpecificRealGasState::new));
     Float pressure;
     Float specificEnthalpy;
-    Float temperature;
-    Float specificEntropy;
-    Float vaporQuality;
+    @Nullable Float temperature;
+    @Nullable Float specificEntropy;
+    @Nullable Float vaporQuality;
 
     public SpecificRealGasState(CompoundTag tag) {
         this(tag.getFloat("pressure"), tag.getFloat("specific_enthalpy"), tag.contains("temperature") ? tag.getFloat("temperature") : null,
@@ -45,7 +46,7 @@ public class SpecificRealGasState {
                 tag.contains("vapor_quality") ? tag.getFloat("vapor_quality") : null);
     }
 
-    public SpecificRealGasState(@NotNull Float pressure, @NotNull Float specificEnthalpy, @Nullable Float temperature,
+    public SpecificRealGasState(Float pressure, Float specificEnthalpy, @Nullable Float temperature,
                                 @Nullable Float specificEntropy, @Nullable Float vaporQuality) {
         this.temperature = temperature == null ? null : Math.max(0, temperature);
         this.pressure = Math.max(0, pressure);
@@ -58,7 +59,7 @@ public class SpecificRealGasState {
     }
 
     @Override
-    public @NotNull String toString() {
+    public String toString() {
         return "SpecificRealGasState{" +
                 "temperature=" + temperature +
                 ", pressure=" + pressure +
@@ -70,29 +71,29 @@ public class SpecificRealGasState {
 
     public CompoundTag serialize() {
         CompoundTag tag = new CompoundTag();
+        tag.putFloat("pressure", pressure);
+        tag.putFloat("specific_enthalpy", specificEnthalpy);
         if (temperature != null) tag.putFloat("temperature", temperature);
-        if (pressure != null) tag.putFloat("pressure", pressure);
-        if (specificEnthalpy != null) tag.putFloat("specific_enthalpy", specificEnthalpy);
         if (specificEntropy != null) tag.putFloat("specific_entropy", specificEntropy);
         if (vaporQuality != null) tag.putFloat("vapor_quality", vaporQuality);
         return tag;
     }
 
-    public @NotNull Float temperature() {
+    public Float temperature() {
         if (temperature == null) {
             temperature = FullTableBased.getT(pressure, specificEnthalpy);
         }
         return temperature;
     }
 
-    public @NotNull Float specificEntropy() {
+    public Float specificEntropy() {
         if (specificEntropy == null) {
             specificEntropy = FullTableBased.getS(pressure, specificEnthalpy);
         }
         return specificEntropy;
     }
 
-    public @NotNull Float vaporQuality() {
+    public Float vaporQuality() {
         if (vaporQuality == null) {
             vaporQuality = FullTableBased.getX(pressure, specificEnthalpy);
         }

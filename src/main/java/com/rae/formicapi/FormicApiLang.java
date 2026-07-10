@@ -1,9 +1,9 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.fondation.units.IUnit;
-import com.rae.formicapi.fondation.units.Pressure;
-import com.rae.formicapi.fondation.units.IrradiationFlux;
-import com.rae.formicapi.fondation.units.Temperature;
+import com.rae.formicapi.foundation.units.IUnit;
+import com.rae.formicapi.foundation.units.Pressure;
+import com.rae.formicapi.foundation.units.IrradiationFlux;
+import com.rae.formicapi.foundation.units.Temperature;
 import com.rae.formicapi.content.config.FormicAPIConfigs;
 import com.simibubi.create.foundation.utility.CreateLang;
 import net.createmod.catnip.lang.Lang;

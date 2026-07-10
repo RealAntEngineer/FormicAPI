@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.JsonOps;
 import com.rae.formicapi.FormicAPI;
-import com.rae.formicapi.fondation.math.data.TwoDSparseTabulatedFunction;
+import com.rae.formicapi.foundation.math.data.TwoDSparseTabulatedFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;

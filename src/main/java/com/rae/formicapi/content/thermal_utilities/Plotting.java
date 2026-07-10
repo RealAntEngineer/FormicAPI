@@ -1,6 +1,6 @@
 package com.rae.formicapi.content.thermal_utilities;
 
-import com.rae.formicapi.fondation.plotting.SimplePlot;
+import com.rae.formicapi.foundation.plotting.SimplePlot;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 

@@ -1,8 +1,8 @@
 package com.rae.formicapi.content.config;
 
-import com.rae.formicapi.fondation.units.Pressure;
-import com.rae.formicapi.fondation.units.IrradiationFlux;
-import com.rae.formicapi.fondation.units.Temperature;
+import com.rae.formicapi.foundation.units.Pressure;
+import com.rae.formicapi.foundation.units.IrradiationFlux;
+import com.rae.formicapi.foundation.units.Temperature;
 import net.createmod.catnip.config.ConfigBase;
 import org.jetbrains.annotations.NotNull;
 

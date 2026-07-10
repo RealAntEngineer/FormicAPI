@@ -2,8 +2,8 @@ package com.rae.formicapi.content.data.providers;
 
 import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
-import com.rae.formicapi.fondation.math.data.StepMode;
-import com.rae.formicapi.fondation.math.data.TwoDTabulatedFunction;
+import com.rae.formicapi.foundation.math.data.StepMode;
+import com.rae.formicapi.foundation.math.data.TwoDTabulatedFunction;
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataProvider;
 import net.minecraft.data.PackOutput;
