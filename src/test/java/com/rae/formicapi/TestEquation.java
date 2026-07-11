@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class EquationTest {
+public class TestEquation {
 
     private static SymbolBinding variable(String name, SymbolRole role) {
         return new SymbolBinding(new Field(name, FieldType.SCALAR), role);
@@ -31,20 +31,20 @@ public class EquationTest {
 
         Expression expectedLeft =
                 new BinaryExpression(
-                        BinaryOperator.ADD,
+                        BinaryOperators.ADD,
                         new UnaryExpression(
-                                UnaryOperator.DIV,
+                                UnaryOperators.DIV,
                                 new BinaryExpression(
-                                        BinaryOperator.MULTIPLY,
+                                        BinaryOperators.MULTIPLY,
                                         new VariableExpression(k),
-                                        new UnaryExpression(UnaryOperator.GRAD, new VariableExpression(t))
+                                        new UnaryExpression(UnaryOperators.GRAD, new VariableExpression(t))
                                 )
                         ),
                         new BinaryExpression(
-                                BinaryOperator.MULTIPLY,
+                                BinaryOperators.MULTIPLY,
                                 new VariableExpression(res),
                                 new BinaryExpression(
-                                        BinaryOperator.SUBTRACT,
+                                        BinaryOperators.SUBTRACT,
                                         new VariableExpression(td),
                                         new VariableExpression(t)
                                 )
@@ -72,8 +72,8 @@ public class EquationTest {
 
         Expression expected1 =
                 new BinaryExpression(
-                        BinaryOperator.ADD,
-                        new BinaryExpression(BinaryOperator.MULTIPLY, new VariableExpression(a), new VariableExpression(b)),
+                        BinaryOperators.ADD,
+                        new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a), new VariableExpression(b)),
                         new VariableExpression(c)
                 );
 
@@ -83,8 +83,8 @@ public class EquationTest {
 
         Expression expected2 =
                 new BinaryExpression(
-                        BinaryOperator.SUBTRACT,
-                        new BinaryExpression(BinaryOperator.MULTIPLY, new VariableExpression(a), new VariableExpression(b)),
+                        BinaryOperators.SUBTRACT,
+                        new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a), new VariableExpression(b)),
                         new VariableExpression(c)
                 );
 
@@ -101,8 +101,8 @@ public class EquationTest {
 
         Expression expected =
                 new BinaryExpression(
-                        BinaryOperator.ADD,
-                        new BinaryExpression(BinaryOperator.MULTIPLY, new ConstantExpression(3), new ConstantExpression(4)),
+                        BinaryOperators.ADD,
+                        new BinaryExpression(BinaryOperators.MULTIPLY, new ConstantExpression(3), new ConstantExpression(4)),
                         new ConstantExpression(2)
                 );
 
@@ -120,9 +120,9 @@ public class EquationTest {
 
         Expression expected =
                 new BinaryExpression(
-                        BinaryOperator.MULTIPLY,
+                        BinaryOperators.MULTIPLY,
                         new VariableExpression(a),
-                        new BinaryExpression(BinaryOperator.POWER, new VariableExpression(b), new VariableExpression(c))
+                        new BinaryExpression(BinaryOperators.POWER, new VariableExpression(b), new VariableExpression(c))
                 );
 
         assertEquals(expected, eq.getLeft());
@@ -143,8 +143,8 @@ public class EquationTest {
 
         Expression expected =
                 new BinaryExpression(
-                        BinaryOperator.SUBTRACT,
-                        new BinaryExpression(BinaryOperator.SUBTRACT, new VariableExpression(a), new VariableExpression(b)),
+                        BinaryOperators.SUBTRACT,
+                        new BinaryExpression(BinaryOperators.SUBTRACT, new VariableExpression(a), new VariableExpression(b)),
                         new VariableExpression(c)
                 );
 
@@ -162,9 +162,9 @@ public class EquationTest {
 
         Expression expected =
                 new BinaryExpression(
-                        BinaryOperator.POWER,
+                        BinaryOperators.POWER,
                         new VariableExpression(a),
-                        new BinaryExpression(BinaryOperator.POWER, new VariableExpression(b), new VariableExpression(c))
+                        new BinaryExpression(BinaryOperators.POWER, new VariableExpression(b), new VariableExpression(c))
                 );
 
         assertEquals(expected, eq.getLeft());
@@ -184,9 +184,9 @@ public class EquationTest {
 
         Expression expected =
                 new BinaryExpression(
-                        BinaryOperator.MULTIPLY,
+                        BinaryOperators.MULTIPLY,
                         new ConstantExpression(2),
-                        new BinaryExpression(BinaryOperator.ADD, new VariableExpression(a), new VariableExpression(b))
+                        new BinaryExpression(BinaryOperators.ADD, new VariableExpression(a), new VariableExpression(b))
                 );
 
         assertEquals(expected, eq.getLeft());
@@ -201,7 +201,7 @@ public class EquationTest {
         Equation eq = new Equation("(a)(b) = 0", a, b);
 
         Expression expected =
-                new BinaryExpression(BinaryOperator.MULTIPLY, new VariableExpression(a), new VariableExpression(b));
+                new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a), new VariableExpression(b));
 
         assertEquals(expected, eq.getLeft());
     }
@@ -212,18 +212,18 @@ public class EquationTest {
 
     @Test
     void parenthesisGroupingTest() {
-        String[] grouped = Equation.groupByParenthesis("(a + b * c ((()))) + 1");
+        String[] grouped = Expression.groupByParenthesis("(a + b * c ((()))) + 1");
         assertArrayEquals(new String[]{"a + b * c ((()))", " + 1"}, grouped);
     }
 
     @Test
     void unmatchedOpeningParenthesisThrows() {
-        assertThrows(RuntimeException.class, () -> Equation.groupByParenthesis("(a + b"));
+        assertThrows(RuntimeException.class, () -> Expression.groupByParenthesis("(a + b"));
     }
 
     @Test
     void missingLeadingParenthesisThrows() {
-        assertThrows(RuntimeException.class, () -> Equation.groupByParenthesis("a + b)"));
+        assertThrows(RuntimeException.class, () -> Expression.groupByParenthesis("a + b)"));
     }
 
     // ------------------------------------------------------------------

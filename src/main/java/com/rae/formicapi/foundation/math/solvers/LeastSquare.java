@@ -5,100 +5,118 @@ import com.rae.formicapi.foundation.math.operators.Matrix;
 public class LeastSquare {
 
     /**
-     * Convenience overload: zero initial guess
+     * Convenience overload: zero initial guess, allocates working buffers internally.
+     * Use only when the caller has no long-lived matrix to cache buffers on — prefer
+     * the pre-allocated overload for any hot path.
      */
     public static double[] solve(Matrix A, double[] b, int maxIter, float tol) {
-        return solve(A, new double[A.cols()], b, maxIter, tol);
+        int m = A.cols();
+        int n = A.rows();
+        return solve(A, b, maxIter, tol,
+                new double[m], new double[m], new double[m], new double[m], new double[m], new double[n]);
+    }
+
+    public static double[] solve(Matrix A, double[] b,double[] x0,int maxIter, float tol) {
+        int m = A.cols();
+        int n = A.rows();
+        return solve(A, b, maxIter, tol,
+                x0, new double[m], new double[m], new double[m], new double[m], new double[n]);
     }
 
     /**
-     * Solve Ax = b in least-squares sense.
-     * Works for square, rectangular, symmetric or non-symmetric matrices.
+     * Solve {@code Ax = b} in the least-squares sense using CG on the normal equations
+     * {@code AᵀA x = Aᵀb}, with caller-supplied working buffers.
      *
-     * @param A       input matrix
-     * @param x_init  initial guess (length must match A.cols())
-     * @param b       right-hand side vector (length must match A.rows())
-     * @param maxIter maximum iterations
-     * @param tol     tolerance for residual
-     * @return solution vector x
+     * <p>Pass pre-allocated arrays from a long-lived object (e.g. {@code PhysicsMatrix})
+     * to avoid allocating ~4 × n doubles on every call. At 376 832 voxels and 20 ticks/s
+     * the naive version allocates ~240 MB/s; this overload allocates nothing after warmup.
+     *
+     * <p>The contents of all four working arrays are overwritten on every call.
+     * Their values between calls are undefined and must not be read by the caller.
+     *
+     * @param A      input matrix (square or rectangular)
+     * @param b      right-hand side, length {@code A.rows()}
+     * @param maxIter maximum CG iterations
+     * @param tol    convergence tolerance on the residual norm
+     * @param r      pre-allocated residual buffer,          length ≥ {@code A.cols()}
+     * @param p      pre-allocated search-direction buffer,  length ≥ {@code A.cols()}
+     * @param Ap     pre-allocated AᵀA·p buffer,            length ≥ {@code A.cols()}
+     * @param temp   pre-allocated A·p intermediate buffer,  length ≥ {@code A.rows()}
+     * @return solution vector x (a new array of length {@code A.cols()})
      */
-    public static double[] solve(Matrix A, double[] x_init, double[] b, int maxIter, double tol) {
+    public static double[] solve(Matrix A, double[] b, int maxIter, float tol,
+                                 double[] initialX, double[] r, double[] p, double[] Atb, double[] Ap, double[] temp) {
         int n = A.rows();
         int m = A.cols();
 
         if (b.length != n)
             throw new IllegalArgumentException(
-                    "RHS vector length (" + b.length + ") does not match matrix rows (" + n + ")"
-            );
-
-        if (x_init.length != m)
+                    "RHS length (" + b.length + ") != matrix rows (" + n + ")");
+        if (r.length < m || p.length < m || Ap.length < m)
             throw new IllegalArgumentException(
-                    "Initial guess length (" + x_init.length + ") does not match matrix columns (" + m + ")"
+                    "Working buffers r/p/Ap must have length >= A.cols() = " + m);
+        if (temp.length < n)
+            throw new IllegalArgumentException(
+                    "Working buffer temp must have length >= A.rows() = " + n);
+        if (initialX.length != m)
+            throw new IllegalArgumentException(
+                    "Initial guess length (" + initialX.length + ") does not match matrix columns (" + m + ")"
             );
 
-        // Compute Aᵀ * b
-        double[] Atb = new double[m];
+        // Aᵀb — written into r temporarily, then copied to Atb slot
         A.transposeMultiply(b, Atb);
 
-        // Use CG on normal equations AᵀA x = Aᵀb
-        return conjugateGradientNormalEq(A, x_init.clone(), Atb, maxIter, tol);
+        return conjugateGradientNormalEq(A, initialX, Atb, maxIter, tol, r, p, Ap, temp);
     }
 
     /**
-     * CG on AᵀA x = Aᵀb without forming AᵀA explicitly
+     * CG on AᵀA x = Aᵀb without forming AᵀA explicitly.
+     * All working arrays are passed in and reused across calls.
      */
-    private static double[] conjugateGradientNormalEq(Matrix A, double[] x, double[] Atb, int maxIter, double tol) {
+    private static double[] conjugateGradientNormalEq(
+            Matrix A, double[] x, double[] Atb, int maxIter, double tol,
+            double[] r, double[] p, double[] Ap, double[] temp) {
+
         int n = A.rows();
         int m = A.cols();
 
-        double[] r    = new double[m]; // residual
-        double[] p    = new double[m]; // search direction
-        double[] Ap   = new double[m]; // AᵀA * p
-        double[] temp = new double[n]; // temp = A*p
-
-        // r = Atb - Aᵀ(A*x)
+        // r = Atb - AᵀA·x  (x is zero, so r = Atb on first call)
         multiplyAtA(A, x, temp, Ap);
         for (int i = 0; i < m; i++) {
             r[i] = Atb[i] - Ap[i];
             p[i] = r[i];
         }
 
-        double rsold = dot(r, r);
+        double rsold = dot(r, r, m);
 
         for (int k = 0; k < maxIter; k++) {
             multiplyAtA(A, p, temp, Ap);
 
-            double dotPAp = dot(p, Ap);
-            if (dotPAp == 0) break; // breakdown
+            double dotPAp = dot(p, Ap, m);
+            if (dotPAp == 0) break;
             double alpha = rsold / dotPAp;
 
             for (int i = 0; i < m; i++) x[i] += alpha * p[i];
             for (int i = 0; i < m; i++) r[i] -= alpha * Ap[i];
 
-            double rsnew = dot(r, r);
+            double rsnew = dot(r, r, m);
             if (Math.sqrt(rsnew) < tol) break;
 
             double beta = rsnew / rsold;
             for (int i = 0; i < m; i++) p[i] = r[i] + beta * p[i];
             rsold = rsnew;
         }
-
         return x;
     }
 
-    /**
-     * Multiply by AᵀA efficiently: temp = A*p, result = Aᵀ*temp
-     */
     private static void multiplyAtA(Matrix A, double[] p, double[] temp, double[] result) {
         A.multiply(p, temp);
         A.transposeMultiply(temp, result);
     }
 
-    private static double dot(double[] a, double[] b) {
-        if (a.length != b.length)
-            throw new IllegalArgumentException("Dot product length mismatch: " + a.length + " vs " + b.length);
+    private static double dot(double[] a, double[] b, int len) {
         double sum = 0;
-        for (int i = 0; i < a.length; i++) sum += a[i] * b[i];
+        for (int i = 0; i < len; i++) sum += a[i] * b[i];
         return sum;
     }
 }

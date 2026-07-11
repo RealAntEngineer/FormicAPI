@@ -15,4 +15,7 @@
  *   <li>{@link com.rae.formicapi.foundation.units.IrradiationFlux} — default Bq</li>
  * </ul>
  */
+@NonnullDefault
 package com.rae.formicapi.foundation.units;
+
+import org.lwjgl.system.NonnullDefault;

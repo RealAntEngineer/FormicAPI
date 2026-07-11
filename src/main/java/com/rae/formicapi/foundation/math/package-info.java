@@ -43,5 +43,7 @@
  *   </dd>
  * </dl>
  */
+@NonnullDefault
 package com.rae.formicapi.foundation.math;
- 
+
+import org.lwjgl.system.NonnullDefault;

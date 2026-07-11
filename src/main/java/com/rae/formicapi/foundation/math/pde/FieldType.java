@@ -4,5 +4,11 @@ public enum FieldType {
 
     SCALAR,
     VECTOR,
-    TENSOR
+    TENSOR;
+
+    public static class TypeMismatchException extends RuntimeException {
+        public TypeMismatchException(String message) {
+            super(message);
+        }
+    }
 }

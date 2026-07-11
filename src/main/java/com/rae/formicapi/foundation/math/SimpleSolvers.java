@@ -2,6 +2,7 @@ package com.rae.formicapi.foundation.math;
 
 import java.util.function.Function;
 
+@SuppressWarnings("unused")
 public class SimpleSolvers {
     /**
      *
