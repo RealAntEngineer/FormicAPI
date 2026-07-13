@@ -4,10 +4,10 @@ import com.rae.formicapi.foundation.math.pde.FieldType;
 import com.rae.formicapi.foundation.math.pde.SymbolBinding;
 import com.rae.formicapi.foundation.math.pde.ast.Expression;
 import com.rae.formicapi.foundation.math.pde.ast.ExpressionAlgebra;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Represents a reference to a {@link SymbolBinding}'s value at a specific
@@ -33,9 +33,6 @@ import java.util.Objects;
  *     <li>{@code spatialOffset} — offset in grid cells per axis; all-zero is the central node.</li>
  *     <li>{@code dt} — temporal offset in time steps; {@code 0} is the unknown currently being
  *     solved for, negative values are known previous time levels (e.g. {@code -1} is last tick).</li>
- *     <li>{@code component} — vector/tensor component index for non-scalar fields; unused
- *     (always {@code 0}) for {@link FieldType#SCALAR} fields. Vector/tensor discretization
- *     is not fully designed yet — this exists so the shape doesn't need to change later.</li>
  * </ul>
  *
  * <p>{@code equals}/{@code hashCode} are overridden by hand because records
@@ -44,25 +41,20 @@ import java.util.Objects;
  * {@link ExpressionAlgebra}'s term-grouping (two independently built
  * references to the same offset would never merge).
  */
-public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOffset, int dt, int component) implements Expression {
+public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOffset, int dt) implements Expression {
 
-    public DiscretizedVariableExpression(SymbolBinding name, int[] spatialOffset, int dt, int component) {
+    public DiscretizedVariableExpression(SymbolBinding name, int[] spatialOffset, int dt) {
         this.name = name;
         this.spatialOffset = spatialOffset.clone();
         this.dt = dt;
-        this.component = component;
-    }
-
-    public DiscretizedVariableExpression(SymbolBinding symbol, int[] spatialOffset, int dt) {
-        this(symbol, spatialOffset, dt, 0);
     }
 
     public static DiscretizedVariableExpression atCentralNode(SymbolBinding symbol, int dimensions) {
-        return new DiscretizedVariableExpression(symbol, new int[dimensions], 0, 0);
+        return new DiscretizedVariableExpression(symbol, new int[dimensions], 0);
     }
 
     public static DiscretizedVariableExpression atCentralNode(SymbolBinding symbol, int dimensions, int dt) {
-        return new DiscretizedVariableExpression(symbol, new int[dimensions], dt, 0);
+        return new DiscretizedVariableExpression(symbol, new int[dimensions], dt);
     }
 
     /**
@@ -71,10 +63,6 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
     @Override
     public int[] spatialOffset() {
         return spatialOffset.clone();
-    }
-
-    public int dimension() {
-        return spatialOffset.length;
     }
 
     public int offset(int axis) {
@@ -91,22 +79,15 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
         for (int i = 0; i < spatialOffset.length; i++) {
             newOffset[i] = spatialOffset[i] + deltas[i];
         }
-        return new DiscretizedVariableExpression(name, newOffset, dt, component);
+        return new DiscretizedVariableExpression(name, newOffset, dt);
+    }
+
+    public int dimension() {
+        return spatialOffset.length;
     }
 
     public DiscretizedVariableExpression withTemporalOffset(int ddt) {
-        return new DiscretizedVariableExpression(name, spatialOffset, dt + ddt, component);
-    }
-
-    public DiscretizedVariableExpression withComponent(int newComponent) {
-        return new DiscretizedVariableExpression(name, spatialOffset, dt, newComponent);
-    }
-
-    public boolean isCentral() {
-        for (int offset : spatialOffset) {
-            if (offset != 0) return false;
-        }
-        return true;
+        return new DiscretizedVariableExpression(name, spatialOffset, dt + ddt);
     }
 
     public boolean isCurrentTimeLevel() {
@@ -118,18 +99,62 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
         if (this == o) return true;
         if (!(o instanceof DiscretizedVariableExpression other)) return false;
         return dt == other.dt
-                && component == other.component
                 && name.equals(other.name)
                 && Arrays.equals(spatialOffset, other.spatialOffset);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, Arrays.hashCode(spatialOffset), dt, component);
+        return Objects.hash(name, Arrays.hashCode(spatialOffset), dt);
     }
 
     @Override
-    public @NotNull String toString() {
-        return Expression.print(this);
+    public String toString() {
+        return debugPrint();
+    }
+
+    @Override
+    public FieldType resultType() {
+        return name.field().type();
+    }
+
+    @Override
+    public String prettyPrint() {
+        String result = name.field().name();
+
+        if (!isCentral()) {
+            result += Arrays.stream(spatialOffset)
+                    .mapToObj(Integer::toString)
+                    .collect(Collectors.joining(",", "[", "]"));
+        }
+
+        if (dt != 0) {
+            result += "{" + (dt > 0 ? "+" : "") + dt + "}";
+        }
+
+        return result;
+    }
+
+    public boolean isCentral() {
+        for (int offset : spatialOffset) {
+            if (offset != 0) return false;
+        }
+        return true;
+    }
+
+    @Override
+    public String debugPrint() {
+        String result = name.field().name();
+
+        result += Arrays.stream(spatialOffset)
+                .mapToObj(Integer::toString)
+                .collect(Collectors.joining(",", "[", "]"));
+
+
+        if (dt != 0) {
+            result += "{" + (dt > 0 ? "+" : "") + dt + "}";
+        }
+
+        return result;
     }
 }

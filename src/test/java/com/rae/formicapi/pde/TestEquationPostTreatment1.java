@@ -1,100 +1,80 @@
-package com.rae.formicapi.equation_parsing;
+package com.rae.formicapi.pde;
 
-import com.rae.formicapi.foundation.math.pde.Field;
-import com.rae.formicapi.foundation.math.pde.FieldType;
-import com.rae.formicapi.foundation.math.pde.SymbolBinding;
-import com.rae.formicapi.foundation.math.pde.SymbolRole;
 import com.rae.formicapi.foundation.math.pde.ast.ConstantExpression;
 import com.rae.formicapi.foundation.math.pde.ast.Expression;
 import com.rae.formicapi.foundation.math.pde.ast.ExpressionAlgebra;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
-
+import static com.rae.formicapi.pde.PDEUtil.parse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestEquationPostTreatment1 {
-
-    private static SymbolBinding variable(String name) {
-        return new SymbolBinding(new Field(name, FieldType.SCALAR), SymbolRole.COEFFICIENT);
-    }
-
-    private static final Map<String, SymbolBinding> SYMBOLS = Map.of(
-            "a", variable("a"),
-            "b", variable("b"),
-            "c", variable("c"),
-            "d", variable("d")
-    );
-
-    private static Expression parse(String expression) {
-        return Expression.parseExpression(expression, SYMBOLS, 0);
-    }
 
     @Test
     void mulDistributionLeft() {
         Expression expr = parse("(a+b)*c");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("((a * c) + (b * c))", Expression.print(distributed));
+        assertEquals("((a * c) + (b * c))", distributed.toString());
     }
 
     @Test
     void mulDistributionRight() {
         Expression expr = parse("a*(b+c)");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("((a * b) + (a * c))", Expression.print(distributed));
+        assertEquals("((a * b) + (a * c))", distributed.toString());
     }
 
     @Test
     void recursiveDistribution() {
         Expression expr = parse("(a+b)*(c+d)");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("(((a * c) + (a * d)) + ((b * c) + (b * d)))", Expression.print(distributed));
+        assertEquals("(((a * c) + (a * d)) + ((b * c) + (b * d)))", distributed.toString());
     }
 
     @Test
     void noDistribution() {
         Expression expr = parse("a*b");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("(a * b)", Expression.print(distributed));
+        assertEquals("(a * b)", distributed.toString());
     }
 
     @Test
     void divDistributionLeft() {
         Expression expr = parse("(a+b)/c");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("((a / c) + (b / c))", Expression.print(distributed));
+        assertEquals("((a / c) + (b / c))", distributed.toString());
     }
 
-    // ------------------------------------------------------------------
-    // Subtraction
-    // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// Subtraction
+// ------------------------------------------------------------------
 
     @Test
     void subMulDistributionLeft() {
         Expression expr = parse("(a-b)*c");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("((a * c) - (b * c))", Expression.print(distributed));
+        assertEquals("((a * c) - (b * c))", distributed.toString());
     }
 
     @Test
     void subMulDistributionRight() {
         Expression expr = parse("a*(b-c)");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("((a * b) - (a * c))", Expression.print(distributed));
+        assertEquals("((a * b) - (a * c))", distributed.toString());
     }
 
     @Test
     void subDivDistributionLeft() {
         Expression expr = parse("(a-b)/c");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("((a / c) - (b / c))", Expression.print(distributed));
+        assertEquals("((a / c) - (b / c))", distributed.toString());
     }
 
     @Test
     void mixedSignRecursiveDistribution() {
         Expression expr = parse("(a-b)*(c-d)");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("(((a * c) - (a * d)) - ((b * c) - (b * d)))", Expression.print(distributed));
+        assertEquals("(((a * c) - (a * d)) - ((b * c) - (b * d)))", distributed.toString());
     }
 
     // ------------------------------------------------------------------
@@ -105,14 +85,14 @@ public class TestEquationPostTreatment1 {
     void divNoDistributionWhenSumIsDenominator() {
         Expression expr = parse("a/(b+c)");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("(a / (b + c))", Expression.print(distributed));
+        assertEquals("(a / (b + c))", distributed.toString());
     }
 
     @Test
     void divNoDistributionWhenDifferenceIsDenominator() {
         Expression expr = parse("a/(b-c)");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("(a / (b - c))", Expression.print(distributed));
+        assertEquals("(a / (b - c))", distributed.toString());
     }
 
     // ------------------------------------------------------------------
@@ -123,7 +103,7 @@ public class TestEquationPostTreatment1 {
     void powerNeverDistributes() {
         Expression expr = parse("(a+b)^c");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("((a + b) ^ c)", Expression.print(distributed));
+        assertEquals("((a + b) ^ c)",distributed.toString());
     }
 
     // ------------------------------------------------------------------
@@ -135,7 +115,7 @@ public class TestEquationPostTreatment1 {
     void chainedMultiplicationDistribution() {
         Expression expr = parse("(a+b)*c*d");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("(((a * c) * d) + ((b * c) * d))", Expression.print(distributed));
+        assertEquals("(((a * c) * d) + ((b * c) * d))", distributed.toString());
     }
 
     // ------------------------------------------------------------------
@@ -148,7 +128,7 @@ public class TestEquationPostTreatment1 {
     void additionOfDistributableTermsIsReconstructed() {
         Expression expr = parse("a*(b+c) + d");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("(((a * b) + (a * c)) + d)", Expression.print(distributed));
+        assertEquals("(((a * b) + (a * c)) + d)", distributed.toString());
     }
 
     // ------------------------------------------------------------------
@@ -157,9 +137,9 @@ public class TestEquationPostTreatment1 {
 
     @Test
     void distributionInsideUnaryOperator() {
-        Expression expr = parse("grad(a*(b+c))");
+        Expression expr = parse("(a*(b+c))^2");
         Expression distributed = ExpressionAlgebra.distribute(expr);
-        assertEquals("grad(((a * b) + (a * c)))", Expression.print(distributed));
+        assertEquals("(((a * b) + (a * c)) ^ 2.0)", distributed.toString());
     }
 
     // ------------------------------------------------------------------
@@ -190,6 +170,6 @@ public class TestEquationPostTreatment1 {
         Expression expr = parse("(a+b)*(c+d)");
         Expression once = ExpressionAlgebra.distribute(expr);
         Expression twice = ExpressionAlgebra.distribute(once);
-        assertEquals(Expression.print(once), Expression.print(twice));
+        assertEquals(once.toString(), twice.toString());
     }
 }

@@ -1,7 +1,5 @@
-package com.rae.formicapi.equation_parsing;
+package com.rae.formicapi.pde;
 
-import com.rae.formicapi.foundation.math.pde.Field;
-import com.rae.formicapi.foundation.math.pde.FieldType;
 import com.rae.formicapi.foundation.math.pde.SymbolBinding;
 import com.rae.formicapi.foundation.math.pde.SymbolRole;
 import com.rae.formicapi.foundation.math.pde.ast.BinaryExpression;
@@ -11,13 +9,11 @@ import com.rae.formicapi.foundation.math.pde.ast.ExpressionAlgebra;
 import com.rae.formicapi.foundation.math.pde.stencil.DiscretizedVariableExpression;
 import org.junit.jupiter.api.Test;
 
+import static com.rae.formicapi.pde.PDEUtil.variable;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestDiscretizedVariableExpression {
 
-    private static SymbolBinding variable(String name, SymbolRole role) {
-        return new SymbolBinding(new Field(name, FieldType.SCALAR), role);
-    }
 
     private static final SymbolBinding T = variable("T", SymbolRole.UNKNOWN);
 
@@ -27,33 +23,33 @@ public class TestDiscretizedVariableExpression {
 
     @Test
     void printsCentralNodeAsBareSymbolNameRegardlessOfDimension() {
-        assertEquals("T", Expression.print(DiscretizedVariableExpression.atCentralNode(T, 1)));
-        assertEquals("T", Expression.print(DiscretizedVariableExpression.atCentralNode(T, 2)));
-        assertEquals("T", Expression.print(DiscretizedVariableExpression.atCentralNode(T, 3)));
+        assertEquals("T[0]", DiscretizedVariableExpression.atCentralNode(T, 1).toString());
+        assertEquals("T[0,0]", DiscretizedVariableExpression.atCentralNode(T, 2).toString());
+        assertEquals("T[0,0,0]", DiscretizedVariableExpression.atCentralNode(T, 3).toString());
     }
 
     @Test
     void printsOneDimensionalOffset() {
         Expression e = DiscretizedVariableExpression.atCentralNode(T, 1).withSpatialOffset(1);
-        assertEquals("T[1]", Expression.print(e));
+        assertEquals("T[1]", e.toString());
     }
 
     @Test
     void printsTwoDimensionalOffset() {
         Expression e = DiscretizedVariableExpression.atCentralNode(T, 2).withSpatialOffset(1, -1);
-        assertEquals("T[1,-1]", Expression.print(e));
+        assertEquals("T[1,-1]", e.toString());
     }
 
     @Test
     void printsThreeDimensionalOffset() {
         Expression e = DiscretizedVariableExpression.atCentralNode(T, 3).withSpatialOffset(-1, 0, 0);
-        assertEquals("T[-1,0,0]", Expression.print(e));
+        assertEquals("T[-1,0,0]", e.toString());
     }
 
     @Test
     void printsCombinedSpatialAndTemporalOffset() {
         Expression e = DiscretizedVariableExpression.atCentralNode(T, 3, -1).withSpatialOffset(-1, 0, 0);
-        assertEquals("T[-1,0,0]{-1}", Expression.print(e));
+        assertEquals("T[-1,0,0]{-1}", e.toString());
     }
 
     // ------------------------------------------------------------------
@@ -113,7 +109,7 @@ public class TestDiscretizedVariableExpression {
         Expression b = new DiscretizedVariableExpression(T, new int[]{0, 0, 0}, 0);
         Expression sum = new BinaryExpression(BinaryOperators.ADD, a, b);
 
-        assertEquals("(2.0 * T)", Expression.print(ExpressionAlgebra.combineLikeTerms(sum)));
+        assertEquals("(2.0 * T[0,0,0])", ExpressionAlgebra.combineLikeTerms(sum).toString());
     }
 
     @Test
@@ -122,7 +118,7 @@ public class TestDiscretizedVariableExpression {
         Expression minus = DiscretizedVariableExpression.atCentralNode(T, 3).withSpatialOffset(-1, 0, 0);
         Expression sum = new BinaryExpression(BinaryOperators.ADD, plus, minus);
 
-        assertEquals("(T[1,0,0] + T[-1,0,0])", Expression.print(ExpressionAlgebra.combineLikeTerms(sum)));
+        assertEquals("(T[1,0,0] + T[-1,0,0])", ExpressionAlgebra.combineLikeTerms(sum).toString());
     }
 
     @Test

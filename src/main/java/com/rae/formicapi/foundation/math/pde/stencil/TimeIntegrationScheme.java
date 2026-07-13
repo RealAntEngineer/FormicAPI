@@ -16,15 +16,21 @@ public enum TimeIntegrationScheme {
 
     EXPLICIT {
         @Override
-        public double theta() { return 0.0; }
+        public double theta() {
+            return 0.0;
+        }
     },
     IMPLICIT {
         @Override
-        public double theta() { return 1.0; }
+        public double theta() {
+            return 1.0;
+        }
     },
     CRANK_NICOLSON {
         @Override
-        public double theta() { return 0.5; }
+        public double theta() {
+            return 0.5;
+        }
     };
 
     public abstract double theta();

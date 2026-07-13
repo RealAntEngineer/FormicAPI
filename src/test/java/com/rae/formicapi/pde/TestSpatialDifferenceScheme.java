@@ -1,4 +1,4 @@
-package com.rae.formicapi.equation_parsing;
+package com.rae.formicapi.pde;
 
 import com.rae.formicapi.foundation.math.pde.stencil.SpatialDifferenceScheme;
 import org.junit.jupiter.api.Test;

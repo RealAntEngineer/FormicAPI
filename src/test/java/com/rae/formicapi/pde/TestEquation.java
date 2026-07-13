@@ -1,16 +1,15 @@
-package com.rae.formicapi.equation_parsing;
+package com.rae.formicapi.pde;
 
 import com.rae.formicapi.foundation.math.pde.*;
 import com.rae.formicapi.foundation.math.pde.ast.*;
 import org.junit.jupiter.api.Test;
 
+import static com.rae.formicapi.pde.PDEUtil.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestEquation {
 
-    private static SymbolBinding variable(String name, SymbolRole role) {
-        return new SymbolBinding(new Field(name, FieldType.SCALAR), role);
-    }
+
 
     // ------------------------------------------------------------------
     // Real-world expression parsing

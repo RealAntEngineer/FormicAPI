@@ -1,4 +1,4 @@
-package com.rae.formicapi.equation_parsing;
+package com.rae.formicapi.pde;
 
 import com.rae.formicapi.foundation.math.pde.Field;
 import com.rae.formicapi.foundation.math.pde.FieldType;
@@ -10,47 +10,33 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static com.rae.formicapi.pde.PDEUtil.parse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestEquationPostTreatment3 {
 
-    private static SymbolBinding variable(String name, SymbolRole role) {
-        return new SymbolBinding(new Field(name, FieldType.SCALAR), role);
-    }
-
-    private static final Map<String, SymbolBinding> SYMBOLS = Map.of(
-            "a", variable("a", SymbolRole.COEFFICIENT),
-            "b", variable("b", SymbolRole.COEFFICIENT),
-            "k", variable("k", SymbolRole.COEFFICIENT),
-            "T", variable("T", SymbolRole.UNKNOWN)
-    );
-
-    private static Expression parse(String expression) {
-        return Expression.parseExpression(expression, SYMBOLS, 0);
-    }
-
     @Test
     void gradDistributesOverAddition() {
         Expression expr = parse("grad(a+b)");
-        assertEquals("(grad(a) + grad(b))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("(grad(a) + grad(b))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void divDistributesOverSubtraction() {
-        Expression expr = parse("div(a-b)");
-        assertEquals("(div(a) - div(b))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        Expression expr = parse("div(e1-e2)");
+        assertEquals("(div(e1) - div(e2))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void laplacianDistributesOverAddition() {
         Expression expr = parse("lap(a+b)");
-        assertEquals("(lap(a) + lap(b))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("(lap(a) + lap(b))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void divOfGradCollapsesToLaplacian() {
         Expression expr = parse("div(grad(T))");
-        assertEquals("lap(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("lap(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
@@ -58,25 +44,25 @@ public class TestEquationPostTreatment3 {
         // grad(a+b) distributes first, then div distributes over the sum,
         // then each div(grad(...)) term individually collapses to lap(...)
         Expression expr = parse("div(grad(a+b))");
-        assertEquals("(lap(a) + lap(b))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("(lap(a) + lap(b))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void gradientProductRuleBothNonConstant() {
         Expression expr = parse("grad(a*b)");
-        assertEquals("((grad(a) * b) + (a * grad(b)))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("((grad(a) * b) + (a * grad(b)))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void gradientOfConstantTimesFieldPullsConstantOut() {
         Expression expr = parse("grad(2*a)");
-        assertEquals("(2.0 * grad(a))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("(2.0 * grad(a))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void gradientOfConstantIsZero() {
         Expression expr = parse("grad(5)");
-        assertEquals("0.0", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("0.0", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
@@ -84,12 +70,12 @@ public class TestEquationPostTreatment3 {
         // div(k * grad(T)) is a recognized compound pattern (DiffusionTermMatcher) and
         // should NOT be torn apart by a div product rule we deliberately don't implement
         Expression expr = parse("div(k*grad(T))");
-        assertEquals("div((k * grad(T)))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("div((k * grad(T)))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void ddtDistributesOverAddition() {
         Expression expr = parse("ddt(a+b)");
-        assertEquals("(ddt(a) + ddt(b))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("(ddt(a) + ddt(b))", ExpressionAlgebra.distribute(expr).toString());
     }
 }

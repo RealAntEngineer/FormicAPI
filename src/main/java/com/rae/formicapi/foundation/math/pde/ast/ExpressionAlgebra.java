@@ -1,7 +1,9 @@
 package com.rae.formicapi.foundation.math.pde.ast;
 
+import com.rae.formicapi.foundation.math.pde.FieldType;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.*;
-import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -28,6 +30,9 @@ import java.util.stream.Collectors;
  * </pre>
  */
 public abstract class ExpressionAlgebra {
+
+    private static final List<UnaryOperators> AXIS_FIRST_DERIVATIVE  = List.of(UnaryOperators.DDX, UnaryOperators.DDY, UnaryOperators.DDZ);
+    private static final List<UnaryOperators> AXIS_SECOND_DERIVATIVE = List.of(UnaryOperators.D2DX2, UnaryOperators.D2DY2, UnaryOperators.D2DZ2);
 
     /**
      * Fully distributes multiplicative operators over additive operators.
@@ -92,7 +97,9 @@ public abstract class ExpressionAlgebra {
 
             // Linearity: op(a ± b) -> op(a) ± op(b)
             if (operator.isLinear()
-                    && distributedOperand instanceof BinaryExpression(BinaryOperators innerOp, Expression innerLeft, Expression innerRight)
+                    && distributedOperand instanceof BinaryExpression(
+                    BinaryOperators innerOp, Expression innerLeft, Expression innerRight
+            )
                     && (innerOp == BinaryOperators.ADD || innerOp == BinaryOperators.SUBTRACT)) {
 
                 return distribute(new BinaryExpression(innerOp,
@@ -102,7 +109,9 @@ public abstract class ExpressionAlgebra {
 
             // Composition identity: div(grad(x)) collapses into the second derivative, lap(x)
             if (operator == UnaryOperators.DIV
-                    && distributedOperand instanceof UnaryExpression(UnaryOperators innerOperator, Expression innerOperand)
+                    && distributedOperand instanceof UnaryExpression(
+                    UnaryOperators innerOperator, Expression innerOperand
+            )
                     && innerOperator == UnaryOperators.GRAD) {
 
                 return new UnaryExpression(UnaryOperators.LAPLACIAN, innerOperand);
@@ -112,7 +121,9 @@ public abstract class ExpressionAlgebra {
             // corresponding second-order axis operator, e.g. ddx(ddx(x)) -> d2dx2(x),
             // ddx(ddy(x)) -> d2dxdy(x) (order-independent: ddy(ddx(x)) collapses the same way)
             if (isAxisDerivative(operator)
-                    && distributedOperand instanceof UnaryExpression(UnaryOperators innerOperator, Expression innerOperand)
+                    && distributedOperand instanceof UnaryExpression(
+                    UnaryOperators innerOperator, Expression innerOperand
+            )
                     && isAxisDerivative(innerOperator)) {
 
                 Optional<UnaryOperators> composed = composeAxisDerivative(operator, innerOperator);
@@ -123,7 +134,9 @@ public abstract class ExpressionAlgebra {
 
             // Product rule: grad(a*b) -> (grad(a) * b) + (a * grad(b))
             if (operator == UnaryOperators.GRAD
-                    && distributedOperand instanceof BinaryExpression(BinaryOperators innerOp, Expression innerLeft, Expression innerRight)
+                    && distributedOperand instanceof BinaryExpression(
+                    BinaryOperators innerOp, Expression innerLeft, Expression innerRight
+            )
                     && innerOp == BinaryOperators.MULTIPLY) {
 
                 return distribute(gradientOfProduct(innerLeft, innerRight));
@@ -132,12 +145,262 @@ public abstract class ExpressionAlgebra {
             return new UnaryExpression(operator, distributedOperand);
         }
 
-        return expression; // ConstantExpression, VariableExpression, DiscretizedVariableExpression
+        return expression;
     }
+
+    /**
+     * distributes vector based operators
+     */
+    public static Expression distribute(Expression expression, int dimensions) {
+        Expression scalarDistributed = distribute(expression); // existing zero-arg pass: linearity, product rule, axis/composition identities
+        return lowerVectorAlgebra(scalarDistributed, dimensions);
+    }
+
+    private static Expression lowerVectorAlgebra(Expression expression, int dimensions) {
+
+        if (expression instanceof UnaryExpression(UnaryOperators op, Expression operand)) {
+
+            Expression lowered     = lowerVectorAlgebra(operand, dimensions);
+            FieldType  operandType = lowered.resultType();
+
+            if (op == UnaryOperators.GRAD && operandType == FieldType.SCALAR) {
+                return gradOfScalar(lowered, dimensions);
+            }
+            if (op == UnaryOperators.GRAD && operandType == FieldType.VECTOR) {
+                return gradOfVector(lowered, dimensions);
+            }
+            if (op == UnaryOperators.DIV && operandType == FieldType.VECTOR) {
+                return divOfVector(lowered, dimensions);
+            }
+            if (op == UnaryOperators.DIV && operandType == FieldType.TENSOR) {
+                return divOfTensor(lowered, dimensions);
+            }
+            if (op == UnaryOperators.LAPLACIAN && operandType == FieldType.SCALAR) {
+                return laplacianOfScalar(lowered, dimensions);
+            }
+            if (op == UnaryOperators.LAPLACIAN && operandType == FieldType.VECTOR) {
+                List<Expression> components = new ArrayList<>();
+                for (int i = 0; i < dimensions; i++) {
+                    components.add(laplacianOfScalar(componentOf(lowered, i), dimensions));
+                }
+                return new VectorExpression(components);
+            }
+
+            return new UnaryExpression(op, lowered);
+        }
+
+        if (expression instanceof BinaryExpression(BinaryOperators op, Expression left, Expression right)) {
+
+            Expression l = lowerVectorAlgebra(left, dimensions);
+            Expression r = lowerVectorAlgebra(right, dimensions);
+
+            if (op == BinaryOperators.DOT_PRODUCT) {
+                Expression sum = null;
+                for (int i = 0; i < dimensions; i++) {
+                    Expression product = mul(componentOf(l, i), componentOf(r, i));
+                    sum = (sum == null) ? product : new BinaryExpression(BinaryOperators.ADD, sum, product);
+                }
+                return sum;
+            }
+
+            if (op == BinaryOperators.CROSS_PRODUCT) {
+                if (dimensions != 3) {
+                    throw new UnsupportedOperationException("Cross product is only defined for 3 dimensions, got " + dimensions);
+                }
+                return new VectorExpression(List.of(
+                        sub(mul(componentOf(l, 1), componentOf(r, 2)), mul(componentOf(l, 2), componentOf(r, 1))),
+                        sub(mul(componentOf(l, 2), componentOf(r, 0)), mul(componentOf(l, 0), componentOf(r, 2))),
+                        sub(mul(componentOf(l, 0), componentOf(r, 1)), mul(componentOf(l, 1), componentOf(r, 0)))
+                ));
+            }
+
+            if (op == BinaryOperators.OUTER_PRODUCT) {
+                List<List<Expression>> rows = new ArrayList<>();
+                for (int i = 0; i < dimensions; i++) {
+                    List<Expression> row = new ArrayList<>();
+                    for (int j = 0; j < dimensions; j++) {
+                        row.add(mul(componentOf(l, i), componentOf(r, j)));
+                    }
+                    rows.add(row);
+                }
+                return new TensorExpression(rows);
+            }
+
+            // Scalar * Vector/Tensor (either side) and Vector/Tensor / Scalar:
+            // distribute into an explicit componentwise result rather than leaving
+            // an opaque compound node that componentOf() can't see through later.
+            if ((op == BinaryOperators.MULTIPLY || op == BinaryOperators.DIVIDE)
+                    && (l.resultType() != FieldType.SCALAR || r.resultType() != FieldType.SCALAR)) {
+                return lowerScalarVectorArithmetic(op, l, r, dimensions);
+            }
+
+            // Vector + Vector / Vector - Vector, Tensor +/- Tensor: componentwise.
+            if ((op == BinaryOperators.ADD || op == BinaryOperators.SUBTRACT)
+                    && l.resultType() == FieldType.VECTOR) {
+                List<Expression> components = new ArrayList<>();
+                for (int i = 0; i < dimensions; i++) {
+                    components.add(new BinaryExpression(op, componentOf(l, i), componentOf(r, i)));
+                }
+                return new VectorExpression(components);
+            }
+            if ((op == BinaryOperators.ADD || op == BinaryOperators.SUBTRACT)
+                    && l.resultType() == FieldType.TENSOR) {
+                List<List<Expression>> rows = new ArrayList<>();
+                for (int i = 0; i < dimensions; i++) {
+                    List<Expression> row = new ArrayList<>();
+                    for (int j = 0; j < dimensions; j++) {
+                        row.add(new BinaryExpression(op, componentOfTensor(l, i, j), componentOfTensor(r, i, j)));
+                    }
+                    rows.add(row);
+                }
+                return new TensorExpression(rows);
+            }
+
+            return new BinaryExpression(op, l, r);
+        }
+
+        return expression;
+    }
+
+    private static Expression lowerScalarVectorArithmetic(BinaryOperators op, Expression l, Expression r, int dimensions) {
+
+        boolean    leftIsScalar = l.resultType() == FieldType.SCALAR;
+        Expression scalar       = leftIsScalar ? l : r;
+        Expression vectorLike   = leftIsScalar ? r : l;
+        FieldType  vectorType   = vectorLike.resultType();
+
+        if (vectorType == FieldType.VECTOR) {
+            List<Expression> components = new ArrayList<>();
+            for (int i = 0; i < dimensions; i++) {
+                Expression component = componentOf(vectorLike, i);
+                components.add(leftIsScalar
+                        ? new BinaryExpression(op, scalar, component)
+                        : new BinaryExpression(op, component, scalar));
+            }
+            return new VectorExpression(components);
+        }
+
+        // TENSOR
+        List<List<Expression>> rows = new ArrayList<>();
+        for (int i = 0; i < dimensions; i++) {
+            List<Expression> row = new ArrayList<>();
+            for (int j = 0; j < dimensions; j++) {
+                Expression component = componentOfTensor(vectorLike, i, j);
+                row.add(leftIsScalar
+                        ? new BinaryExpression(op, scalar, component)
+                        : new BinaryExpression(op, component, scalar));
+            }
+            rows.add(row);
+        }
+        return new TensorExpression(rows);
+    }
+
+    private static Expression gradOfScalar(Expression scalar, int dimensions) {
+        List<Expression> components = new ArrayList<>();
+        for (int axis = 0; axis < dimensions; axis++) {
+            components.add(new UnaryExpression(AXIS_FIRST_DERIVATIVE.get(axis), scalar));
+        }
+        return new VectorExpression(components);
+    }
+
+    // Convention: grad(V)_ij = d(V_j)/d(axis_i) — row i is the i-th axis derivative of every component
+    private static Expression gradOfVector(Expression vector, int dimensions) {
+        List<List<Expression>> rows = new ArrayList<>();
+        for (int axis = 0; axis < dimensions; axis++) {
+            List<Expression> row = new ArrayList<>();
+            for (int component = 0; component < dimensions; component++) {
+                row.add(new UnaryExpression(AXIS_FIRST_DERIVATIVE.get(axis), componentOf(vector, component)));
+            }
+            rows.add(row);
+        }
+        return new TensorExpression(rows);
+    }
+
+    private static Expression divOfVector(Expression vector, int dimensions) {
+        Expression sum = null;
+        for (int axis = 0; axis < dimensions; axis++) {
+            Expression term = new UnaryExpression(AXIS_FIRST_DERIVATIVE.get(axis), componentOf(vector, axis));
+            sum = (sum == null) ? term : new BinaryExpression(BinaryOperators.ADD, sum, term);
+        }
+        return sum;
+    }
+
+    // Convention: div(T)_i = sum_j d(T_ij)/d(axis_j) — contracts the second (column) index
+    private static Expression divOfTensor(Expression tensor, int dimensions) {
+        List<Expression> components = new ArrayList<>();
+        for (int row = 0; row < dimensions; row++) {
+            Expression sum = null;
+            for (int col = 0; col < dimensions; col++) {
+                Expression term = new UnaryExpression(AXIS_FIRST_DERIVATIVE.get(col), componentOfTensor(tensor, row, col));
+                sum = (sum == null) ? term : new BinaryExpression(BinaryOperators.ADD, sum, term);
+            }
+            components.add(sum);
+        }
+        return new VectorExpression(components);
+    }
+
+    private static @Nullable Expression laplacianOfScalar(Expression scalar, int dimensions) {
+        Expression sum = null;
+        for (int axis = 0; axis < dimensions; axis++) {
+            Expression term = new UnaryExpression(AXIS_SECOND_DERIVATIVE.get(axis), scalar);
+            sum = (sum == null) ? term : new BinaryExpression(BinaryOperators.ADD, sum, term);
+        }
+        return sum;
+    }
+
+    private static Expression componentOf(Expression vectorLike, int axis) {
+        FieldType type = vectorLike.resultType();
+        if (type != FieldType.VECTOR) {
+            throw new FieldType.TypeMismatchException(
+                    "componentOf() requires a VECTOR expression, got " + type + " for: " + vectorLike);
+        }
+        if (vectorLike instanceof VectorExpression ve) {
+            return ve.component(axis);
+        }
+        return ComponentExpression.ofVector(vectorLike, axis);
+    }
+    /** Extracts value at row `row` and column 'col' of a TENSOR-valued expression as a SCALAR-valued expression. */
+    private static Expression componentOfTensor(Expression tensorLike, int row, int col) {
+        FieldType type = tensorLike.resultType();
+        if (type != FieldType.TENSOR) {
+            throw new FieldType.TypeMismatchException(
+                    "componentOfTensor() requires a TENSOR expression, got " + type + " for: " + tensorLike);
+        }
+        if (tensorLike instanceof TensorExpression te) {
+            return te.component(row, col);
+        }
+        return ComponentExpression.ofTensor(tensorLike, row, col);
+    }
+
+    /** Extracts row `row` of a TENSOR-valued expression as a VECTOR-valued expression. */
+    private static Expression rowOf(Expression tensorLike, int row, int dimensions) {
+        FieldType type = tensorLike.resultType();
+        if (type != FieldType.TENSOR) {
+            throw new FieldType.TypeMismatchException(
+                    "rowOf() requires a TENSOR expression, got " + type + " for: " +tensorLike);
+        }
+        if (tensorLike instanceof TensorExpression te) {
+            List<Expression> components = new ArrayList<>();
+            for (int col = 0; col < dimensions; col++) {
+                components.add(te.component(row, col));
+            }
+            return new VectorExpression(components);
+        }
+        return ComponentExpression.rowOfTensor(tensorLike, row);
+    }
+
+    private static Expression mul(Expression a, Expression b) {
+        return new BinaryExpression(BinaryOperators.MULTIPLY, a, b);
+    }
+
+    private static Expression sub(Expression a, Expression b) {
+        return new BinaryExpression(BinaryOperators.SUBTRACT, a, b);
+    }
+
 
     private static Expression gradientOfProduct(Expression left, Expression right) {
 
-        boolean leftIsConstant = left instanceof ConstantExpression;
+        boolean leftIsConstant  = left instanceof ConstantExpression;
         boolean rightIsConstant = right instanceof ConstantExpression;
 
         if (leftIsConstant && rightIsConstant) {
@@ -184,9 +447,9 @@ public abstract class ExpressionAlgebra {
      * a - b + c -> [a, -b, c]
      * </pre>
      *
-     * @param expression expression to flatten
+     * @param expression  expression to flatten
      * @param coefficient accumulated sign/coefficient from parent subtraction
-     * @param out destination list of terms
+     * @param out         destination list of terms
      */
     private static void flattenTerms(Expression expression,
                                      double coefficient,
@@ -213,6 +476,7 @@ public abstract class ExpressionAlgebra {
                 coefficient * term.coefficient(),
                 term.factors()));
     }
+
     /**
      * Flattens a multiplication tree into a coefficient and a list of factors.
      *
@@ -251,7 +515,7 @@ public abstract class ExpressionAlgebra {
     }
 
     private static String factorSignature(List<Expression> factors) {
-        return factors.stream().map(Expression::print).sorted().collect(Collectors.joining("*"));
+        return factors.stream().map(Expression::toString).sorted().collect(Collectors.joining("*"));
     }
 
     private static Expression termToExpression(Term term) {
@@ -281,7 +545,7 @@ public abstract class ExpressionAlgebra {
      * coefficients. A recursive transformation can be applied to each factor
      * before grouping.
      *
-     * @param expression expression containing additive terms
+     * @param expression         expression containing additive terms
      * @param recursiveTransform transformation applied recursively to factors
      * @return normalized list of non-zero terms
      */
@@ -388,11 +652,11 @@ public abstract class ExpressionAlgebra {
             }
 
             for (Expression candidate : terms.getFirst().factors()) {
-                String candidateKey = Expression.print(candidate);
+                String candidateKey = candidate.toString();
 
                 boolean sharedByAll = terms.stream()
                         .allMatch(t -> t.factors().stream()
-                                .anyMatch(f -> Expression.print(f).equals(candidateKey)));
+                                .anyMatch(f -> f.toString().equals(candidateKey)));
 
                 if (sharedByAll) {
                     List<Term> remainders = terms.stream()
@@ -432,7 +696,7 @@ public abstract class ExpressionAlgebra {
     private static void removeFirstMatching(List<Expression> factors, String key) {
         Iterator<Expression> it = factors.iterator();
         while (it.hasNext()) {
-            if (Expression.print(it.next()).equals(key)) {
+            if (it.next().toString().equals(key)) {
                 it.remove();
                 return;
             }

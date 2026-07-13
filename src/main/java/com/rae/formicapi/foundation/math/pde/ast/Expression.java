@@ -1,61 +1,16 @@
 package com.rae.formicapi.foundation.math.pde.ast;
 
+import com.rae.formicapi.foundation.math.pde.FieldType;
 import com.rae.formicapi.foundation.math.pde.SymbolBinding;
-import com.rae.formicapi.foundation.math.pde.stencil.DiscretizedVariableExpression;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public interface Expression {
 
     int MAX_DEPTH = 100;
-
-    static String print(
-            Expression expression) {
-
-        String result;
-
-        switch (expression) {
-            case ConstantExpression(double value) -> result = Double.toString(value);
-
-            case VariableExpression(SymbolBinding binding) -> result = binding.field().name();
-
-            case UnaryExpression(UnaryOperators operator, Expression child) ->
-                    result = operator.representation() + "(" + print(child) + ")";
-
-            case BinaryExpression(BinaryOperators operator, Expression left1, Expression right1) -> {
-
-                String left = print(left1);
-
-                String right = print(right1);
-
-                result = "(" + left + " " + operator.representation + " " + right + ")";
-            }
-
-            case DiscretizedVariableExpression dve -> {
-                    StringBuilder sb = new StringBuilder(dve.name().field().name());
-                    if (!dve.isCentral()) {
-                        sb.append('[').append(
-                                Arrays.stream(dve.spatialOffset())
-                                        .mapToObj(Integer::toString)
-                                        .collect(Collectors.joining(","))
-                        ).append(']');
-                    }
-                    if (dve.dt() != 0) {
-                        sb.append('{').append(dve.dt() > 0 ? "+" : "").append(dve.dt()).append('}');
-                    }
-                    if (dve.component() != 0) {
-                        sb.append('.').append(dve.component());
-                    }
-                    result = sb.toString();
-
-            }
-            default -> throw new RuntimeException("Unknown expression type " + expression.getClass()
-            );
-        }
-
-        return result;
-    }
 
     static Expression parseExpression(String text, Map<String, SymbolBinding> symbols, int depth) {
 
@@ -76,12 +31,12 @@ public interface Expression {
 
             if (remaining.startsWith("(")) {
                 String[] splited = groupByParenthesis(remaining);
-                operand = parseExpression(splited[0], symbols,depth + 1);
+                operand = parseExpression(splited[0], symbols, depth + 1);
                 remaining = splited[1];
 
             } else {
                 String identifier = remaining;
-                String rest = "";
+                String rest       = "";
 
                 for (int i = 0; i < remaining.length(); i++) {
                     char c = remaining.charAt(i);
@@ -113,7 +68,7 @@ public interface Expression {
                     Optional<UnaryOperators> optionalUnary = UnaryOperators.parse(identifier);
                     if (optionalUnary.isPresent()) {
                         String[] splited = groupByParenthesis(rest);
-                        operand = new UnaryExpression(optionalUnary.get(), parseExpression(splited[0], symbols,depth + 1));
+                        operand = new UnaryExpression(optionalUnary.get(), parseExpression(splited[0], symbols, depth + 1));
                         rest = splited[1];
                     } else {
                         throw new RuntimeException("Unable to parse identifier : " + identifier);
@@ -125,8 +80,8 @@ public interface Expression {
             // implicit multiplication: operand directly followed by '(' , e.g. "2(3+4)"
             remaining = remaining.trim();
             while (remaining.startsWith("(")) {
-                String[] splited = groupByParenthesis(remaining);
-                Expression right = parseExpression(splited[0], symbols,depth + 1);
+                String[]   splited = groupByParenthesis(remaining);
+                Expression right   = parseExpression(splited[0], symbols, depth + 1);
                 operand = new BinaryExpression(BinaryOperators.MULTIPLY, operand, right);
                 remaining = splited[1].trim();
             }
@@ -228,6 +183,50 @@ public interface Expression {
         throw new RuntimeException("Unmatched parenthesis");
     }
 
+    /*static String print(
+            Expression expression) {
+
+        String result;
+
+        switch (expression) {
+            case ConstantExpression(double value) -> result = Double.toString(value);
+
+            case VariableExpression(SymbolBinding binding) -> result = binding.field().name();
+
+            case UnaryExpression(UnaryOperators operator, Expression child) ->
+                    result = operator.representation() + "(" + print(child) + ")";
+
+            case BinaryExpression(BinaryOperators operator, Expression left1, Expression right1) -> {
+
+                String left = print(left1);
+
+                String right = print(right1);
+
+                result = "(" + left + " " + operator.representation + " " + right + ")";
+            }
+
+            case DiscretizedVariableExpression dve -> {
+                    StringBuilder sb = new StringBuilder(dve.name().field().name());
+                    if (!dve.isCentral()) {
+                        sb.append('[').append(
+                                Arrays.stream(dve.spatialOffset())
+                                        .mapToObj(Integer::toString)
+                                        .collect(Collectors.joining(","))
+                        ).append(']');
+                    }
+                    if (dve.dt() != 0) {
+                        sb.append('{').append(dve.dt() > 0 ? "+" : "").append(dve.dt()).append('}');
+                    }
+                    result = sb.toString();
+
+            }
+            default -> throw new RuntimeException("Unknown expression type " + expression.getClass()
+            );
+        }
+
+        return result;
+    }*/
+
     private static boolean isRightAssociativeLevel(List<BinaryOperators> operators, int priority) {
         for (BinaryOperators op : operators) {
             if (op.priority == priority) {
@@ -236,4 +235,10 @@ public interface Expression {
         }
         return false; // doesn't matter, no operator at this level
     }
+
+    FieldType resultType();
+
+    String prettyPrint();
+
+    String debugPrint();
 }

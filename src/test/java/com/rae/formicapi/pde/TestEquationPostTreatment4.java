@@ -1,4 +1,4 @@
-package com.rae.formicapi.equation_parsing;
+package com.rae.formicapi.pde;
 
 import com.rae.formicapi.foundation.math.pde.Field;
 import com.rae.formicapi.foundation.math.pde.FieldType;
@@ -10,77 +10,66 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static com.rae.formicapi.pde.PDEUtil.parse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestEquationPostTreatment4 {
 
-    private static SymbolBinding variable(String name, SymbolRole role) {
-        return new SymbolBinding(new Field(name, FieldType.SCALAR), role);
-    }
-
-    private static final Map<String, SymbolBinding> SYMBOLS = Map.of(
-            "T", variable("T", SymbolRole.UNKNOWN)
-    );
-
-    private static Expression parse(String expression) {
-        return Expression.parseExpression(expression, SYMBOLS, 0);
-    }
-
     @Test
     void sameAxisSecondDerivativeCollapses() {
         Expression expr = parse("ddx(ddx(T))");
-        assertEquals("d2dx2(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("d2dx2(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void yAxisSecondDerivativeCollapses() {
         Expression expr = parse("ddy(ddy(T))");
-        assertEquals("d2dy2(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("d2dy2(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void zAxisSecondDerivativeCollapses() {
         Expression expr = parse("ddz(ddz(T))");
-        assertEquals("d2dz2(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("d2dz2(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void mixedPartialXyCollapses() {
         Expression expr = parse("ddx(ddy(T))");
-        assertEquals("d2dxdy(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("d2dxdy(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void mixedPartialCollapsesRegardlessOfOrder() {
         // ddy(ddx(T)) should collapse the same way as ddx(ddy(T)) — mixed partials commute
         Expression expr = parse("ddy(ddx(T))");
-        assertEquals("d2dxdy(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("d2dxdy(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void mixedPartialXzCollapses() {
         Expression expr = parse("ddx(ddz(T))");
-        assertEquals("d2dxdz(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("d2dxdz(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void mixedPartialYzCollapses() {
         Expression expr = parse("ddz(ddy(T))");
-        assertEquals("d2dydz(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("d2dydz(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void divOfGradStillCollapsesToLaplacianNotAxisDerivative() {
         // sanity check the two composition rules don't interfere with each other
         Expression expr = parse("div(grad(T))");
-        assertEquals("lap(T)", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("lap(T)", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
     void ddtDoesNotCollapseWithAxisDerivative() {
         // ddt is not an axis derivative; nesting it with ddx should NOT collapse into anything
         Expression expr = parse("ddx(ddt(T))");
-        assertEquals("ddx(ddt(T))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("ddx(ddt(T))", ExpressionAlgebra.distribute(expr).toString());
     }
 
     @Test
@@ -89,6 +78,6 @@ public class TestEquationPostTreatment4 {
         Expression expr = parse("ddx(ddx(T)+ddx(T))");
         // NOTE: this combines two identical ddx(ddx(T)) terms via ADD; distribute() alone
         // does not run combineLikeTerms, so both collapse individually but stay summed
-        assertEquals("(d2dx2(T) + d2dx2(T))", Expression.print(ExpressionAlgebra.distribute(expr)));
+        assertEquals("(d2dx2(T) + d2dx2(T))", ExpressionAlgebra.distribute(expr).toString());
     }
 }

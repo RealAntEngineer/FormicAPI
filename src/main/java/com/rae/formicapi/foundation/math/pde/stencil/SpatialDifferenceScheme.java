@@ -26,7 +26,8 @@ public enum SpatialDifferenceScheme {
             return switch (order) {
                 case 1 -> List.of(new StencilPoint(-1, -0.5), new StencilPoint(1, 0.5));
                 case 2 -> List.of(new StencilPoint(-1, 1.0), new StencilPoint(0, -2.0), new StencilPoint(1, 1.0));
-                default -> throw new UnsupportedOperationException("CENTRAL scheme does not support derivative order " + order);
+                default ->
+                        throw new UnsupportedOperationException("CENTRAL scheme does not support derivative order " + order);
             };
         }
     },
@@ -37,7 +38,8 @@ public enum SpatialDifferenceScheme {
             return switch (order) {
                 case 1 -> List.of(new StencilPoint(0, -1.0), new StencilPoint(1, 1.0));
                 case 2 -> List.of(new StencilPoint(0, 1.0), new StencilPoint(1, -2.0), new StencilPoint(2, 1.0));
-                default -> throw new UnsupportedOperationException("FORWARD scheme does not support derivative order " + order);
+                default ->
+                        throw new UnsupportedOperationException("FORWARD scheme does not support derivative order " + order);
             };
         }
     },
@@ -48,7 +50,8 @@ public enum SpatialDifferenceScheme {
             return switch (order) {
                 case 1 -> List.of(new StencilPoint(-1, -1.0), new StencilPoint(0, 1.0));
                 case 2 -> List.of(new StencilPoint(-2, 1.0), new StencilPoint(-1, -2.0), new StencilPoint(0, 1.0));
-                default -> throw new UnsupportedOperationException("BACKWARD scheme does not support derivative order " + order);
+                default ->
+                        throw new UnsupportedOperationException("BACKWARD scheme does not support derivative order " + order);
             };
         }
     };
@@ -62,5 +65,6 @@ public enum SpatialDifferenceScheme {
      */
     public abstract List<StencilPoint> stencil(int order);
 
-    public record StencilPoint(int offset, double weight) {}
+    public record StencilPoint(int offset, double weight) {
+    }
 }

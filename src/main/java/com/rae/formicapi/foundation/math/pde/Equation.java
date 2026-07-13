@@ -1,9 +1,11 @@
 package com.rae.formicapi.foundation.math.pde;
 
 
-import com.rae.formicapi.foundation.math.pde.ast.*;
+import com.rae.formicapi.foundation.math.pde.ast.Expression;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class Equation {
 
@@ -27,12 +29,11 @@ public final class Equation {
             throw new RuntimeException("Failed to parse equation, wrong number of equality : "
                     + split.length + " for string" + expression);
 
-        left = Expression.parseExpression(split[0], symbols,0);
+        left = Expression.parseExpression(split[0], symbols, 0);
         right = Expression.parseExpression(split[1], symbols, 0);
     }
 
     //split the text in 2 so that the
-
 
 
     public Expression getLeft() {
@@ -45,8 +46,8 @@ public final class Equation {
 
     @Override
     public String toString() {
-        return "Equation{" +Expression.print(left) +
-                " = " + Expression.print(right) +
+        return "Equation{" + left +
+                " = " + right +
                 ", symbols=" + Arrays.toString(symbols.values().toArray()) +
                 '}';
     }

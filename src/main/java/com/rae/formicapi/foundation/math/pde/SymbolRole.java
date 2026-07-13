@@ -5,7 +5,7 @@ public enum SymbolRole {
     /**
      * Variable being solved (x).
      */
-    UNKNOWN,
+    UNKNOWN(true, true),
 
     /**
      * Used to compute entries of A.
@@ -17,10 +17,26 @@ public enum SymbolRole {
      * Typically another field or the previous
      * nonlinear iteration.
      */
-    EVALUATED_FIELD,
+    EVALUATED_FIELD(true),
 
     /**
      * Compile-time constant.
      */
-    CONSTANT
+    CONSTANT;
+
+    final boolean timeDifferentiable;
+    final boolean spaceDifferentiable;
+
+    SymbolRole() {
+        this(false, false);
+    }
+
+    SymbolRole(boolean timeDif, boolean spaceDif) {
+        this.timeDifferentiable = timeDif;
+        this.spaceDifferentiable = spaceDif;
+    }
+
+    SymbolRole(boolean spaceDif) {
+        this(false, spaceDif);
+    }
 }

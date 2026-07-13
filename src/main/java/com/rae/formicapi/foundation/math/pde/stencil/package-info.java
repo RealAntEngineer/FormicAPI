@@ -1,6 +1,6 @@
 @ParametersAreNonnullByDefault
 @NonnullDefault
-package com.rae.formicapi.foundation.math.pde;
+package com.rae.formicapi.foundation.math.pde.stencil;
 
 import org.lwjgl.system.NonnullDefault;
 
