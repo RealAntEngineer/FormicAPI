@@ -1,4 +1,4 @@
-package com.rae.formicapi.foundation.math;
+package com.rae.formicapi.foundation.math.solvers;
 
 import java.util.function.Function;
 

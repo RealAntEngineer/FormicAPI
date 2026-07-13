@@ -1,9 +1,7 @@
 package com.rae.formicapi.foundation.math.pde.ast;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
+import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -84,10 +82,96 @@ public abstract class ExpressionAlgebra {
         }
 
         if (expression instanceof UnaryExpression(UnaryOperators operator, Expression operand)) {
-            return new UnaryExpression(operator, distribute(operand));
+
+            Expression distributedOperand = distribute(operand);
+
+            // Derivative of a compile-time constant is zero, in space or time
+            if (operator.isLinear() && distributedOperand instanceof ConstantExpression) {
+                return new ConstantExpression(0.0);
+            }
+
+            // Linearity: op(a ± b) -> op(a) ± op(b)
+            if (operator.isLinear()
+                    && distributedOperand instanceof BinaryExpression(BinaryOperators innerOp, Expression innerLeft, Expression innerRight)
+                    && (innerOp == BinaryOperators.ADD || innerOp == BinaryOperators.SUBTRACT)) {
+
+                return distribute(new BinaryExpression(innerOp,
+                        new UnaryExpression(operator, innerLeft),
+                        new UnaryExpression(operator, innerRight)));
+            }
+
+            // Composition identity: div(grad(x)) collapses into the second derivative, lap(x)
+            if (operator == UnaryOperators.DIV
+                    && distributedOperand instanceof UnaryExpression(UnaryOperators innerOperator, Expression innerOperand)
+                    && innerOperator == UnaryOperators.GRAD) {
+
+                return new UnaryExpression(UnaryOperators.LAPLACIAN, innerOperand);
+            }
+
+            // Composition identity: nested single-axis derivatives collapse into the
+            // corresponding second-order axis operator, e.g. ddx(ddx(x)) -> d2dx2(x),
+            // ddx(ddy(x)) -> d2dxdy(x) (order-independent: ddy(ddx(x)) collapses the same way)
+            if (isAxisDerivative(operator)
+                    && distributedOperand instanceof UnaryExpression(UnaryOperators innerOperator, Expression innerOperand)
+                    && isAxisDerivative(innerOperator)) {
+
+                Optional<UnaryOperators> composed = composeAxisDerivative(operator, innerOperator);
+                if (composed.isPresent()) {
+                    return new UnaryExpression(composed.get(), innerOperand);
+                }
+            }
+
+            // Product rule: grad(a*b) -> (grad(a) * b) + (a * grad(b))
+            if (operator == UnaryOperators.GRAD
+                    && distributedOperand instanceof BinaryExpression(BinaryOperators innerOp, Expression innerLeft, Expression innerRight)
+                    && innerOp == BinaryOperators.MULTIPLY) {
+
+                return distribute(gradientOfProduct(innerLeft, innerRight));
+            }
+
+            return new UnaryExpression(operator, distributedOperand);
         }
 
         return expression; // ConstantExpression, VariableExpression, DiscretizedVariableExpression
+    }
+
+    private static Expression gradientOfProduct(Expression left, Expression right) {
+
+        boolean leftIsConstant = left instanceof ConstantExpression;
+        boolean rightIsConstant = right instanceof ConstantExpression;
+
+        if (leftIsConstant && rightIsConstant) {
+            return new ConstantExpression(0.0);
+        }
+        if (leftIsConstant) {
+            return new BinaryExpression(BinaryOperators.MULTIPLY, left, new UnaryExpression(UnaryOperators.GRAD, right));
+        }
+        if (rightIsConstant) {
+            return new BinaryExpression(BinaryOperators.MULTIPLY, right, new UnaryExpression(UnaryOperators.GRAD, left));
+        }
+        return new BinaryExpression(BinaryOperators.ADD,
+                new BinaryExpression(BinaryOperators.MULTIPLY, new UnaryExpression(UnaryOperators.GRAD, left), right),
+                new BinaryExpression(BinaryOperators.MULTIPLY, left, new UnaryExpression(UnaryOperators.GRAD, right)));
+    }
+
+    private static boolean isAxisDerivative(UnaryOperators operator) {
+        return operator == UnaryOperators.DDX || operator == UnaryOperators.DDY || operator == UnaryOperators.DDZ;
+    }
+
+    private static Optional<UnaryOperators> composeAxisDerivative(UnaryOperators outer, UnaryOperators inner) {
+        if (outer == UnaryOperators.DDX && inner == UnaryOperators.DDX) return Optional.of(UnaryOperators.D2DX2);
+        if (outer == UnaryOperators.DDY && inner == UnaryOperators.DDY) return Optional.of(UnaryOperators.D2DY2);
+        if (outer == UnaryOperators.DDZ && inner == UnaryOperators.DDZ) return Optional.of(UnaryOperators.D2DZ2);
+
+        if (isPair(outer, inner, UnaryOperators.DDX, UnaryOperators.DDY)) return Optional.of(UnaryOperators.D2DXDY);
+        if (isPair(outer, inner, UnaryOperators.DDX, UnaryOperators.DDZ)) return Optional.of(UnaryOperators.D2DXDZ);
+        if (isPair(outer, inner, UnaryOperators.DDY, UnaryOperators.DDZ)) return Optional.of(UnaryOperators.D2DYDZ);
+
+        return Optional.empty();
+    }
+
+    private static boolean isPair(UnaryOperators a, UnaryOperators b, UnaryOperators x, UnaryOperators y) {
+        return (a == x && b == y) || (a == y && b == x);
     }
 
     /**

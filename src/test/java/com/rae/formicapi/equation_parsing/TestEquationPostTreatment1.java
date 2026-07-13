@@ -1,4 +1,4 @@
-package com.rae.formicapi;
+package com.rae.formicapi.equation_parsing;
 
 import com.rae.formicapi.foundation.math.pde.Field;
 import com.rae.formicapi.foundation.math.pde.FieldType;

@@ -1,11 +1,10 @@
 package com.rae.formicapi.foundation.math.pde.ast;
 
 import com.rae.formicapi.foundation.math.pde.SymbolBinding;
+import com.rae.formicapi.foundation.math.pde.stencil.DiscretizedVariableExpression;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public interface Expression {
 
@@ -31,6 +30,25 @@ public interface Expression {
                 String right = print(right1);
 
                 result = "(" + left + " " + operator.representation + " " + right + ")";
+            }
+
+            case DiscretizedVariableExpression dve -> {
+                    StringBuilder sb = new StringBuilder(dve.name().field().name());
+                    if (!dve.isCentral()) {
+                        sb.append('[').append(
+                                Arrays.stream(dve.spatialOffset())
+                                        .mapToObj(Integer::toString)
+                                        .collect(Collectors.joining(","))
+                        ).append(']');
+                    }
+                    if (dve.dt() != 0) {
+                        sb.append('{').append(dve.dt() > 0 ? "+" : "").append(dve.dt()).append('}');
+                    }
+                    if (dve.component() != 0) {
+                        sb.append('.').append(dve.component());
+                    }
+                    result = sb.toString();
+
             }
             default -> throw new RuntimeException("Unknown expression type " + expression.getClass()
             );
