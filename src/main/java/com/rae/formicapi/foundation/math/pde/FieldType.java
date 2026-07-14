@@ -4,7 +4,7 @@ public enum FieldType {
 
     SCALAR,
     VECTOR,
-    TENSOR;
+    MATRIX;
 
     public static class TypeMismatchException extends RuntimeException {
         public TypeMismatchException(String message) {

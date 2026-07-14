@@ -7,184 +7,55 @@ import java.util.Optional;
 public enum UnaryOperators {
 
     NEGATE("-") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
     },
-    GRAD("grad") {
+    GRAD("grad", false, true) {
         @Override
         public FieldType resultType(FieldType operand) {
             return switch (operand) {
                 case SCALAR -> FieldType.VECTOR;
-                case VECTOR -> FieldType.TENSOR;
-                case TENSOR -> throw new FieldType.TypeMismatchException("grad() is not defined for TENSOR fields");
+                case VECTOR -> FieldType.MATRIX;
+                case MATRIX -> throw new FieldType.TypeMismatchException("grad() is not defined for TENSOR fields");
             };
         }
 
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
     },
-    DIV("div") {
+    DIV("div", false, true) {
         @Override
         public FieldType resultType(FieldType operand) {
             return switch (operand) {
                 case VECTOR -> FieldType.SCALAR;
-                case TENSOR -> FieldType.VECTOR;
+                case MATRIX -> FieldType.VECTOR;
                 case SCALAR ->
                         throw new FieldType.TypeMismatchException("div() requires a VECTOR or TENSOR field, got SCALAR");
             };
         }
 
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
     },
-    LAPLACIAN("lap") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    DDT("ddt") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    D2DT("d2dt2") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    DDX("ddx") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    D2DX2("d2dx2") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    DDY("ddy") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    D2DY2("d2dy2") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    DDZ("ddz") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    D2DZ2("d2dz2") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    D2DXDY("d2dxdy") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    D2DXDZ("d2dxdz") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    },
-    D2DYDZ("d2dydz") {
-        @Override
-        public FieldType resultType(FieldType operand) {
-            return operand;
-        }
-
-        @Override
-        public boolean isLinear() {
-            return true;
-        }
-    };
+    LAPLACIAN("lap", false, true),
+    DDT("ddt", true, false),
+    D2DT("d2dt2", true, false),
+    DDX("ddx", false, true),
+    D2DX2("d2dx2", false, true),
+    DDY("ddy", false, true),
+    D2DY2("d2dy2", false, true),
+    DDZ("ddz", false, true),
+    D2DZ2("d2dz2", false, true),
+    D2DXDY("d2dxdy", false, true),
+    D2DXDZ("d2dxdz", false, true) ,
+    D2DYDZ("d2dydz", false, true);
 
     private final String representation;
+    private final boolean appliesTimeDifferentiation;
+    private final boolean appliesSpaceDifferentiation;
+
+    UnaryOperators(String representation, boolean appliesTimeDifferentiation, boolean appliesSpaceDifferentiation) {
+        this.representation = representation;
+        this.appliesTimeDifferentiation = appliesTimeDifferentiation;
+        this.appliesSpaceDifferentiation = appliesSpaceDifferentiation;
+    }
 
     UnaryOperators(String representation) {
-        this.representation = representation;
+        this(representation, false, false);
     }
 
     public static Optional<UnaryOperators> parse(String value) {
@@ -198,10 +69,23 @@ public enum UnaryOperators {
         return representation;
     }
 
-    public abstract FieldType resultType(FieldType operand);
+    public boolean appliesTimeDifferentiation() {
+        return appliesTimeDifferentiation;
+    }
+
+    public boolean appliesSpaceDifferentiation() {
+        return appliesSpaceDifferentiation;
+    }
+
+
+    public FieldType resultType(FieldType operand){
+        return operand;
+    }
 
     /**
      * Whether this operator distributes over addition/subtraction: op(a+b) = op(a) + op(b).
      */
-    public abstract boolean isLinear();
+    public boolean isLinear(){
+        return true;
+    }
 }

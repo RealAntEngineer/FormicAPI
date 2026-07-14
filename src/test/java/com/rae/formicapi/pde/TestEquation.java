@@ -56,6 +56,28 @@ public class TestEquation {
         assertEquals(expectedRight, eq.getRight());
     }
 
+    @Test
+    void testParsingDiffusionEquation2() {
+
+        SymbolBinding k   = variable("k", SymbolRole.COEFFICIENT);
+        SymbolBinding res = variable("res", SymbolRole.COEFFICIENT);
+        SymbolBinding td  = variable("Td", SymbolRole.COEFFICIENT);
+        SymbolBinding V   = vector("V", SymbolRole.UNKNOWN);
+
+        Equation eq = new Equation(
+                "grad(div(V))  = 0",
+                k, res, td, V
+        );
+
+        Expression leftDistributed = VectorAlgebra.distribute(eq.getLeft(), 3);
+
+        System.out.println(leftDistributed.prettyPrint());
+
+        Expression leftSimplified = VectorAlgebra.distribute(leftDistributed, 3);
+
+        System.out.println(leftSimplified.prettyPrint());
+    }
+
     // ------------------------------------------------------------------
     // Operator precedence
     // ------------------------------------------------------------------

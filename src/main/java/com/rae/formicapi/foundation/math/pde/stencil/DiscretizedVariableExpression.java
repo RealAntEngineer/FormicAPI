@@ -1,9 +1,9 @@
 package com.rae.formicapi.foundation.math.pde.stencil;
 
+import com.rae.formicapi.foundation.math.pde.ScalarAlgebra;
 import com.rae.formicapi.foundation.math.pde.FieldType;
 import com.rae.formicapi.foundation.math.pde.SymbolBinding;
 import com.rae.formicapi.foundation.math.pde.ast.Expression;
-import com.rae.formicapi.foundation.math.pde.ast.ExpressionAlgebra;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
  * <p>{@code equals}/{@code hashCode} are overridden by hand because records
  * do not generate structural comparisons for array components — the default
  * would compare {@code spatialOffset} by reference, silently breaking
- * {@link ExpressionAlgebra}'s term-grouping (two independently built
+ * {@link ScalarAlgebra}'s term-grouping (two independently built
  * references to the same offset would never merge).
  */
 public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOffset, int dt) implements Expression {
@@ -156,5 +156,15 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
         }
 
         return result;
+    }
+
+    @Override
+    public boolean isTimeDifferentiable() {
+        return false;//discretization already applied no ?
+    }
+
+    @Override
+    public boolean isSpaceDifferentiable() {
+        return false;
     }
 }

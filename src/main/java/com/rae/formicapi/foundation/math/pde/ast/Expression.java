@@ -8,11 +8,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public interface Expression {
+public abstract class Expression {
 
-    int MAX_DEPTH = 100;
+    public static final int MAX_DEPTH = 100;
+    private final       int dimensions;
 
-    static Expression parseExpression(String text, Map<String, SymbolBinding> symbols, int depth) {
+    Expression(int dimensions) {
+        this.dimensions = dimensions;
+    }
+
+    public static Expression parseExpression(String text, Map<String, SymbolBinding> symbols, int depth, int dimensions) {
 
         if (depth > MAX_DEPTH)
             throw new RuntimeException("Max depth reached");
@@ -31,7 +36,7 @@ public interface Expression {
 
             if (remaining.startsWith("(")) {
                 String[] splited = groupByParenthesis(remaining);
-                operand = parseExpression(splited[0], symbols, depth + 1);
+                operand = parseExpression(splited[0], symbols, depth + 1, dimensions);
                 remaining = splited[1];
 
             } else {
@@ -56,19 +61,19 @@ public interface Expression {
 
                 if (Character.isDigit(identifier.charAt(0))) {
                     try {
-                        operand = new ConstantExpression(Double.parseDouble(identifier));
+                        operand = new ConstantExpression(Double.parseDouble(identifier), dimensions);
                     } catch (NumberFormatException e) {
                         throw new RuntimeException("Failed to parse value " + identifier + " in expression " + text, e);
                     }
 
                 } else if (symbols.containsKey(identifier)) {
-                    operand = new VariableExpression(symbols.get(identifier));
+                    operand = new VariableExpression(symbols.get(identifier), dimensions);
 
                 } else {
                     Optional<UnaryOperators> optionalUnary = UnaryOperators.parse(identifier);
                     if (optionalUnary.isPresent()) {
                         String[] splited = groupByParenthesis(rest);
-                        operand = new UnaryExpression(optionalUnary.get(), parseExpression(splited[0], symbols, depth + 1));
+                        operand = new UnaryExpression(optionalUnary.get(), parseExpression(splited[0], symbols, depth + 1, dimensions));
                         rest = splited[1];
                     } else {
                         throw new RuntimeException("Unable to parse identifier : " + identifier);
@@ -81,7 +86,7 @@ public interface Expression {
             remaining = remaining.trim();
             while (remaining.startsWith("(")) {
                 String[]   splited = groupByParenthesis(remaining);
-                Expression right   = parseExpression(splited[0], symbols, depth + 1);
+                Expression right   = parseExpression(splited[0], symbols, depth + 1, dimensions);
                 operand = new BinaryExpression(BinaryOperators.MULTIPLY, operand, right);
                 remaining = splited[1].trim();
             }
@@ -183,50 +188,6 @@ public interface Expression {
         throw new RuntimeException("Unmatched parenthesis");
     }
 
-    /*static String print(
-            Expression expression) {
-
-        String result;
-
-        switch (expression) {
-            case ConstantExpression(double value) -> result = Double.toString(value);
-
-            case VariableExpression(SymbolBinding binding) -> result = binding.field().name();
-
-            case UnaryExpression(UnaryOperators operator, Expression child) ->
-                    result = operator.representation() + "(" + print(child) + ")";
-
-            case BinaryExpression(BinaryOperators operator, Expression left1, Expression right1) -> {
-
-                String left = print(left1);
-
-                String right = print(right1);
-
-                result = "(" + left + " " + operator.representation + " " + right + ")";
-            }
-
-            case DiscretizedVariableExpression dve -> {
-                    StringBuilder sb = new StringBuilder(dve.name().field().name());
-                    if (!dve.isCentral()) {
-                        sb.append('[').append(
-                                Arrays.stream(dve.spatialOffset())
-                                        .mapToObj(Integer::toString)
-                                        .collect(Collectors.joining(","))
-                        ).append(']');
-                    }
-                    if (dve.dt() != 0) {
-                        sb.append('{').append(dve.dt() > 0 ? "+" : "").append(dve.dt()).append('}');
-                    }
-                    result = sb.toString();
-
-            }
-            default -> throw new RuntimeException("Unknown expression type " + expression.getClass()
-            );
-        }
-
-        return result;
-    }*/
-
     private static boolean isRightAssociativeLevel(List<BinaryOperators> operators, int priority) {
         for (BinaryOperators op : operators) {
             if (op.priority == priority) {
@@ -236,9 +197,32 @@ public interface Expression {
         return false; // doesn't matter, no operator at this level
     }
 
-    FieldType resultType();
+    public final int dimensions() {
+        return dimensions;
+    }
 
-    String prettyPrint();
+    public Expression componentAt(int axis) {
+        return ComponentExpression.ofVector(this, axis);
+    }
 
-    String debugPrint();
+    public Expression componentAt(int row, int col) {
+        return ComponentExpression.ofMatrix(this, row, col);
+    }
+
+    public abstract FieldType resultType();
+
+    public abstract String prettyPrint();
+
+    public abstract Expression expand();
+
+    public abstract boolean isTimeDifferentiable();
+
+    public abstract boolean isSpaceDifferentiable();
+
+    @Override
+    public String toString() {
+        return debugPrint();
+    }
+
+    public abstract String debugPrint();
 }

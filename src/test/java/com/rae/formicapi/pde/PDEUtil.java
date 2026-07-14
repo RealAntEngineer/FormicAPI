@@ -18,7 +18,7 @@ public class PDEUtil {
         return new SymbolBinding(new Field(name, FieldType.SCALAR), SymbolRole.COEFFICIENT);
     }
 
-    private static SymbolBinding vector(String name, SymbolRole role) {
+    static SymbolBinding vector(String name, SymbolRole role) {
         return new SymbolBinding(new Field(name, FieldType.VECTOR), role);
     }
 
@@ -34,6 +34,6 @@ public class PDEUtil {
     );
 
     public static Expression parse(String expression) {
-        return Expression.parseExpression(expression, SYMBOLS, 0);
+        return Expression.parseExpression(expression, SYMBOLS, 3,0);
     }
 }

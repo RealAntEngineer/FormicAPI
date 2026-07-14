@@ -8,9 +8,13 @@ import java.util.stream.Collectors;
 /**
  * rows.get(i).get(j) is the (i,j) entry; assumed square (rowCount == columnCount) everywhere this is used.
  */
-public record TensorExpression(List<List<Expression>> rows) implements Expression {
+public class MatrixExpression extends Expression {
+    private final List<List<Expression>> rows;
 
-    public TensorExpression {
+
+    public MatrixExpression(List<List<Expression>> rows) {
+        super(rows.getFirst().getFirst().dimensions());
+        this.rows = rows;
         rows = rows.stream().map(List::copyOf).toList();
         for (List<Expression> row : rows) {
             for (Expression c : row) {
@@ -34,13 +38,8 @@ public record TensorExpression(List<List<Expression>> rows) implements Expressio
     }
 
     @Override
-    public String toString() {
-        return debugPrint();
-    }
-
-    @Override
     public FieldType resultType() {
-        return FieldType.TENSOR;
+        return FieldType.MATRIX;
     }
 
     @Override
@@ -59,5 +58,19 @@ public record TensorExpression(List<List<Expression>> rows) implements Expressio
                         .map(Expression::debugPrint)
                         .collect(Collectors.joining(", ", "[", "]")))
                 .collect(Collectors.joining(", ", "[", "]"));
+    }
+
+    @Override
+    public Expression expand() {
+        return null;
+    }
+
+    @Override
+    public boolean isTimeDifferentiable() {
+        return rows.stream().flatMap(List::stream).anyMatch(Expression::isTimeDifferentiable);
+    }
+    @Override
+    public boolean isSpaceDifferentiable() {
+        return rows.stream().flatMap(List::stream).anyMatch(Expression::isSpaceDifferentiable);
     }
 }

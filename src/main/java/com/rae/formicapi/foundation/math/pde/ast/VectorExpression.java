@@ -5,10 +5,12 @@ import com.rae.formicapi.foundation.math.pde.FieldType;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public record VectorExpression(List<Expression> components) implements Expression {
+public class VectorExpression extends Expression {
+    private final List<Expression> components;
 
-    public VectorExpression {
-        components = List.copyOf(components);
+    public VectorExpression(List<Expression> components) {
+        super(components.getFirst().dimensions());//crash if components is < 1
+        this.components = List.copyOf(components);
         for (Expression c : components) {
             if (c.resultType() != FieldType.SCALAR) {
                 throw new FieldType.TypeMismatchException("VectorExpression components must be SCALAR, got " + c.resultType());
@@ -25,11 +27,6 @@ public record VectorExpression(List<Expression> components) implements Expressio
     }
 
     @Override
-    public String toString() {
-        return debugPrint();
-    }
-
-    @Override
     public FieldType resultType() {
         return FieldType.VECTOR;
     }
@@ -39,6 +36,28 @@ public record VectorExpression(List<Expression> components) implements Expressio
         return components.stream()
                 .map(Expression::prettyPrint)
                 .collect(Collectors.joining(", ", "(", ")"));
+    }
+
+    @Override
+    public Expression expand() {
+
+        List<Expression> expanded =
+                components.stream()
+                        .map(Expression::expand)
+                        .toList();
+
+        return new VectorExpression(expanded);
+    }
+
+    @Override
+    public boolean isTimeDifferentiable() {
+        return components.stream().anyMatch(Expression::isTimeDifferentiable);
+
+    }
+
+    @Override
+    public boolean isSpaceDifferentiable() {
+        return components.stream().anyMatch(Expression::isSpaceDifferentiable);
     }
 
     @Override

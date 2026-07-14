@@ -2,15 +2,44 @@ package com.rae.formicapi.foundation.math.pde.ast;
 
 import com.rae.formicapi.foundation.math.pde.FieldType;
 
-public record BinaryExpression(BinaryOperators operator, Expression left, Expression right) implements Expression {
+public class BinaryExpression extends Expression {
 
-    public BinaryExpression {
-        operator.resultType(left.resultType(), right.resultType());
+    BinaryOperators operator;
+    Expression left;
+    Expression right;
+
+    public BinaryOperators getOperator() {
+        return operator;
     }
 
-    @Override
-    public String toString() {
-        return debugPrint();
+    public Expression getLeft() {
+        return left;
+    }
+
+    public Expression getRight() {
+        return right;
+    }
+
+    public BinaryExpression(
+            BinaryOperators operator,
+            Expression left,
+            Expression right) {
+
+        super(left.dimensions());
+
+        if (left.dimensions() != right.dimensions()) {
+            throw new IllegalArgumentException(
+                    "Dimension mismatch: "
+                            + left.dimensions() + " != "
+                            + right.dimensions()
+            );
+        }
+
+        this.operator = operator;
+        this.left = left;
+        this.right = right;
+
+        operator.resultType(left.resultType(), right.resultType());
     }
 
     @Override
@@ -40,5 +69,20 @@ public record BinaryExpression(BinaryOperators operator, Expression left, Expres
     @Override
     public String debugPrint() {
         return "(" + left.debugPrint() + " " + operator.representation + " " + right.debugPrint() + ")";
+    }
+
+    @Override
+    public Expression expand() {
+        return operator.expand(left.expand(), right.expand());
+    }
+
+    @Override
+    public boolean isTimeDifferentiable() {
+        return left.isTimeDifferentiable() || right.isTimeDifferentiable();
+    }
+
+    @Override
+    public boolean isSpaceDifferentiable() {
+        return left.isSpaceDifferentiable() || right.isSpaceDifferentiable();
     }
 }

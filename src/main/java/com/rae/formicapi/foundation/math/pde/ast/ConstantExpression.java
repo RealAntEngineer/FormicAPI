@@ -2,11 +2,13 @@ package com.rae.formicapi.foundation.math.pde.ast;
 
 import com.rae.formicapi.foundation.math.pde.FieldType;
 
-public record ConstantExpression(double value) implements Expression {
+public class ConstantExpression extends Expression {
 
-    @Override
-    public String toString() {
-        return debugPrint();
+    private final double value;
+
+    public ConstantExpression(double value, int dimensions){
+        super(dimensions);
+        this.value = value;
     }
 
     @Override
@@ -20,7 +22,22 @@ public record ConstantExpression(double value) implements Expression {
     }
 
     @Override
+    public Expression expand() {
+        return this;
+    }
+
+    @Override
     public String debugPrint() {
         return Double.toString(value);
+    }
+
+    @Override
+    public boolean isTimeDifferentiable() {
+        return false;
+    }
+
+    @Override
+    public boolean isSpaceDifferentiable() {
+        return false;
     }
 }

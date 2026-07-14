@@ -5,7 +5,7 @@ import com.rae.formicapi.foundation.math.pde.SymbolRole;
 import com.rae.formicapi.foundation.math.pde.ast.BinaryExpression;
 import com.rae.formicapi.foundation.math.pde.ast.BinaryOperators;
 import com.rae.formicapi.foundation.math.pde.ast.Expression;
-import com.rae.formicapi.foundation.math.pde.ast.ExpressionAlgebra;
+import com.rae.formicapi.foundation.math.pde.ScalarAlgebra;
 import com.rae.formicapi.foundation.math.pde.stencil.DiscretizedVariableExpression;
 import org.junit.jupiter.api.Test;
 
@@ -109,7 +109,7 @@ public class TestDiscretizedVariableExpression {
         Expression b = new DiscretizedVariableExpression(T, new int[]{0, 0, 0}, 0);
         Expression sum = new BinaryExpression(BinaryOperators.ADD, a, b);
 
-        assertEquals("(2.0 * T[0,0,0])", ExpressionAlgebra.combineLikeTerms(sum).toString());
+        assertEquals("(2.0 * T[0,0,0])", ScalarAlgebra.combineLikeTerms(sum).toString());
     }
 
     @Test
@@ -118,7 +118,7 @@ public class TestDiscretizedVariableExpression {
         Expression minus = DiscretizedVariableExpression.atCentralNode(T, 3).withSpatialOffset(-1, 0, 0);
         Expression sum = new BinaryExpression(BinaryOperators.ADD, plus, minus);
 
-        assertEquals("(T[1,0,0] + T[-1,0,0])", ExpressionAlgebra.combineLikeTerms(sum).toString());
+        assertEquals("(T[1,0,0] + T[-1,0,0])", ScalarAlgebra.combineLikeTerms(sum).toString());
     }
 
     @Test

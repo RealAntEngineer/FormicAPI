@@ -39,4 +39,12 @@ public enum SymbolRole {
     SymbolRole(boolean spaceDif) {
         this(false, spaceDif);
     }
+
+    public boolean isTimeDifferentiable() {
+        return timeDifferentiable;
+    }
+
+    public boolean isSpaceDifferentiable() {
+        return spaceDifferentiable;
+    }
 }

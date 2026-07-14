@@ -15,7 +15,7 @@ public final class Equation {
     private final Expression right;
 
 
-    public Equation(String expression, SymbolBinding... fieldBindings) {
+    public Equation(String expression, int dimensions, SymbolBinding... fieldBindings) {
         for (SymbolBinding bind : fieldBindings) {
             SymbolBinding previous = symbols.put(bind.field().name(), bind);
             if (previous != null) {
@@ -29,8 +29,8 @@ public final class Equation {
             throw new RuntimeException("Failed to parse equation, wrong number of equality : "
                     + split.length + " for string" + expression);
 
-        left = Expression.parseExpression(split[0], symbols, 0);
-        right = Expression.parseExpression(split[1], symbols, 0);
+        left = Expression.parseExpression(split[0], symbols,dimensions, 0);
+        right = Expression.parseExpression(split[1], symbols, dimensions,0);
     }
 
     //split the text in 2 so that the
