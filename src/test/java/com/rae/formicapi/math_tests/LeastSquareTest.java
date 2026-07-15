@@ -31,7 +31,7 @@ public class LeastSquareTest {
         double[] b = {3, 7, 2};
         double[] expected = {3, 7, 2};
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[3], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A),b,  new double[3], MAX_ITER, TOL);
         assertVectorEquals(expected, x, 1e-6, "identity system");
     }
 
@@ -68,7 +68,7 @@ public class LeastSquareTest {
         double[] b = {4, 8, 16};
         double[] expected = {2, 2, 2};
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[3], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A), b, new double[3], MAX_ITER, TOL);
         assertVectorEquals(expected, x, 1e-6, "diagonal system");
     }
 
@@ -87,7 +87,7 @@ public class LeastSquareTest {
         double[] x_exact = {1, 2, 3};
         double[] b = multiply(A, x_exact);
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[3], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A),  b, new double[3],MAX_ITER, TOL);
         assertVectorEquals(x_exact, x, 1e-6, "SPD system");
     }
 
@@ -114,7 +114,7 @@ public class LeastSquareTest {
         double[] x_exact = {1, 2, 3};
         double[] b = multiply(A, x_exact);
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[3], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A), b,new double[3],  MAX_ITER, TOL);
         assertVectorEquals(x_exact, x, 1e-6, "general square system");
     }
 
@@ -129,7 +129,7 @@ public class LeastSquareTest {
         double[] x_exact = {3, 5};
         double[] b = multiply(A, x_exact);
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[2], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A),  b, new double[2],MAX_ITER, TOL);
         assertVectorEquals(x_exact, x, 1e-6, "overdetermined consistent");
     }
 
@@ -147,7 +147,7 @@ public class LeastSquareTest {
         };
         double[] b = { 6, 5, 7, 10 };
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[2], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A), b, new double[2], MAX_ITER, TOL);
 
         double residual = residualNorm(A, x, b);
 
@@ -189,7 +189,7 @@ public class LeastSquareTest {
         double[] x_exact = {1, 1, 1};
         double[] b = multiply(A, x_exact);
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[3], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A), b, new double[3], MAX_ITER, TOL);
 
         // Loose tolerance — Hilbert matrices amplify errors
         assertVectorEquals(x_exact, x, 1e-4, "Hilbert 3x3");
@@ -204,7 +204,7 @@ public class LeastSquareTest {
         double[][] A = {{5.0}};
         double[] b = {15.0};
 
-        double[] x = LeastSquare.solve(denseToSparce(A), new double[1], b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A), b, new double[1], MAX_ITER, TOL);
         assertVectorEquals(new double[]{3.0}, x, 1e-9, "single element");
     }
 
@@ -230,7 +230,7 @@ public class LeastSquareTest {
         double[] b = multiply(A, x_exact);
 
         // Pass exact solution as initial guess — should converge in 0 iterations
-        double[] x = LeastSquare.solve(denseToSparce(A), x_exact.clone(), b, MAX_ITER, TOL);
+        double[] x = LeastSquare.solve(denseToSparce(A), b, x_exact.clone(), MAX_ITER, TOL);
         assertVectorEquals(x_exact, x, 1e-9, "initial guess is solution");
     }
 
