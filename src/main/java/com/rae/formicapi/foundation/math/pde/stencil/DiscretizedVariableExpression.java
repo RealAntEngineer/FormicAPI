@@ -1,9 +1,9 @@
 package com.rae.formicapi.foundation.math.pde.stencil;
 
-import com.rae.formicapi.foundation.math.pde.ScalarAlgebra;
 import com.rae.formicapi.foundation.math.pde.FieldType;
+import com.rae.formicapi.foundation.math.pde.ScalarAlgebra;
 import com.rae.formicapi.foundation.math.pde.SymbolBinding;
-import com.rae.formicapi.foundation.math.pde.ast.Expression;
+import com.rae.formicapi.foundation.math.pde.ast.VariableExpression;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -41,10 +41,12 @@ import java.util.stream.Collectors;
  * {@link ScalarAlgebra}'s term-grouping (two independently built
  * references to the same offset would never merge).
  */
-public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOffset, int dt) implements Expression {
+public class DiscretizedVariableExpression extends VariableExpression {
+    private final int[] spatialOffset;
+    private final int   dt;
 
     public DiscretizedVariableExpression(SymbolBinding name, int[] spatialOffset, int dt) {
-        this.name = name;
+        super(name, spatialOffset.length);
         this.spatialOffset = spatialOffset.clone();
         this.dt = dt;
     }
@@ -60,7 +62,6 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
     /**
      * Returns a defensive copy — mutating the result does not affect this instance.
      */
-    @Override
     public int[] spatialOffset() {
         return spatialOffset.clone();
     }
@@ -73,13 +74,13 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
         if (deltas.length != spatialOffset.length) {
             throw new IllegalArgumentException(
                     "Expected " + spatialOffset.length + " offset component(s) for " + dimension() + "D symbol '"
-                            + name.field().name() + "', got " + deltas.length);
+                            + getSymbol().field().name() + "', got " + deltas.length);
         }
         int[] newOffset = new int[spatialOffset.length];
         for (int i = 0; i < spatialOffset.length; i++) {
             newOffset[i] = spatialOffset[i] + deltas[i];
         }
-        return new DiscretizedVariableExpression(name, newOffset, dt);
+        return new DiscretizedVariableExpression(getSymbol(), newOffset, dt);
     }
 
     public int dimension() {
@@ -87,7 +88,7 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
     }
 
     public DiscretizedVariableExpression withTemporalOffset(int ddt) {
-        return new DiscretizedVariableExpression(name, spatialOffset, dt + ddt);
+        return new DiscretizedVariableExpression(getSymbol(), spatialOffset, dt + ddt);
     }
 
     public boolean isCurrentTimeLevel() {
@@ -95,38 +96,32 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(getSymbol(), Arrays.hashCode(spatialOffset), dt);
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof DiscretizedVariableExpression other)) return false;
         return dt == other.dt
-                && name.equals(other.name)
+                && getSymbol().equals(other.getSymbol())
                 && Arrays.equals(spatialOffset, other.spatialOffset);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(name, Arrays.hashCode(spatialOffset), dt);
-    }
-
-    @Override
-    public String toString() {
-        return debugPrint();
-    }
-
-    @Override
     public FieldType resultType() {
-        return name.field().type();
+        return getSymbol().field().type();
     }
 
     @Override
     public String prettyPrint() {
-        String result = name.field().name();
+        String result = getSymbol().field().name();
 
-        if (!isCentral()) {
-            result += Arrays.stream(spatialOffset)
-                    .mapToObj(Integer::toString)
-                    .collect(Collectors.joining(",", "[", "]"));
-        }
+        result += Arrays.stream(spatialOffset)
+                .mapToObj(Integer::toString)
+                .collect(Collectors.joining(",", "[", "]"));
+
 
         if (dt != 0) {
             result += "{" + (dt > 0 ? "+" : "") + dt + "}";
@@ -143,22 +138,6 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
     }
 
     @Override
-    public String debugPrint() {
-        String result = name.field().name();
-
-        result += Arrays.stream(spatialOffset)
-                .mapToObj(Integer::toString)
-                .collect(Collectors.joining(",", "[", "]"));
-
-
-        if (dt != 0) {
-            result += "{" + (dt > 0 ? "+" : "") + dt + "}";
-        }
-
-        return result;
-    }
-
-    @Override
     public boolean isTimeDifferentiable() {
         return false;//discretization already applied no ?
     }
@@ -166,5 +145,13 @@ public record DiscretizedVariableExpression(SymbolBinding name, int[] spatialOff
     @Override
     public boolean isSpaceDifferentiable() {
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return "DiscretizedVariableExpression{" +
+                "spatialOffset=" + Arrays.toString(spatialOffset) +
+                ", dt=" + dt +
+                '}';
     }
 }

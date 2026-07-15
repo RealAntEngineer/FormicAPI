@@ -3,13 +3,16 @@ package com.rae.formicapi.foundation.math.pde.ast;
 import com.rae.formicapi.foundation.math.pde.FieldType;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class VectorExpression extends Expression {
     private final List<Expression> components;
 
     public VectorExpression(List<Expression> components) {
-        super(components.getFirst().dimensions());//crash if components is < 1
+        super(components.getFirst().dimensions(), components.stream()
+                .map(Expression::getDepth).reduce(Math::max)
+                .orElse(0) + 1);//crash if components is < 1
         this.components = List.copyOf(components);
         for (Expression c : components) {
             if (c.resultType() != FieldType.SCALAR) {
@@ -61,9 +64,25 @@ public class VectorExpression extends Expression {
     }
 
     @Override
-    public String debugPrint() {
-        return components.stream()
-                .map(Expression::debugPrint)
-                .collect(Collectors.joining(", ", "(", ")"));
+    public int appearanceOrder() {
+        return 4;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(components);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof VectorExpression that)) return false;
+        return Objects.equals(components, that.components);
+    }
+
+    @Override
+    public String toString() {
+        return "VectorExpression{" +
+                "components=" + components +
+                '}';
     }
 }

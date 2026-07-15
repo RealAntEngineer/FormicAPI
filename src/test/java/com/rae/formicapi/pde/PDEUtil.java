@@ -27,13 +27,15 @@ public class PDEUtil {
             "b", variable("b"),
             "c", variable("c"),
             "d", variable("d"),
+            "k", variable("k"),
+            "x", variable("x", SymbolRole.UNKNOWN),
+            "y", variable("y", SymbolRole.UNKNOWN),
             "e1", vector("e1", SymbolRole.UNKNOWN),
             "e2",vector("e2", SymbolRole.UNKNOWN),
-            "k", variable("k", SymbolRole.EVALUATED_FIELD),
             "T", variable("T", SymbolRole.UNKNOWN)
     );
 
     public static Expression parse(String expression) {
-        return Expression.parseExpression(expression, SYMBOLS, 3,0);
+        return Expression.parseExpression(expression, SYMBOLS, 0, 3);
     }
 }

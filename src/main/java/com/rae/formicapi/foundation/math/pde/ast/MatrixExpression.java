@@ -3,6 +3,7 @@ package com.rae.formicapi.foundation.math.pde.ast;
 import com.rae.formicapi.foundation.math.pde.FieldType;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -13,7 +14,9 @@ public class MatrixExpression extends Expression {
 
 
     public MatrixExpression(List<List<Expression>> rows) {
-        super(rows.getFirst().getFirst().dimensions());
+        super(rows.getFirst().getFirst().dimensions(),  rows.stream()
+                .map(l -> l.stream().map(Expression::getDepth).reduce(Math::max)
+                        .orElse(0)).reduce(Math::max).orElse(0) + 1);
         this.rows = rows;
         rows = rows.stream().map(List::copyOf).toList();
         for (List<Expression> row : rows) {
@@ -52,25 +55,47 @@ public class MatrixExpression extends Expression {
     }
 
     @Override
-    public String debugPrint() {
-        return rows.stream()
-                .map(row -> row.stream()
-                        .map(Expression::debugPrint)
-                        .collect(Collectors.joining(", ", "[", "]")))
-                .collect(Collectors.joining(", ", "[", "]"));
-    }
-
-    @Override
     public Expression expand() {
-        return null;
+
+        List<List<Expression>> expanded =
+                rows.stream().map(
+                        l -> l.stream()
+                                .map(Expression::expand)
+                                .toList()).toList();
+
+        return new MatrixExpression(expanded);
     }
 
     @Override
     public boolean isTimeDifferentiable() {
         return rows.stream().flatMap(List::stream).anyMatch(Expression::isTimeDifferentiable);
     }
+
     @Override
     public boolean isSpaceDifferentiable() {
         return rows.stream().flatMap(List::stream).anyMatch(Expression::isSpaceDifferentiable);
+    }
+
+    @Override
+    public int appearanceOrder() {
+        return 5;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(rows);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof MatrixExpression that)) return false;
+        return Objects.equals(rows, that.rows);
+    }
+
+    @Override
+    public String toString() {
+        return "MatrixExpression{" +
+                "rows=" + rows +
+                '}';
     }
 }

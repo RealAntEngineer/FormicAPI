@@ -3,7 +3,10 @@ package com.rae.formicapi.foundation.math.pde;
 
 import com.rae.formicapi.foundation.math.pde.ast.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
@@ -11,200 +14,11 @@ import java.util.function.UnaryOperator;
  * distribution, term combination, and common-factor extraction. Purely structural —
  * has no notion of spatial dimensionality. For lowering vector/tensor-valued
  * operators (grad, div, dot/cross/outer product) into per-component scalar
- * expressions, see {@link VectorAlgebra}.
+ * expressions.
  */
 @Deprecated
 public final class ScalarAlgebra {
 
-    /**
-     * Fully distributes multiplicative operators over additive operators.
-     *
-     * <p>This transformation applies the distributive property recursively:
-     *
-     * <pre>
-     * a * (b + c)     -> (a * b) + (a * c)
-     * (a + b) * c     -> (a * c) + (b * c)
-     * </pre>
-     *
-     * <p>Both multiplication and division are handled according to the
-     * distributivity rules defined by {@link BinaryOperators#distributesOver}.
-     * Linear unary operators (grad, div, lap, ddt, d2dt, ddx/ddy/ddz, etc.)
-     * distribute over addition/subtraction the same way, and a small set of
-     * operator-composition identities are applied (div(grad(x)) -> lap(x),
-     * ddx(ddx(x)) -> d2dx2(x), grad(a*b) -> product rule).
-     *
-     * @param expression expression to distribute
-     * @return a new expression tree with all possible distributions applied
-     */
-    public static Expression distribute(Expression expression) {
-
-        if (expression instanceof BinaryExpression(
-                BinaryOperators outerOperator, Expression leftOperand, Expression rightOperand
-        )) {
-
-            Expression distributedLeft  = distribute(leftOperand);
-            Expression distributedRight = distribute(rightOperand);
-
-            // (a + b) * c -> (a * c) + (b * c)
-            if (distributedLeft instanceof BinaryExpression(
-                    BinaryOperators innerOperator, Expression innerLeft, Expression innerRight
-            )
-                    && outerOperator.distributesOver(innerOperator, true)) {
-
-                return distribute(new BinaryExpression(
-                        innerOperator,
-                        new BinaryExpression(outerOperator, innerLeft, distributedRight),
-                        new BinaryExpression(outerOperator, innerRight, distributedRight)));
-            }
-
-            // a * (b + c) -> (a * b) + (a * c)
-            if (distributedRight instanceof BinaryExpression(
-                    BinaryOperators innerOperator, Expression innerLeft, Expression innerRight
-            )
-                    && outerOperator.distributesOver(innerOperator, false)) {
-
-                return distribute(new BinaryExpression(
-                        innerOperator,
-                        new BinaryExpression(outerOperator, distributedLeft, innerLeft),
-                        new BinaryExpression(outerOperator, distributedLeft, innerRight)));
-            }
-
-            return new BinaryExpression(outerOperator, distributedLeft, distributedRight);
-        }
-
-        if (expression instanceof UnaryExpression(UnaryOperators operator, Expression operand)) {
-
-            Expression distributedOperand = distribute(operand);
-
-            // Derivative of a compile-time constant is zero, in space or time
-            if (operator.isLinear() && distributedOperand instanceof ConstantExpression) {
-                return new ConstantExpression(0.0);
-            }
-
-            // Linearity: op(a ± b) -> op(a) ± op(b)
-            if (operator.isLinear()
-                    && distributedOperand instanceof BinaryExpression(
-                    BinaryOperators innerOp, Expression innerLeft, Expression innerRight
-            )
-                    && (innerOp == BinaryOperators.ADD || innerOp == BinaryOperators.SUBTRACT)) {
-
-                return distribute(new BinaryExpression(innerOp,
-                        new UnaryExpression(operator, innerLeft),
-                        new UnaryExpression(operator, innerRight)));
-            }
-
-            // Coefficient extraction: op(k * f) -> k * op(f) when k contains no UNKNOWN symbol.
-            // k is treated as known/sampled data at this stage, not something to symbolically
-            // differentiate — this is the same assumption the original diffusion stencil made
-            // implicitly by always sampling conductivity rather than differentiating it.
-            if (operator.isLinear()
-                    && distributedOperand instanceof BinaryExpression(BinaryOperators innerOp, Expression innerLeft, Expression innerRight)
-                    && innerOp == BinaryOperators.MULTIPLY) {
-
-                boolean leftApplies  = appliesTo(operator, innerLeft);
-                boolean rightApplies = appliesTo(operator, innerRight);
-
-                // Exactly one side is non-differentiable data: pull it out as a coefficient.
-                if (!leftApplies && rightApplies) {
-                    return new BinaryExpression(BinaryOperators.MULTIPLY, innerLeft, distribute(new UnaryExpression(operator, innerRight)));
-                }
-                if (leftApplies && !rightApplies) {
-                    return new BinaryExpression(BinaryOperators.MULTIPLY, innerRight, distribute(new UnaryExpression(operator, innerLeft)));
-                }
-
-                // Both sides genuinely differentiable: only GRAD has a defined product rule here.
-                if (leftApplies && operator == UnaryOperators.GRAD) {
-                    return distribute(gradientOfProduct(innerLeft, innerRight));
-                }
-
-                // Neither side applies, or a differentiable product under DIV/LAPLACIAN
-                // (no symbolic product-rule identity implemented for those): falls through below.
-            }
-
-            // Composition identity: div(grad(x)) collapses into the second derivative, lap(x)
-            if (operator == UnaryOperators.DIV
-                    && distributedOperand instanceof UnaryExpression(
-                    UnaryOperators innerOperator, Expression innerOperand
-            )
-                    && innerOperator == UnaryOperators.GRAD) {
-
-                return new UnaryExpression(UnaryOperators.LAPLACIAN, innerOperand);
-            }
-
-            // Composition identity: nested single-axis derivatives collapse into the
-            // corresponding second-order axis operator, e.g. ddx(ddx(x)) -> d2dx2(x),
-            // ddx(ddy(x)) -> d2dxdy(x) (order-independent: ddy(ddx(x)) collapses the same way)
-            if (isAxisDerivative(operator)
-                    && distributedOperand instanceof UnaryExpression(
-                    UnaryOperators innerOperator, Expression innerOperand
-            )
-                    && isAxisDerivative(innerOperator)) {
-
-                Optional<UnaryOperators> composed = composeAxisDerivative(operator, innerOperator);
-                if (composed.isPresent()) {
-                    return new UnaryExpression(composed.get(), innerOperand);
-                }
-            }
-
-            // Product rule: grad(a*b) -> (grad(a) * b) + (a * grad(b))
-            if (operator == UnaryOperators.GRAD
-                    && distributedOperand instanceof BinaryExpression(
-                    BinaryOperators innerOp, Expression innerLeft, Expression innerRight
-            )
-                    && innerOp == BinaryOperators.MULTIPLY) {
-
-                return distribute(gradientOfProduct(innerLeft, innerRight));
-            }
-
-            return new UnaryExpression(operator, distributedOperand);
-        }
-
-        return expression;
-    }
-
-    private static boolean appliesTo(UnaryOperators operator, Expression operand) {
-        return (operator.appliesTimeDifferentiation() && operand.isTimeDifferentiable())
-                || (operator.appliesSpaceDifferentiation() && operand.isSpaceDifferentiable());
-    }
-
-    private static Expression gradientOfProduct(Expression left, Expression right) {
-
-        boolean leftIsConstant  = left instanceof ConstantExpression;
-        boolean rightIsConstant = right instanceof ConstantExpression;
-
-        if (leftIsConstant && rightIsConstant) {
-            return new ConstantExpression(0.0, left.dimensions());
-        }
-        if (leftIsConstant) {
-            return new BinaryExpression(BinaryOperators.MULTIPLY, left, new UnaryExpression(UnaryOperators.GRAD, right));
-        }
-        if (rightIsConstant) {
-            return new BinaryExpression(BinaryOperators.MULTIPLY, right, new UnaryExpression(UnaryOperators.GRAD, left));
-        }
-        return new BinaryExpression(BinaryOperators.ADD,
-                new BinaryExpression(BinaryOperators.MULTIPLY, new UnaryExpression(UnaryOperators.GRAD, left), right),
-                new BinaryExpression(BinaryOperators.MULTIPLY, left, new UnaryExpression(UnaryOperators.GRAD, right)));
-    }
-
-    private static boolean isAxisDerivative(UnaryOperators operator) {
-        return operator == UnaryOperators.DDX || operator == UnaryOperators.DDY || operator == UnaryOperators.DDZ;
-    }
-
-    private static Optional<UnaryOperators> composeAxisDerivative(UnaryOperators outer, UnaryOperators inner) {
-        if (outer == UnaryOperators.DDX && inner == UnaryOperators.DDX) return Optional.of(UnaryOperators.D2DX2);
-        if (outer == UnaryOperators.DDY && inner == UnaryOperators.DDY) return Optional.of(UnaryOperators.D2DY2);
-        if (outer == UnaryOperators.DDZ && inner == UnaryOperators.DDZ) return Optional.of(UnaryOperators.D2DZ2);
-
-        if (isPair(outer, inner, UnaryOperators.DDX, UnaryOperators.DDY)) return Optional.of(UnaryOperators.D2DXDY);
-        if (isPair(outer, inner, UnaryOperators.DDX, UnaryOperators.DDZ)) return Optional.of(UnaryOperators.D2DXDZ);
-        if (isPair(outer, inner, UnaryOperators.DDY, UnaryOperators.DDZ)) return Optional.of(UnaryOperators.D2DYDZ);
-
-        return Optional.empty();
-    }
-
-    private static boolean isPair(UnaryOperators a, UnaryOperators b, UnaryOperators x, UnaryOperators y) {
-        return (a == x && b == y) || (a == y && b == x);
-    }
 
     /**
      * Flattens an additive expression into individual algebraic terms.
@@ -222,17 +36,17 @@ public final class ScalarAlgebra {
      */
     private static void flattenTerms(Expression expression, double coefficient, List<Term> out) {
 
-        if (expression instanceof BinaryExpression(BinaryOperators op, Expression left, Expression right)) {
+        if (expression instanceof BinaryExpression be) {
 
-            if (op == BinaryOperators.ADD) {
-                flattenTerms(left, coefficient, out);
-                flattenTerms(right, coefficient, out);
+            if (be.getOperator() == BinaryOperators.ADD) {
+                flattenTerms(be.getLeft(), coefficient, out);
+                flattenTerms(be.getRight(), coefficient, out);
                 return;
             }
 
-            if (op == BinaryOperators.SUBTRACT) {
-                flattenTerms(left, coefficient, out);
-                flattenTerms(right, -coefficient, out);
+            if (be.getOperator() == BinaryOperators.SUBTRACT) {
+                flattenTerms(be.getLeft(), coefficient, out);
+                flattenTerms(be.getRight(), -coefficient, out);
                 return;
             }
         }
@@ -257,12 +71,10 @@ public final class ScalarAlgebra {
      */
     private static Term flattenFactors(Expression expression) {
 
-        if (expression instanceof BinaryExpression(
-                BinaryOperators op, Expression left, Expression right
-        ) && op == BinaryOperators.MULTIPLY) {
+        if (expression instanceof BinaryExpression be && be.getOperator() == BinaryOperators.MULTIPLY) {
 
-            Term a = flattenFactors(left);
-            Term b = flattenFactors(right);
+            Term a = flattenFactors(be.getLeft());
+            Term b = flattenFactors(be.getRight());
 
             List<Expression> factors = new ArrayList<>(a.factors());
             factors.addAll(b.factors());
@@ -270,35 +82,35 @@ public final class ScalarAlgebra {
             return new Term(a.coefficient() * b.coefficient(), factors);
         }
 
-        if (expression instanceof ConstantExpression(double value)) {
-            return new Term(value, List.of());
+        if (expression instanceof ConstantExpression ce) {
+            return new Term(ce.getValue(), List.of());
         }
 
         return new Term(1.0, List.of(expression));
     }
 
     private static List<String> factorSignature(List<Expression> factors) {
-        return factors.stream().map(Expression::debugPrint).sorted().toList();
+        return factors.stream().map(Expression::toString).sorted().toList();
     }
 
-    private static Expression termToExpression(Term term) {
+    private static Expression termToExpression(Term term, int dimensions) {
         if (term.factors().isEmpty()) {
-            return new ConstantExpression(term.coefficient());
+            return new ConstantExpression(term.coefficient(), dimensions);
         }
         Expression product = null;
         for (Expression factor : term.factors()) {
             product = (product == null) ? factor : new BinaryExpression(BinaryOperators.MULTIPLY, product, factor);
         }
-        return term.coefficient() == 1.0 ? product : new BinaryExpression(BinaryOperators.MULTIPLY, new ConstantExpression(term.coefficient()), product);
+        return term.coefficient() == 1.0 ? product : new BinaryExpression(BinaryOperators.MULTIPLY, new ConstantExpression(term.coefficient(), dimensions), product);
     }
 
-    private static Expression sumTerms(List<Term> terms) {
+    private static Expression sumTerms(List<Term> terms, int dimensions) {
         Expression sum = null;
         for (Term term : terms) {
-            Expression termExpr = termToExpression(term);
+            Expression termExpr = termToExpression(term, dimensions);
             sum = (sum == null) ? termExpr : new BinaryExpression(BinaryOperators.ADD, sum, termExpr);
         }
-        return sum == null ? new ConstantExpression(0.0) : sum;
+        return sum == null ? new ConstantExpression(0.0, dimensions) : sum;
     }
 
     /**
@@ -321,7 +133,7 @@ public final class ScalarAlgebra {
 
         for (Term term : terms) {
             List<Expression> transformed = term.factors().stream().map(recursiveTransform).toList();
-            Term normalized = new Term(term.coefficient(), transformed);
+            Term             normalized  = new Term(term.coefficient(), transformed);
 
             grouped.merge(
                     factorSignature(normalized.factors()),
@@ -354,19 +166,19 @@ public final class ScalarAlgebra {
      */
     public static Expression combineLikeTerms(Expression expression) {
 
-        if (expression instanceof BinaryExpression(BinaryOperators operator, Expression left, Expression right)
-                && (operator == BinaryOperators.ADD || operator == BinaryOperators.SUBTRACT)) {
+        if (expression instanceof BinaryExpression be
+                && (be.getOperator() == BinaryOperators.ADD || be.getOperator() == BinaryOperators.SUBTRACT)) {
 
             List<Term> terms = collectTerms(expression, ScalarAlgebra::combineLikeTerms);
-            return sumTerms(terms);
+            return sumTerms(terms, be.dimensions());
         }
 
-        if (expression instanceof BinaryExpression(BinaryOperators operator, Expression left, Expression right)) {
-            return new BinaryExpression(operator, combineLikeTerms(left), combineLikeTerms(right));
+        if (expression instanceof BinaryExpression be) {
+            return new BinaryExpression(be.getOperator(), combineLikeTerms(be.getLeft()), combineLikeTerms(be.getRight()));
         }
 
-        if (expression instanceof UnaryExpression(UnaryOperators operator, Expression operand)) {
-            return new UnaryExpression(operator, combineLikeTerms(operand));
+        if (expression instanceof UnaryExpression ue) {
+            return new UnaryExpression(ue.getOperator(), combineLikeTerms(ue.getOperand()));
         }
 
         return expression;
@@ -393,44 +205,46 @@ public final class ScalarAlgebra {
      */
     public static Expression factorCommonFactor(Expression expression) {
 
-        if (expression instanceof BinaryExpression be && (operator == BinaryOperators.ADD || operator == BinaryOperators.SUBTRACT)) {
+        switch (expression) {
+            case BinaryExpression be when (be.getOperator() == BinaryOperators.ADD || be.getOperator() == BinaryOperators.SUBTRACT) -> {
 
-            List<Term> terms = collectTerms(expression, ScalarAlgebra::factorCommonFactor);
+                List<Term> terms = collectTerms(expression, ScalarAlgebra::factorCommonFactor);
 
-            if (terms.size() < 2) {
-                return sumTerms(terms);
-            }
-
-            for (Expression candidate : terms.getFirst().factors()) {
-                String candidateKey = candidate.debugPrint();
-
-                boolean sharedByAll = terms.stream()
-                        .allMatch(t -> t.factors().stream().anyMatch(f -> f.debugPrint().equals(candidateKey)));
-
-                if (sharedByAll) {
-                    List<Term> remainders = terms.stream()
-                            .map(t -> {
-                                List<Expression> remainingFactors = new ArrayList<>(t.factors());
-                                removeFirstMatching(remainingFactors, candidateKey);
-                                return new Term(t.coefficient(), remainingFactors);
-                            })
-                            .toList();
-
-                    Expression remainderSum = combineLikeTerms(sumTerms(remainders));
-
-                    return new BinaryExpression(BinaryOperators.MULTIPLY, candidate, remainderSum);
+                if (terms.size() < 2) {
+                    return sumTerms(terms, be.dimensions());
                 }
+
+                for (Expression candidate : terms.getFirst().factors()) {
+                    String candidateKey = candidate.toString();
+
+                    boolean sharedByAll = terms.stream()
+                            .allMatch(t -> t.factors().stream().anyMatch(f -> f.toString().equals(candidateKey)));
+
+                    if (sharedByAll) {
+                        List<Term> remainders = terms.stream()
+                                .map(t -> {
+                                    List<Expression> remainingFactors = new ArrayList<>(t.factors());
+                                    removeFirstMatching(remainingFactors, candidateKey);
+                                    return new Term(t.coefficient(), remainingFactors);
+                                })
+                                .toList();
+
+                        Expression remainderSum = combineLikeTerms(sumTerms(remainders, be.dimensions()));
+
+                        return new BinaryExpression(BinaryOperators.MULTIPLY, candidate, remainderSum);
+                    }
+                }
+
+                return sumTerms(terms, be.dimensions());
             }
-
-            return sumTerms(terms);
-        }
-
-        if (expression instanceof BinaryExpression(BinaryOperators operator, Expression left, Expression right)) {
-            return new BinaryExpression(operator, factorCommonFactor(left), factorCommonFactor(right));
-        }
-
-        if (expression instanceof UnaryExpression(UnaryOperators operator, Expression operand)) {
-            return new UnaryExpression(operator, factorCommonFactor(operand));
+            case BinaryExpression be -> {
+                return new BinaryExpression(be.getOperator(), factorCommonFactor(be.getLeft()), factorCommonFactor(be.getRight()));
+            }
+            case UnaryExpression ue -> {
+                return new UnaryExpression(ue.getOperator(), factorCommonFactor(ue.getOperand()));
+            }
+            default -> {
+            }
         }
 
         return expression;
@@ -439,12 +253,13 @@ public final class ScalarAlgebra {
     private static void removeFirstMatching(List<Expression> factors, String key) {
         Iterator<Expression> it = factors.iterator();
         while (it.hasNext()) {
-            if (it.next().debugPrint().equals(key)) {
+            if (it.next().toString().equals(key)) {
                 it.remove();
                 return;
             }
         }
     }
 
-    private record Term(double coefficient, List<Expression> factors) {}
+    private record Term(double coefficient, List<Expression> factors) {
+    }
 }

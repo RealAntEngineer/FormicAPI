@@ -4,113 +4,25 @@ import com.rae.formicapi.foundation.math.pde.FieldType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class UnaryExpression extends Expression {
-    final UnaryOperators operator;
-    final Expression     operand;
-
-    public UnaryOperators getOperator() {
-        return operator;
-    }
-
-    public Expression getOperand() {
-        return operand;
-    }
-
     private static final List<UnaryOperators> AXIS_FIRST_DERIVATIVE  = List.of(UnaryOperators.DDX, UnaryOperators.DDY, UnaryOperators.DDZ);
     private static final List<UnaryOperators> AXIS_SECOND_DERIVATIVE = List.of(UnaryOperators.D2DX2, UnaryOperators.D2DY2, UnaryOperators.D2DZ2);
+    final                UnaryOperators       operator;
+    final                Expression           operand;
 
     public UnaryExpression(UnaryOperators operator, Expression operand) {
-        super(operand.dimensions());
+        super(operand.dimensions(), operand.getDepth() + 1);
         this.operator = operator;
         this.operand = operand;
         operator.resultType(operand.resultType()); // validates eagerly; result discarded here
     }
 
-    @Override
-    public FieldType resultType() {
-        return operator.resultType(operand.resultType());
-    }
-
-    @Override
-    public String prettyPrint() {
-        return operator.representation() + "(" + operand.prettyPrint() + ")";
-    }
-
-    @Override
-    public Expression expand() {
-        Expression expandedOperand = operand.expand();
-
-        if ((operator.appliesTimeDifferentiation() || operator.appliesSpaceDifferentiation())
-                && expandedOperand instanceof ConstantExpression) {
-            return new ConstantExpression(0.0, dimensions());
-        }
-
-        if (operator.isLinear() && expandedOperand instanceof BinaryExpression inner
-                && (inner.getOperator() == BinaryOperators.ADD || inner.getOperator() == BinaryOperators.SUBTRACT)) {
-            return inner.getOperator().expand(
-                    new UnaryExpression(operator, inner.getLeft()).expand(),
-                    new UnaryExpression(operator, inner.getRight()).expand());
-        }
-
-        if (operator == UnaryOperators.DIV && expandedOperand instanceof UnaryExpression inner && inner.operator == UnaryOperators.GRAD) {
-            return new UnaryExpression(UnaryOperators.LAPLACIAN, inner.getOperand()).expand();
-        }
-
-        if (isAxisDerivative(operator) && expandedOperand instanceof UnaryExpression inner && isAxisDerivative(inner.operator)) {
-            Optional<UnaryOperators> composed = composeAxisDerivative(operator, inner.operator);
-            if (composed.isPresent()) return new UnaryExpression(composed.get(), inner.operand).expand();
-        }
-
-        if (operator.isLinear() && expandedOperand instanceof BinaryExpression inner && inner.operator == BinaryOperators.MULTIPLY) {
-            boolean leftApplies = appliesTo(operator, inner.getLeft());
-            boolean rightApplies = appliesTo(operator, inner.getRight());
-
-            if (!leftApplies && rightApplies) return new BinaryExpression(BinaryOperators.MULTIPLY, inner.getLeft(), new UnaryExpression(operator, inner.getRight()).expand());
-            if (leftApplies && !rightApplies) return new BinaryExpression(BinaryOperators.MULTIPLY, inner.getRight(), new UnaryExpression(operator, inner.getLeft()).expand());
-            if (leftApplies && operator == UnaryOperators.GRAD) return gradientOfProduct(inner.getLeft(), inner.getRight()).expand();
-        }
-
-        FieldType operandType = expandedOperand.resultType();
-        int dimensions = expandedOperand.dimensions();
-
-        if (operator == UnaryOperators.GRAD && operandType == FieldType.SCALAR) return gradOfScalar(expandedOperand, dimensions);
-        if (operator == UnaryOperators.GRAD && operandType == FieldType.VECTOR) return gradOfVector(expandedOperand, dimensions);
-        if (operator == UnaryOperators.DIV && operandType == FieldType.VECTOR) return divOfVector(expandedOperand, dimensions);
-        if (operator == UnaryOperators.DIV && operandType == FieldType.MATRIX) return divOfTensor(expandedOperand, dimensions);
-        if (operator == UnaryOperators.LAPLACIAN && operandType == FieldType.SCALAR) return laplacianOfScalar(expandedOperand, dimensions);
-        if (operator == UnaryOperators.LAPLACIAN && operandType == FieldType.VECTOR) {
-            List<Expression> components = new ArrayList<>();
-            for (int i = 0; i < dimensions; i++) components.add(laplacianOfScalar(expandedOperand.componentAt(i), dimensions));
-            return new VectorExpression(components);
-        }
-
-        return new UnaryExpression(operator, expandedOperand);
-    }
-
     private static boolean appliesTo(UnaryOperators operator, Expression operand) {
         return (operator.appliesTimeDifferentiation() && operand.isTimeDifferentiable())
                 || (operator.appliesSpaceDifferentiation() && operand.isSpaceDifferentiable());
-    }
-
-    private static Expression gradientOfProduct(Expression left, Expression right) {
-
-        boolean leftIsConstant  = left instanceof ConstantExpression;
-        boolean rightIsConstant = right instanceof ConstantExpression;
-
-        if (leftIsConstant && rightIsConstant) {
-            return new ConstantExpression(0.0, left.dimensions());
-        }
-        if (leftIsConstant) {
-            return new BinaryExpression(BinaryOperators.MULTIPLY, left, new UnaryExpression(UnaryOperators.GRAD, right));
-        }
-        if (rightIsConstant) {
-            return new BinaryExpression(BinaryOperators.MULTIPLY, right, new UnaryExpression(UnaryOperators.GRAD, left));
-        }
-        return new BinaryExpression(BinaryOperators.ADD,
-                new BinaryExpression(BinaryOperators.MULTIPLY, new UnaryExpression(UnaryOperators.GRAD, left), right),
-                new BinaryExpression(BinaryOperators.MULTIPLY, left, new UnaryExpression(UnaryOperators.GRAD, right)));
     }
 
     private static boolean isAxisDerivative(UnaryOperators operator) {
@@ -155,6 +67,7 @@ public class UnaryExpression extends Expression {
     }
 
     private static Expression divOfVector(Expression vector, int dimensions) {
+        if (dimensions <= 0) throw new RuntimeException("Dimensions can't be lower than 1");
         Expression sum = null;
         for (int axis = 0; axis < dimensions; axis++) {
             Expression term = new UnaryExpression(AXIS_FIRST_DERIVATIVE.get(axis), vector.componentAt(axis));
@@ -186,10 +99,211 @@ public class UnaryExpression extends Expression {
         return sum;
     }
 
+    public UnaryOperators getOperator() {
+        return operator;
+    }
+
+    public Expression getOperand() {
+        return operand;
+    }
 
     @Override
-    public String debugPrint() {
-        return operator.representation() + "(" + operand.debugPrint() + ")";
+    public FieldType resultType() {
+        return operator.resultType(operand.resultType());
+    }
+
+    @Override
+    public String prettyPrint() {
+        return operator.representation() + "(" + operand.prettyPrint() + ")";
+    }
+
+    @Override
+    public Expression expand() {
+
+        /*
+         * ------------------------------------------------------------
+         * 1) Structural simplifications / rewrite rules
+         *    (must happen before operand.expand())
+         * ------------------------------------------------------------
+         */
+
+        // Linearity over addition/subtraction:
+        // grad(a+b) -> grad(a)+grad(b)
+        // div(a+b)  -> div(a)+div(b)
+        if (operator.isLinear()
+                && operand instanceof BinaryExpression inner
+                && (inner.getOperator() == BinaryOperators.ADD
+                || inner.getOperator() == BinaryOperators.SUBTRACT)) {
+
+            return inner.getOperator().expand(
+                    new UnaryExpression(operator, inner.getLeft()).expand(),
+                    new UnaryExpression(operator, inner.getRight()).expand()
+            );
+        }
+
+
+        // Product rules:
+        // grad(a*b) -> a*grad(b) + b*grad(a)
+        // div(k*v)  -> k*div(v) when only one side is differentiable
+        if (operator.isLinear()
+                && operand instanceof BinaryExpression inner
+                && inner.getOperator() == BinaryOperators.MULTIPLY) {
+
+            boolean leftApplies  = appliesTo(operator, inner.getLeft());
+            boolean rightApplies = appliesTo(operator, inner.getRight());
+
+            if (!leftApplies && rightApplies) {
+                return new BinaryExpression(
+                        BinaryOperators.MULTIPLY,
+                        inner.getLeft(),
+                        new UnaryExpression(operator, inner.getRight())
+                ).expand();
+            }
+
+            if (leftApplies && !rightApplies) {
+                return new BinaryExpression(
+                        BinaryOperators.MULTIPLY,
+                        inner.getRight(),
+                        new UnaryExpression(operator, inner.getLeft())
+                ).expand();
+            }
+
+            if (leftApplies && operator == UnaryOperators.GRAD) {
+
+                return new BinaryExpression(
+                        BinaryOperators.ADD,
+                        new BinaryExpression(
+                                BinaryOperators.MULTIPLY,
+                                new UnaryExpression(UnaryOperators.GRAD, inner.getLeft()),
+                                inner.getRight()
+                        ),
+                        new BinaryExpression(
+                                BinaryOperators.MULTIPLY,
+                                inner.getLeft(),
+                                new UnaryExpression(UnaryOperators.GRAD, inner.getRight())
+                        )
+                ).expand();
+            }
+        }
+
+
+        // div(grad(f)) -> laplacian(f)
+        if (operator == UnaryOperators.DIV
+                && operand instanceof UnaryExpression inner
+                && inner.operator == UnaryOperators.GRAD) {
+
+            return new UnaryExpression(
+                    UnaryOperators.LAPLACIAN,
+                    inner.getOperand()
+            ).expand();
+        }
+
+
+        // d/dx(d/dx(f)) -> d2dx2(f)
+        if (isAxisDerivative(operator)
+                && operand instanceof UnaryExpression inner
+                && isAxisDerivative(inner.operator)) {
+
+            Optional<UnaryOperators> composed =
+                    composeAxisDerivative(operator, inner.operator);
+
+            if (composed.isPresent()) {
+                return new UnaryExpression(
+                        composed.get(),
+                        inner.operand
+                ).expand();
+            }
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 2) Recursively expand operand
+         * ------------------------------------------------------------
+         */
+
+        Expression expandedOperand = operand.expand();
+
+
+        /*
+         * ------------------------------------------------------------
+         * 3) Constant derivatives
+         * ------------------------------------------------------------
+         */
+
+        if ((operator.appliesTimeDifferentiation()
+                || operator.appliesSpaceDifferentiation())
+                && expandedOperand instanceof ConstantExpression) {
+
+            return new ConstantExpression(
+                    0.0,
+                    dimensions()
+            );
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 4) Type-dependent expansion
+         * ------------------------------------------------------------
+         */
+
+        FieldType operandType = expandedOperand.resultType();
+        int dimensions = expandedOperand.dimensions();
+
+
+        if (operator == UnaryOperators.GRAD && operandType == FieldType.SCALAR) {
+            return gradOfScalar(expandedOperand, dimensions);
+        }
+
+
+        if (operator == UnaryOperators.GRAD && operandType == FieldType.VECTOR) {
+            return gradOfVector(expandedOperand, dimensions);
+        }
+
+
+        if (operator == UnaryOperators.DIV && operandType == FieldType.VECTOR) {
+            return divOfVector(expandedOperand, dimensions);
+        }
+
+
+        if (operator == UnaryOperators.DIV && operandType == FieldType.MATRIX) {
+            return divOfTensor(expandedOperand, dimensions);
+        }
+
+
+        if (operator == UnaryOperators.LAPLACIAN && operandType == FieldType.SCALAR) {
+            return laplacianOfScalar(expandedOperand, dimensions);
+        }
+
+
+        if (operator == UnaryOperators.LAPLACIAN && operandType == FieldType.VECTOR) {
+
+            List<Expression> components = new ArrayList<>();
+
+            for (int i = 0; i < dimensions; i++) {
+                components.add(
+                        laplacianOfScalar(
+                                expandedOperand.componentAt(i),
+                                dimensions
+                        )
+                );
+            }
+
+            return new VectorExpression(components);
+        }
+
+
+        /*
+         * ------------------------------------------------------------
+         * 5) No expansion possible
+         * ------------------------------------------------------------
+         */
+
+        return new UnaryExpression(
+                operator,
+                expandedOperand
+        );
     }
 
     @Override
@@ -203,7 +317,26 @@ public class UnaryExpression extends Expression {
     }
 
     @Override
+    public int appearanceOrder() {
+        return 2;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(operator, operand);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof UnaryExpression that)) return false;
+        return operator == that.operator && Objects.equals(operand, that.operand);
+    }
+
+    @Override
     public String toString() {
-        return debugPrint();
+        return "UnaryExpression{" +
+                "operator=" + operator +
+                ", operand=" + operand +
+                '}';
     }
 }

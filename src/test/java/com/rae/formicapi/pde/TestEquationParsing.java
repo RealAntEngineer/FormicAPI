@@ -7,16 +7,20 @@ import org.junit.jupiter.api.Test;
 import static com.rae.formicapi.pde.PDEUtil.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TestEquation {
-
-
+/**
+ * Everything that exercises {@link Equation}'s string-parsing pipeline: turning
+ * a textual expression into an AST. Grouping-only concerns (parenthesis matching)
+ * live in {@link TestExpressionParenthesisGrouping} since that's a static
+ * {@link Expression} helper, not an {@link Equation} concern.
+ */
+public class TestEquationParsing {
 
     // ------------------------------------------------------------------
     // Real-world expression parsing
     // ------------------------------------------------------------------
 
     @Test
-    void testParsingDiffusionEquation() {
+    void parsesDiffusionEquationIntoExpectedAst() {
 
         SymbolBinding k   = variable("k", SymbolRole.COEFFICIENT);
         SymbolBinding res = variable("res", SymbolRole.COEFFICIENT);
@@ -25,7 +29,7 @@ public class TestEquation {
 
         Equation eq = new Equation(
                 "div(k * grad(T)) + res * (Td - T) = 0",
-                k, res, td, t
+                3, k, res, td, t
         );
 
         Expression expectedLeft =
@@ -35,29 +39,29 @@ public class TestEquation {
                                 UnaryOperators.DIV,
                                 new BinaryExpression(
                                         BinaryOperators.MULTIPLY,
-                                        new VariableExpression(k),
-                                        new UnaryExpression(UnaryOperators.GRAD, new VariableExpression(t))
+                                        new VariableExpression(k, 3),
+                                        new UnaryExpression(UnaryOperators.GRAD, new VariableExpression(t, 3))
                                 )
                         ),
                         new BinaryExpression(
                                 BinaryOperators.MULTIPLY,
-                                new VariableExpression(res),
+                                new VariableExpression(res, 3),
                                 new BinaryExpression(
                                         BinaryOperators.SUBTRACT,
-                                        new VariableExpression(td),
-                                        new VariableExpression(t)
+                                        new VariableExpression(td, 3),
+                                        new VariableExpression(t, 3)
                                 )
                         )
                 );
 
-        Expression expectedRight = new ConstantExpression(0.0);
+        Expression expectedRight = new ConstantExpression(0.0, 3);
 
         assertEquals(expectedLeft, eq.getLeft());
         assertEquals(expectedRight, eq.getRight());
     }
 
     @Test
-    void testParsingDiffusionEquation2() {
+    void parsesVectorEquationInvolvingGradOfDiv() {
 
         SymbolBinding k   = variable("k", SymbolRole.COEFFICIENT);
         SymbolBinding res = variable("res", SymbolRole.COEFFICIENT);
@@ -66,16 +70,17 @@ public class TestEquation {
 
         Equation eq = new Equation(
                 "grad(div(V))  = 0",
-                k, res, td, V
+                3, k, res, td, V
         );
 
-        Expression leftDistributed = VectorAlgebra.distribute(eq.getLeft(), 3);
+        Expression leftDistributed = eq.getLeft().expand();
+        Expression leftSimplified = leftDistributed.expand();
 
-        System.out.println(leftDistributed.prettyPrint());
-
-        Expression leftSimplified = VectorAlgebra.distribute(leftDistributed, 3);
-
-        System.out.println(leftSimplified.prettyPrint());
+        // No assertion beyond "doesn't throw" here: this test only pins down
+        // that a vector-valued equation with a nested grad(div(...)) parses
+        // and expands without error. Semantic checks for grad/div behavior
+        // live in TestDifferentialOperatorLinearity / TestDerivativeComposition.
+        assertNotNull(leftSimplified);
     }
 
     // ------------------------------------------------------------------
@@ -83,30 +88,30 @@ public class TestEquation {
     // ------------------------------------------------------------------
 
     @Test
-    void parsingBinaryCombinationTest() {
+    void multiplicationBindsTighterThanAdditionAndSubtraction() {
 
         SymbolBinding a = variable("a", SymbolRole.COEFFICIENT);
         SymbolBinding b = variable("b", SymbolRole.COEFFICIENT);
         SymbolBinding c = variable("c", SymbolRole.COEFFICIENT);
 
-        Equation eq1 = new Equation("a * b + c = 0", a, b, c);
+        Equation eq1 = new Equation("a * b + c = 0", 3, a, b, c);
 
         Expression expected1 =
                 new BinaryExpression(
                         BinaryOperators.ADD,
-                        new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a), new VariableExpression(b)),
-                        new VariableExpression(c)
+                        new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a, 3), new VariableExpression(b, 3)),
+                        new VariableExpression(c, 3)
                 );
 
         assertEquals(expected1, eq1.getLeft());
 
-        Equation eq2 = new Equation("a*b-c = 0", a, b, c);
+        Equation eq2 = new Equation("a*b-c = 0", 3, a, b, c);
 
         Expression expected2 =
                 new BinaryExpression(
                         BinaryOperators.SUBTRACT,
-                        new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a), new VariableExpression(b)),
-                        new VariableExpression(c)
+                        new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a, 3), new VariableExpression(b, 3)),
+                        new VariableExpression(c, 3)
                 );
 
         assertEquals(expected2, eq2.getLeft());
@@ -118,13 +123,13 @@ public class TestEquation {
 
         SymbolBinding x = variable("x", SymbolRole.COEFFICIENT);
 
-        Equation eq = new Equation("3 * 4 + 2 = 0", x);
+        Equation eq = new Equation("3 * 4 + 2 = 0", 3, x);
 
         Expression expected =
                 new BinaryExpression(
                         BinaryOperators.ADD,
-                        new BinaryExpression(BinaryOperators.MULTIPLY, new ConstantExpression(3), new ConstantExpression(4)),
-                        new ConstantExpression(2)
+                        new BinaryExpression(BinaryOperators.MULTIPLY, new ConstantExpression(3, 3), new ConstantExpression(4, 3)),
+                        new ConstantExpression(2, 3)
                 );
 
         assertEquals(expected, eq.getLeft());
@@ -137,13 +142,13 @@ public class TestEquation {
         SymbolBinding b = variable("b", SymbolRole.COEFFICIENT);
         SymbolBinding c = variable("c", SymbolRole.COEFFICIENT);
 
-        Equation eq = new Equation("a * b ^ c = 0", a, b, c);
+        Equation eq = new Equation("a * b ^ c = 0", 3, a, b, c);
 
         Expression expected =
                 new BinaryExpression(
                         BinaryOperators.MULTIPLY,
-                        new VariableExpression(a),
-                        new BinaryExpression(BinaryOperators.POWER, new VariableExpression(b), new VariableExpression(c))
+                        new VariableExpression(a, 3),
+                        new BinaryExpression(BinaryOperators.POWER, new VariableExpression(b, 3), new VariableExpression(c, 3))
                 );
 
         assertEquals(expected, eq.getLeft());
@@ -154,19 +159,19 @@ public class TestEquation {
     // ------------------------------------------------------------------
 
     @Test
-    void parsingAssociativityTest() {
+    void subtractionIsLeftAssociative() {
 
         SymbolBinding a = variable("a", SymbolRole.COEFFICIENT);
         SymbolBinding b = variable("b", SymbolRole.COEFFICIENT);
         SymbolBinding c = variable("c", SymbolRole.COEFFICIENT);
 
-        Equation eq = new Equation("a-b-c=0", a, b, c);
+        Equation eq = new Equation("a-b-c=0", 3, a, b, c);
 
         Expression expected =
                 new BinaryExpression(
                         BinaryOperators.SUBTRACT,
-                        new BinaryExpression(BinaryOperators.SUBTRACT, new VariableExpression(a), new VariableExpression(b)),
-                        new VariableExpression(c)
+                        new BinaryExpression(BinaryOperators.SUBTRACT, new VariableExpression(a, 3), new VariableExpression(b, 3)),
+                        new VariableExpression(c, 3)
                 );
 
         assertEquals(expected, eq.getLeft());
@@ -179,13 +184,13 @@ public class TestEquation {
         SymbolBinding b = variable("b", SymbolRole.COEFFICIENT);
         SymbolBinding c = variable("c", SymbolRole.COEFFICIENT);
 
-        Equation eq = new Equation("a^b^c=0", a, b, c);
+        Equation eq = new Equation("a^b^c=0", 3, a, b, c);
 
         Expression expected =
                 new BinaryExpression(
                         BinaryOperators.POWER,
-                        new VariableExpression(a),
-                        new BinaryExpression(BinaryOperators.POWER, new VariableExpression(b), new VariableExpression(c))
+                        new VariableExpression(a, 3),
+                        new BinaryExpression(BinaryOperators.POWER, new VariableExpression(b, 3), new VariableExpression(c, 3))
                 );
 
         assertEquals(expected, eq.getLeft());
@@ -196,55 +201,36 @@ public class TestEquation {
     // ------------------------------------------------------------------
 
     @Test
-    void implicitMultiplicationBeforeParenthesis() {
+    void numberDirectlyBeforeParenthesisImpliesMultiplication() {
 
         SymbolBinding a = variable("a", SymbolRole.COEFFICIENT);
         SymbolBinding b = variable("b", SymbolRole.COEFFICIENT);
 
-        Equation eq = new Equation("2(a + b) = 0", a, b);
+        Equation eq = new Equation("2(a + b) = 0", 3, a, b);
 
         Expression expected =
                 new BinaryExpression(
                         BinaryOperators.MULTIPLY,
-                        new ConstantExpression(2),
-                        new BinaryExpression(BinaryOperators.ADD, new VariableExpression(a), new VariableExpression(b))
+                        new ConstantExpression(2, 3),
+                        new BinaryExpression(BinaryOperators.ADD, new VariableExpression(a, 3), new VariableExpression(b, 3))
                 );
 
         assertEquals(expected, eq.getLeft());
     }
 
     @Test
-    void implicitMultiplicationBetweenTwoParenthesisGroups() {
+    void twoAdjacentParenthesisGroupsImplyMultiplication() {
 
         SymbolBinding a = variable("a", SymbolRole.COEFFICIENT);
         SymbolBinding b = variable("b", SymbolRole.COEFFICIENT);
 
-        Equation eq = new Equation("(a)(b) = 0", a, b);
+        Equation eq = new Equation("(a)(b) = 0", 3, a, b);
 
         Expression expected =
-                new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a), new VariableExpression(b));
+                new BinaryExpression(BinaryOperators.MULTIPLY, new VariableExpression(a, 3),
+                        new VariableExpression(b, 3));
 
         assertEquals(expected, eq.getLeft());
-    }
-
-    // ------------------------------------------------------------------
-    // Parenthesis grouping helper
-    // ------------------------------------------------------------------
-
-    @Test
-    void parenthesisGroupingTest() {
-        String[] grouped = Expression.groupByParenthesis("(a + b * c ((()))) + 1");
-        assertArrayEquals(new String[]{"a + b * c ((()))", " + 1"}, grouped);
-    }
-
-    @Test
-    void unmatchedOpeningParenthesisThrows() {
-        assertThrows(RuntimeException.class, () -> Expression.groupByParenthesis("(a + b"));
-    }
-
-    @Test
-    void missingLeadingParenthesisThrows() {
-        assertThrows(RuntimeException.class, () -> Expression.groupByParenthesis("a + b)"));
     }
 
     // ------------------------------------------------------------------
@@ -252,28 +238,28 @@ public class TestEquation {
     // ------------------------------------------------------------------
 
     @Test
-    void unknownIdentifierThrows() {
+    void referencingUndeclaredSymbolThrows() {
 
         SymbolBinding a = variable("a", SymbolRole.COEFFICIENT);
 
-        assertThrows(RuntimeException.class, () -> new Equation("a + unknownSymbol = 0", a));
+        assertThrows(RuntimeException.class, () -> new Equation("a + unknownSymbol = 0", 3, a));
     }
 
     @Test
-    void unknownBinaryOperatorCharacterThrows() {
+    void unsupportedBinaryOperatorCharacterThrows() {
 
         SymbolBinding a = variable("a", SymbolRole.COEFFICIENT);
         SymbolBinding b = variable("b", SymbolRole.COEFFICIENT);
 
-        assertThrows(RuntimeException.class, () -> new Equation("a % b = 0", a, b));
+        assertThrows(RuntimeException.class, () -> new Equation("a % b = 0", 3, a, b));
     }
 
     @Test
-    void emptyExpressionThrows() {
+    void emptyLeftHandSideThrows() {
 
         SymbolBinding a = variable("a", SymbolRole.COEFFICIENT);
 
-        assertThrows(RuntimeException.class, () -> new Equation(" = 0", a));
+        assertThrows(RuntimeException.class, () -> new Equation(" = 0", 3, a));
     }
 
     // ------------------------------------------------------------------
@@ -288,10 +274,10 @@ public class TestEquation {
         SymbolBinding td  = variable("Td", SymbolRole.COEFFICIENT);
         SymbolBinding t   = variable("T", SymbolRole.UNKNOWN);
 
-        Equation eq = new Equation("div(k * grad(T)) + res * (Td - T) = 0", k, res, td, t);
+        Equation eq = new Equation("div(k * grad(T)) + res * (Td - T) = 0", 3, k, res, td, t);
 
         assertEquals(
-                "Equation{(div((k * grad(T))) + (res * (Td - T))) = 0.0, symbols=[k:SCALAR:COEFFICIENT, res:SCALAR:COEFFICIENT, Td:SCALAR:COEFFICIENT, T:SCALAR:UNKNOWN]}",
+                "Equation{div(k * grad(T)) + res * (Td - T) = 0.0, symbols=[k:SCALAR:COEFFICIENT, res:SCALAR:COEFFICIENT, Td:SCALAR:COEFFICIENT, T:SCALAR:UNKNOWN]}",
                 eq.toString()
         );
     }

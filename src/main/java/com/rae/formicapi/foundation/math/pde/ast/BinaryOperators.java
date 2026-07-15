@@ -10,28 +10,55 @@ import java.util.Optional;
 public enum BinaryOperators {
 
     ADD('+', 0) {
-        @Override public FieldType resultType(FieldType left, FieldType right) { requireSameType(this, left, right); return left; }
-        @Override protected Expression combine(Expression left, Expression right) { return componentwiseOrPlain(this, left, right); }
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
+            requireSameType(this, left, right);
+            return left;
+        }
+
+        @Override
+        protected Expression combine(Expression left, Expression right) {
+            return componentwiseOrPlain(this, left, right);
+        }
     },
-    SUBTRACT('-', 0) {
-        @Override public FieldType resultType(FieldType left, FieldType right) { requireSameType(this, left, right); return left; }
-        @Override protected Expression combine(Expression left, Expression right) { return componentwiseOrPlain(this, left, right); }
+    SUBTRACT('-', 0, false) {
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
+            requireSameType(this, left, right);
+            return left;
+        }
+
+        @Override
+        protected Expression combine(Expression left, Expression right) {
+            return componentwiseOrPlain(this, left, right);
+        }
     },
     MULTIPLY('*', 1) {
-        @Override public FieldType resultType(FieldType left, FieldType right) {
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
             if (left == FieldType.SCALAR) return right;
             if (right == FieldType.SCALAR) return left;
-            throw new FieldType.TypeMismatchException("Cannot multiply " + left + " by " + right + " with '*' (need a SCALAR operand; use dot/cross for " + left + "x" + right + ")");
+            throw new FieldType.TypeMismatchException("Cannot multiply " + left + " by " + right +
+                    " with '*' (need a SCALAR operand; use dot/cross for " + left + "x" + right + ")");
         }
-        @Override protected Expression combine(Expression left, Expression right) { return scalarProductOrPlain(this, left, right); }
+
+        @Override
+        protected Expression combine(Expression left, Expression right) {
+            return scalarProductOrPlain(this, left, right);
+        }
     },
     DOT_PRODUCT('.', 1) {
-        @Override public FieldType resultType(FieldType left, FieldType right) {
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
             if (left == FieldType.VECTOR && right == FieldType.VECTOR) return FieldType.SCALAR;
-            throw new FieldType.TypeMismatchException("Cannot dot-multiply " + left + " by " + right + " with '.' (both operands must be VECTOR)");
+            throw new FieldType.TypeMismatchException("Cannot dot-multiply " + left + " by " + right +
+                    " with '.' (both operands must be VECTOR)");
         }
-        @Override protected Expression combine(Expression left, Expression right) {
+
+        @Override
+        protected Expression combine(Expression left, Expression right) {
             int dimensions = left.dimensions();
+            assert dimensions > 0;
             Expression sum = null;
             for (int i = 0; i < dimensions; i++) {
                 Expression product = new BinaryExpression(MULTIPLY, left.componentAt(i), right.componentAt(i));
@@ -40,11 +67,13 @@ public enum BinaryOperators {
             return sum;
         }
     },
-    CROSS_PRODUCT('@', 1) {
-        @Override public FieldType resultType(FieldType left, FieldType right) {
+    CROSS_PRODUCT('@', 1, false) {
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
             if (left == FieldType.VECTOR && right == FieldType.VECTOR) return FieldType.VECTOR;
             throw new FieldType.TypeMismatchException("Cannot cross-multiply " + left + " by " + right + " with '@' (both operands must be VECTOR)");
         }
+
         @Override
         protected Expression combine(Expression left, Expression right) {
             if (left.dimensions() != 3) {
@@ -57,14 +86,17 @@ public enum BinaryOperators {
             ));
         }
     },
-    OUTER_PRODUCT('#', 1) {
-        @Override public FieldType resultType(FieldType left, FieldType right) {
+    OUTER_PRODUCT('#', 1, false) {
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
             if (left == FieldType.VECTOR && right == FieldType.VECTOR) return FieldType.MATRIX;
             throw new FieldType.TypeMismatchException("Cannot outer-multiply " + left + " by " + right + " with '#' (both operands must be VECTOR)");
         }
-        @Override protected Expression combine(Expression left, Expression right) {
-            int dimensions = left.dimensions();
-            List<List<Expression>> rows = new ArrayList<>();
+
+        @Override
+        protected Expression combine(Expression left, Expression right) {
+            int                    dimensions = left.dimensions();
+            List<List<Expression>> rows       = new ArrayList<>();
             for (int i = 0; i < dimensions; i++) {
                 List<Expression> row = new ArrayList<>();
                 for (int j = 0; j < dimensions; j++) row.add(mul(left.componentAt(i), right.componentAt(j)));
@@ -73,31 +105,52 @@ public enum BinaryOperators {
             return new MatrixExpression(rows);
         }
     },
-    DIVIDE('/', 1) {
-        @Override public FieldType resultType(FieldType left, FieldType right) {
-            if (right != FieldType.SCALAR) throw new FieldType.TypeMismatchException("Cannot divide by a " + right + " (division is only defined by SCALAR)");
+    DIVIDE('/', 1, false) {
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
+            if (right != FieldType.SCALAR)
+                throw new FieldType.TypeMismatchException("Cannot divide by a " + right + " (division is only defined by SCALAR)");
             return left;
         }
-        @Override protected Expression combine(Expression left, Expression right) { return scalarProductOrPlain(this, left, right); }
+
+        @Override
+        protected Expression combine(Expression left, Expression right) {
+            return scalarProductOrPlain(this, left, right);
+        }
     },
-    POWER('^', 2, true) {
-        @Override public FieldType resultType(FieldType left, FieldType right) { requireScalar(this, left); requireScalar(this, right); return FieldType.SCALAR; }
-        @Override protected Expression combine(Expression left, Expression right) { return new BinaryExpression(this, left, right); }
+    POWER('^', 2, false, true) {
+        @Override
+        public FieldType resultType(FieldType left, FieldType right) {
+            requireScalar(this, left);
+            requireScalar(this, right);
+            return FieldType.SCALAR;
+        }
+
+        @Override
+        protected Expression combine(Expression left, Expression right) {
+            return new BinaryExpression(this, left, right);
+        }
     };
 
 
     public final char    representation;
     public final int     priority;
-    public final boolean rightAssociative;
+    public final boolean commutative;
+    public final boolean rightMerging;
 
     BinaryOperators(char representation, int priority) {
-        this(representation, priority, false);
+        this(representation, priority, true, false);
     }
 
-    BinaryOperators(char representation, int priority, boolean rightAssociative) {
+    BinaryOperators(char representation, int priority, boolean commutative, boolean rightMerging) {
         this.representation = representation;
         this.priority = priority;
-        this.rightAssociative = rightAssociative;
+        this.commutative = commutative;
+        this.rightMerging = rightMerging;
+    }
+
+    BinaryOperators(char representation, int priority, boolean commutative) {
+        this(representation, priority, commutative, false);
     }
 
     protected static void requireSameType(BinaryOperators op, FieldType left, FieldType right) {
@@ -182,6 +235,7 @@ public enum BinaryOperators {
 
     public abstract FieldType resultType(FieldType left, FieldType right);
 
+    //todo add a better support of Subtract operation.
     /**
      * Whether this operator distributes over `inner` from the given side: (this-left {inner} this-right).
      */
@@ -192,10 +246,15 @@ public enum BinaryOperators {
         if (this == DIVIDE) {
             return asLeftOperand && (inner == ADD || inner == SUBTRACT);
         }
+        /*if (this == SUBTRACT) {
+            return asLeftOperand && inner.priority <= this.priority;
+        }*/
         return false;
     }
 
-    /** Template method: check distribution first, otherwise delegate to this operator's own combine(). */
+    /**
+     * Template method: check distribution first, otherwise delegate to this operator's own combine().
+     */
     public final Expression expand(Expression left, Expression right) {
         if (left instanceof BinaryExpression lb && distributesOver(lb.getOperator(), true)) {
             return lb.getOperator().expand(this.expand(lb.getLeft(), right), this.expand(lb.getRight(), right));
@@ -206,6 +265,8 @@ public enum BinaryOperators {
         return combine(left, right);
     }
 
-    /** Combines two already-fully-expanded, non-further-distributable operands into a result. */
+    /**
+     * Combines two already-fully-expanded, non-further-distributable operands into a result.
+     */
     protected abstract Expression combine(Expression left, Expression right);
 }

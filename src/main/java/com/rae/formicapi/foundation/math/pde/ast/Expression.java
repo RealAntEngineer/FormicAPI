@@ -2,6 +2,7 @@ package com.rae.formicapi.foundation.math.pde.ast;
 
 import com.rae.formicapi.foundation.math.pde.FieldType;
 import com.rae.formicapi.foundation.math.pde.SymbolBinding;
+import org.checkerframework.common.value.qual.IntRange;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,12 +13,19 @@ public abstract class Expression {
 
     public static final int MAX_DEPTH = 100;
     private final       int dimensions;
+    private final       int depth;
 
-    Expression(int dimensions) {
-        this.dimensions = dimensions;
+
+    Expression(@IntRange(from = 1) int dimensions) {
+        this(dimensions, 0);
     }
 
-    public static Expression parseExpression(String text, Map<String, SymbolBinding> symbols, int depth, int dimensions) {
+    Expression(@IntRange(from = 1) int dimensions, @IntRange(from = 0) int depth) {
+        this.dimensions = dimensions;
+        this.depth = depth;
+    }
+
+    public static Expression parseExpression(String text, Map<String, SymbolBinding> symbols, @IntRange(from = 0) int depth, @IntRange(from = 1) int dimensions) {
 
         if (depth > MAX_DEPTH)
             throw new RuntimeException("Max depth reached");
@@ -160,7 +168,7 @@ public abstract class Expression {
         return outOperands.getFirst();
     }
 
-    static String[] groupByParenthesis(String text) {
+    public static String[] groupByParenthesis(String text) {
 
         if (!text.startsWith("(") || text.length() == 1) {
             throw new RuntimeException("Unmatched parenthesis at start");
@@ -191,7 +199,7 @@ public abstract class Expression {
     private static boolean isRightAssociativeLevel(List<BinaryOperators> operators, int priority) {
         for (BinaryOperators op : operators) {
             if (op.priority == priority) {
-                return op.rightAssociative;
+                return op.rightMerging;
             }
         }
         return false; // doesn't matter, no operator at this level
@@ -219,10 +227,22 @@ public abstract class Expression {
 
     public abstract boolean isSpaceDifferentiable();
 
-    @Override
-    public String toString() {
-        return debugPrint();
+    /**
+     * do we appear at the right of expression
+     */
+    public boolean appearAfter(Expression expression) {
+        return this.appearanceOrder() > expression.appearanceOrder() ||
+                this.appearanceOrder() == expression.appearanceOrder() && this.getDepth() > expression.getDepth();
     }
 
-    public abstract String debugPrint();
+    /**
+     * define a priority for binary operators, the highest numer will be placed last
+     */
+    public int appearanceOrder() {
+        return 0;
+    }
+
+    public int getDepth() {
+        return depth;
+    }
 }

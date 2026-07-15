@@ -5,9 +5,8 @@ import com.rae.formicapi.foundation.math.pde.FieldType;
 import java.util.Optional;
 
 public enum UnaryOperators {
-
-    NEGATE("-") {
-    },
+    //TODO remove negate in favor of subtract with no left member. (right now subtract doesn't support it, it should be better to fail only on missing right member)
+    NEGATE("-"),
     GRAD("grad", false, true) {
         @Override
         public FieldType resultType(FieldType operand) {
@@ -41,21 +40,21 @@ public enum UnaryOperators {
     DDZ("ddz", false, true),
     D2DZ2("d2dz2", false, true),
     D2DXDY("d2dxdy", false, true),
-    D2DXDZ("d2dxdz", false, true) ,
+    D2DXDZ("d2dxdz", false, true),
     D2DYDZ("d2dydz", false, true);
 
-    private final String representation;
+    private final String  representation;
     private final boolean appliesTimeDifferentiation;
     private final boolean appliesSpaceDifferentiation;
+
+    UnaryOperators(String representation) {
+        this(representation, false, false);
+    }
 
     UnaryOperators(String representation, boolean appliesTimeDifferentiation, boolean appliesSpaceDifferentiation) {
         this.representation = representation;
         this.appliesTimeDifferentiation = appliesTimeDifferentiation;
         this.appliesSpaceDifferentiation = appliesSpaceDifferentiation;
-    }
-
-    UnaryOperators(String representation) {
-        this(representation, false, false);
     }
 
     public static Optional<UnaryOperators> parse(String value) {
@@ -78,14 +77,14 @@ public enum UnaryOperators {
     }
 
 
-    public FieldType resultType(FieldType operand){
+    public FieldType resultType(FieldType operand) {
         return operand;
     }
 
     /**
      * Whether this operator distributes over addition/subtraction: op(a+b) = op(a) + op(b).
      */
-    public boolean isLinear(){
+    public boolean isLinear() {
         return true;
     }
 }
