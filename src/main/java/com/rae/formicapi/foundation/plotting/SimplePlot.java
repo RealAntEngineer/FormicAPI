@@ -185,7 +185,7 @@ public class SimplePlot {
 
         int tickSize = 5;
 
-        // X axis ticks
+        // X-axis ticks
         int numXTicks = 10;
         for (int i = 0; i <= numXTicks; i++) {
             double val;
@@ -201,7 +201,7 @@ public class SimplePlot {
             g.drawString(label, px - g.getFontMetrics().stringWidth(label) / 2, height - margin + 20);
         }
 
-        // Y axis ticks
+        // Y-axis ticks
         int numYTicks = 10;
         for (int i = 0; i <= numYTicks; i++) {
             double val;
@@ -224,18 +224,7 @@ public class SimplePlot {
         return String.format("%.3f", val);
     }
 
-    public static class Series {
-        public String       label;
-        public List<Double> x;
-        public List<Double> y;
-        public Color        color;
-
-        public Series(String label, List<Double> x, List<Double> y, Color color) {
-            this.label = label;
-            this.x = x;
-            this.y = y;
-            this.color = color;
-        }
+    public record Series(String label, List<Double> x, List<Double> y, Color color) {
     }
 }
 

@@ -21,7 +21,7 @@ public enum BinaryOperators {
             return componentwiseOrPlain(this, left, right);
         }
     },
-    SUBTRACT('-', 0, false) {
+    SUBTRACT('-', 0, false, false) {
         @Override
         public FieldType resultType(FieldType left, FieldType right) {
             requireSameType(this, left, right);
@@ -67,7 +67,7 @@ public enum BinaryOperators {
             return sum;
         }
     },
-    CROSS_PRODUCT('@', 1, false) {
+    CROSS_PRODUCT('@', 1, false, false) {
         @Override
         public FieldType resultType(FieldType left, FieldType right) {
             if (left == FieldType.VECTOR && right == FieldType.VECTOR) return FieldType.VECTOR;
@@ -86,7 +86,7 @@ public enum BinaryOperators {
             ));
         }
     },
-    OUTER_PRODUCT('#', 1, false) {
+    OUTER_PRODUCT('#', 1, false, false) {
         @Override
         public FieldType resultType(FieldType left, FieldType right) {
             if (left == FieldType.VECTOR && right == FieldType.VECTOR) return FieldType.MATRIX;
@@ -105,7 +105,7 @@ public enum BinaryOperators {
             return new MatrixExpression(rows);
         }
     },
-    DIVIDE('/', 1, false) {
+    DIVIDE('/', 1, false, false) {
         @Override
         public FieldType resultType(FieldType left, FieldType right) {
             if (right != FieldType.SCALAR)
@@ -147,10 +147,6 @@ public enum BinaryOperators {
         this.priority = priority;
         this.commutative = commutative;
         this.rightMerging = rightMerging;
-    }
-
-    BinaryOperators(char representation, int priority, boolean commutative) {
-        this(representation, priority, commutative, false);
     }
 
     protected static void requireSameType(BinaryOperators op, FieldType left, FieldType right) {

@@ -29,7 +29,8 @@ public class FormicAPIConfigs
         return CONFIGS.get(type);
     }
 
-    private static <T extends ConfigBase> T register(Supplier<T> factory, ModConfig.Type side) {
+    @SuppressWarnings("SameParameterValue")
+    private static <T extends ConfigBase> T register(Supplier<T> factory, @SuppressWarnings("SameParameterValue") ModConfig.Type side) {
         Pair<T, ModConfigSpec> specPair = new ModConfigSpec.Builder().configure((builder) -> {
             T config = factory.get();
             config.registerAll(builder);

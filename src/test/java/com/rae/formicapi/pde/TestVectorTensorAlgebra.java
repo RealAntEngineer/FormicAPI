@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * through the string parser): componentwise addition, dot/cross/outer
  * products, and type-mismatch validation.
  */
+@SuppressWarnings("SameParameterValue")
 public class TestVectorTensorAlgebra {
 
     private static SymbolBinding scalar(String name, SymbolRole role) {

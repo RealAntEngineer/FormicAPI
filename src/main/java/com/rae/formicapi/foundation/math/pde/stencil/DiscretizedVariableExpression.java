@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
  * {@code int[]{dx}}, a 2D field's is {@code int[]{dx,dy}}, and so on. All
  * instances referencing the same {@link SymbolBinding} in a given equation
  * are expected to share the same array length; nothing here enforces that
- * across an equation, so mixing dimensionalities for the same symbol is a
+ * across an equation, so mixing dimensionality for the same symbol is a
  * caller error.
  *
  * <ul>

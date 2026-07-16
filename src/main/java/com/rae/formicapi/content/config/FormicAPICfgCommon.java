@@ -16,7 +16,7 @@ public class FormicAPICfgCommon extends ConfigBase {
     }
 
     private static class Comments {
-        static String units = "Units used";
+        static final String units = "Units used";
     }
 
 }

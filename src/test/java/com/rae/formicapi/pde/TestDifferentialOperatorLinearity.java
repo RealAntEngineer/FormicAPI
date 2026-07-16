@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Linearity of grad/div/lap/ddt: distributing over sums and differences,
  * the product rule for grad, and constant folding. Tests where two
  * differential operators are *composed* (e.g. div(grad(...)) collapsing to
- * a laplacian, or ddx(ddx(...)) collapsing to a second derivative) live in
+ * a Laplacian, or ddx(ddx(...)) collapsing to a second derivative) live in
  * {@link TestDerivativeComposition} instead — that's a distinct rewrite
  * concern from plain linearity.
  */

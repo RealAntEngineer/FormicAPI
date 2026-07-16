@@ -1,5 +1,7 @@
 package com.rae.formicapi.foundation.math.operators;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +13,7 @@ import java.util.Map;
  * Only non-zero entries are stored — zero values passed to {@link #add} or
  * {@link #set} are silently ignored or removed, keeping the structure lean.
  *
- * <p>This implementation is optimised for assembly (random-access writes) rather
+ * <p>This implementation is optimized for assembly (random-access writes) rather
  * than repeated multiplication. For solve-phase performance, convert to
  * {@link CSRMatrix} via {@link #toCSR()}, or use {@link DynamicCSRMatrix} directly.
  *
@@ -102,7 +104,7 @@ public class HashSparseMatrix implements MutableMatrix {
         return CSRMatrix.fromHash(this);
     }
 
-    public Map<Integer, Double> getRow(int r) {
+    public @Nullable Map<Integer, Double> getRow(int r) {
         return data.get(r);
     }
 }

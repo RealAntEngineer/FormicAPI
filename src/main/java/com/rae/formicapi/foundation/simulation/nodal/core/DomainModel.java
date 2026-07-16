@@ -38,7 +38,6 @@ public class DomainModel {
      * Rebuilds a fresh context from the current node state.
      * Must be called at the start of each iteration before stamping.
      *
-     * @return
      */
     public SimulationContext rebuildContext() {
         int n = nodes.size();

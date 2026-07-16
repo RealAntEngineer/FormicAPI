@@ -1,5 +1,7 @@
 package com.rae.formicapi.foundation.math.operators;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * A sparse matrix that supports dynamic assembly via a hash-based buffer,
  * and compiles to CSR format for efficient multiplication.
@@ -21,8 +23,8 @@ package com.rae.formicapi.foundation.math.operators;
  */
 public class DynamicCSRMatrix implements MutableMatrix {
 
-    private final HashSparseMatrix buffer;
-    private       CSRMatrix        csr = null;
+    private final          HashSparseMatrix buffer;
+    private      @Nullable CSRMatrix        csr = null;
 
     /**
      * Creates a dynamic CSR matrix of the given dimensions.

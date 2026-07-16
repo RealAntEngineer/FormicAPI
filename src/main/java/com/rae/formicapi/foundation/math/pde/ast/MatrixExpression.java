@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * rows.get(i).get(j) is the (i,j) entry; assumed square (rowCount == columnCount) everywhere this is used.
+ * rows.get(i).get(j) is the (i,j) entry;
  */
 public class MatrixExpression extends Expression {
     private final List<List<Expression>> rows;
@@ -17,9 +17,8 @@ public class MatrixExpression extends Expression {
         super(rows.getFirst().getFirst().dimensions(),  rows.stream()
                 .map(l -> l.stream().map(Expression::getDepth).reduce(Math::max)
                         .orElse(0)).reduce(Math::max).orElse(0) + 1);
-        this.rows = rows;
-        rows = rows.stream().map(List::copyOf).toList();
-        for (List<Expression> row : rows) {
+        this.rows = rows.stream().map(List::copyOf).toList();
+        for (List<Expression> row : this.rows) {
             for (Expression c : row) {
                 if (c.resultType() != FieldType.SCALAR) {
                     throw new FieldType.TypeMismatchException("TensorExpression components must be SCALAR, got " + c.resultType());

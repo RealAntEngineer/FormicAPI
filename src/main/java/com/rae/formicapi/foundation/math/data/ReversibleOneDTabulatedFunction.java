@@ -39,8 +39,8 @@ public class ReversibleOneDTabulatedFunction {
         List<Map.Entry<Float, Float>> entries = new ArrayList<>(original.entrySet());
 
         // Determine the log pressure range
-        float logP_start = (float) stepMode.forward.applyAsDouble(entries.get(0).getValue());
-        float logP_end   = (float) stepMode.forward.applyAsDouble(entries.get(entries.size() - 1).getValue());
+        float logP_start = (float) stepMode.forward.applyAsDouble(entries.getFirst().getValue());
+        float logP_end   = (float) stepMode.forward.applyAsDouble(entries.getLast().getValue());
         int   numSteps   = (int) ((logP_end - logP_start) / step);
 
 

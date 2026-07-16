@@ -8,7 +8,7 @@ import com.rae.formicapi.foundation.simulation.nodal.ModelType;
  * <p>Fixed nodes do not contribute rows to the system matrix. Their known
  * values influence unknown nodes through the components that connect them.
  *
- * <p>Calls to {@link #setValue(ModelType, double)} (double)} are silently ignored.
+ * <p>Calls to {@link #setValue(ModelType, double)} are silently ignored.
  *
  * @see Node
  * @see ModelType

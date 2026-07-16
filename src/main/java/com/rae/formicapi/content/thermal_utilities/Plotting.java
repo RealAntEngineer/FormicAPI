@@ -65,7 +65,7 @@ public class Plotting {
 
             for (float p = pMin; p <= pMax; p *= 1.01f) {
                 try {
-                    float T = FullTableBased.getT((float)FullTableBased.getH(p, (float) s), p);
+                    float T = FullTableBased.getT(FullTableBased.getH(p, (float) s), p);
                     if (!Float.isFinite(T)) continue;
 
                     pressures.add((double)p);

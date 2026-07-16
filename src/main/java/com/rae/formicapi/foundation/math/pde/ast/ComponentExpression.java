@@ -18,20 +18,19 @@ public class ComponentExpression extends Expression {
     public ComponentExpression(Expression source, List<Integer> indices) {
         super(source.dimensions(), source.getDepth());
         this.source = source;
-        this.indices = indices;
-        indices = List.copyOf(indices);
-        if (indices.isEmpty() || indices.size() > 2) {
+        this.indices = List.copyOf(indices);
+        if (this.indices.isEmpty() || this.indices.size() > 2) {
             throw new IllegalArgumentException(
-                    "ComponentExpression supports 1 index (vector entry, or tensor row) or 2 indices (matrix entry), got " + indices.size());
+                    "ComponentExpression supports 1 index (vector entry, or tensor row) or 2 indices (matrix entry), got " + this.indices.size());
         }
 
         FieldType sourceType = source.resultType();
 
-        if (indices.size() == 1 && sourceType != FieldType.VECTOR && sourceType != FieldType.MATRIX) {
+        if (this.indices.size() == 1 && sourceType != FieldType.VECTOR && sourceType != FieldType.MATRIX) {
             throw new FieldType.TypeMismatchException(
                     "Single-index component access requires a VECTOR or MATRIX source, got " + sourceType);
         }
-        if (indices.size() == 2 && sourceType != FieldType.MATRIX) {
+        if (this.indices.size() == 2 && sourceType != FieldType.MATRIX) {
             throw new FieldType.TypeMismatchException(
                     "Two-index component access requires a MATRIX source, got " + sourceType);
         }
@@ -47,24 +46,6 @@ public class ComponentExpression extends Expression {
         }
 
         return new ComponentExpression(source, List.of(axis));
-    }
-
-    /**
-     * Extracts row `row` of a TENSOR source as a VECTOR.
-     */
-    public static Expression rowOfMatrix(Expression source, int row) {
-        FieldType type = source.resultType();
-        if (type != FieldType.MATRIX) {
-            throw new FieldType.TypeMismatchException("rowOf() requires a MATRIX expression, got " + type + " for: " + source);
-        }
-        if (source instanceof MatrixExpression te) {
-            List<Expression> components = new ArrayList<>();
-            for (int col = 0; col < source.dimensions(); col++) {
-                components.add(te.component(row, col));
-            }
-            return new VectorExpression(components);
-        }
-        return new ComponentExpression(source, List.of(row));
     }
 
     public static Expression ofMatrix(Expression source, int row, int col) {

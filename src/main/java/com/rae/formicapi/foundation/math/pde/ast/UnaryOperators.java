@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public enum UnaryOperators {
     //TODO remove negate in favor of subtract with no left member. (right now subtract doesn't support it, it should be better to fail only on missing right member)
-    NEGATE("-"),
+    NEGATE("-", false, false),
     GRAD("grad", false, true) {
         @Override
         public FieldType resultType(FieldType operand) {
@@ -32,7 +32,7 @@ public enum UnaryOperators {
     },
     LAPLACIAN("lap", false, true),
     DDT("ddt", true, false),
-    D2DT("d2dt2", true, false),
+    D2DT2("d2dt2", true, false),
     DDX("ddx", false, true),
     D2DX2("d2dx2", false, true),
     DDY("ddy", false, true),
@@ -41,15 +41,14 @@ public enum UnaryOperators {
     D2DZ2("d2dz2", false, true),
     D2DXDY("d2dxdy", false, true),
     D2DXDZ("d2dxdz", false, true),
-    D2DYDZ("d2dydz", false, true);
+    D2DYDZ("d2dydz", false, true),
+    
 
-    private final String  representation;
-    private final boolean appliesTimeDifferentiation;
-    private final boolean appliesSpaceDifferentiation;
+    ;
 
-    UnaryOperators(String representation) {
-        this(representation, false, false);
-    }
+    public final String  representation;
+    public final boolean appliesTimeDifferentiation;
+    public final boolean appliesSpaceDifferentiation;
 
     UnaryOperators(String representation, boolean appliesTimeDifferentiation, boolean appliesSpaceDifferentiation) {
         this.representation = representation;
@@ -64,19 +63,6 @@ public enum UnaryOperators {
         return Optional.empty();
     }
 
-    public String representation() {
-        return representation;
-    }
-
-    public boolean appliesTimeDifferentiation() {
-        return appliesTimeDifferentiation;
-    }
-
-    public boolean appliesSpaceDifferentiation() {
-        return appliesSpaceDifferentiation;
-    }
-
-
     public FieldType resultType(FieldType operand) {
         return operand;
     }
@@ -84,6 +70,7 @@ public enum UnaryOperators {
     /**
      * Whether this operator distributes over addition/subtraction: op(a+b) = op(a) + op(b).
      */
+    @SuppressWarnings("SameReturnValue")
     public boolean isLinear() {
         return true;
     }

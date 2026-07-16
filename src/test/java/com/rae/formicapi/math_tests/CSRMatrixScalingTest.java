@@ -34,7 +34,7 @@ public class CSRMatrixScalingTest {
         int nnzPerRow = 10;
 
         printHeader("multiply — scaling with n", "nnzPerRow", nnzPerRow);
-        printColumns("n", "time (ns)", "ns/nnz");
+        printColumns("n");
 
         long prevNs = -1;
         for (int n : sizes) {
@@ -60,8 +60,8 @@ public class CSRMatrixScalingTest {
     // Scale with m (nnz per row), fixed n
     // ------------------------------------------------
 
-    private static void printColumns(String col1, String col2, String col3) {
-        System.out.printf("%-14s %-20s %-18s%n", col1, col2, col3);
+    private static void printColumns(String col1) {
+        System.out.printf("%-14s %-20s %-18s%n", col1, "time (ns)", "ns/nnz");
         System.out.println("-".repeat(52));
     }
 
@@ -126,7 +126,7 @@ public class CSRMatrixScalingTest {
         int nnzPerRow = 10;
 
         printHeader("transposeMultiply — scaling with n", "nnzPerRow", nnzPerRow);
-        printColumns("n", "time (ns)", "ns/nnz");
+        printColumns("n");
 
         long prevNs = -1;
         for (int n : sizes) {
@@ -154,7 +154,7 @@ public class CSRMatrixScalingTest {
         int[] densities = {1, 5, 10, 50, 100};
 
         printHeader("multiply — scaling with m", "n", n);
-        printColumns("nnzPerRow", "time (ns)", "ns/nnz");
+        printColumns("nnzPerRow");
 
         long prevNs = -1;
         for (int m : densities) {
@@ -178,7 +178,7 @@ public class CSRMatrixScalingTest {
         int[] densities = {1, 5, 10, 50, 100};
 
         printHeader("transposeMultiply — scaling with m", "n", n);
-        printColumns("nnzPerRow", "time (ns)", "ns/nnz");
+        printColumns("nnzPerRow");
 
         long prevNs = -1;
         for (int m : densities) {

@@ -122,6 +122,7 @@ public class CommandsInit {
                 );
     }
 
+    @SuppressWarnings("SameReturnValue")
     private static int executeIsotropesCommand(CommandContext<CommandSourceStack> ctx) {
         float sMin  = FloatArgumentType.getFloat(ctx, "sMin");
         float sMax  = FloatArgumentType.getFloat(ctx, "sMax");

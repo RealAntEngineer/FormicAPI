@@ -18,6 +18,7 @@ public class PDEUtil {
         return new SymbolBinding(new Field(name, FieldType.SCALAR), SymbolRole.COEFFICIENT);
     }
 
+    @SuppressWarnings("SameParameterValue")
     static SymbolBinding vector(String name, SymbolRole role) {
         return new SymbolBinding(new Field(name, FieldType.VECTOR), role);
     }

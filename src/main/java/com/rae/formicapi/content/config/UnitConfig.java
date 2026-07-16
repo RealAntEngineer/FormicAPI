@@ -18,9 +18,9 @@ public class UnitConfig extends ConfigBase {
     }
 
     private static class Comments {
-        static String temperature = "unit used for temperature";
-        static String pressure = "unit used for pressure";
-        static String radiationFlux = "unit used for radiation activity";
+        static final String temperature = "unit used for temperature";
+        static final String pressure    = "unit used for pressure";
+        static final String radiationFlux = "unit used for radiation activity";
 
 
     }

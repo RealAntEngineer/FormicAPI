@@ -76,6 +76,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     //TODO rewrite this
+    @SuppressWarnings("ConstantValue")
     public static @Nullable BlockPos getMaster(BlockGetter level, BlockPos initialPos) {
         //makeSomething to prevent stackOverFlow -> while
         ArrayList<BlockPos> posDiscovered = new ArrayList<>();

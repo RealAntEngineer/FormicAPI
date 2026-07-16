@@ -25,7 +25,7 @@ public class SpecificRealGasState {
             FriendlyByteBuf.writeNbt(buffer, state.serialize());
         }
     };
-    public static final Codec<SpecificRealGasState>                CODEC        = RecordCodecBuilder.create(i ->
+    public static final Codec<SpecificRealGasState> CODEC        = RecordCodecBuilder.create(i ->
             i.group(
                             Codec.FLOAT.fieldOf("pressure").forGetter(p -> p.pressure),
                             Codec.FLOAT.fieldOf("specific_enthalpy").forGetter(p -> p.specificEnthalpy),
@@ -34,8 +34,8 @@ public class SpecificRealGasState {
                             Codec.FLOAT.optionalFieldOf("vapor_quality", null).forGetter(p -> p.vaporQuality)
                     )
                     .apply(i, SpecificRealGasState::new));
-    Float pressure;
-    Float specificEnthalpy;
+    final               Float                       pressure;
+    final               Float                       specificEnthalpy;
     @Nullable Float temperature;
     @Nullable Float specificEntropy;
     @Nullable Float vaporQuality;

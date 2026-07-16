@@ -166,19 +166,20 @@ public final class ScalarAlgebra {
      */
     public static Expression combineLikeTerms(Expression expression) {
 
-        if (expression instanceof BinaryExpression be
-                && (be.getOperator() == BinaryOperators.ADD || be.getOperator() == BinaryOperators.SUBTRACT)) {
+        switch (expression) {
+            case BinaryExpression be when (be.getOperator() == BinaryOperators.ADD || be.getOperator() == BinaryOperators.SUBTRACT) -> {
 
-            List<Term> terms = collectTerms(expression, ScalarAlgebra::combineLikeTerms);
-            return sumTerms(terms, be.dimensions());
-        }
-
-        if (expression instanceof BinaryExpression be) {
-            return new BinaryExpression(be.getOperator(), combineLikeTerms(be.getLeft()), combineLikeTerms(be.getRight()));
-        }
-
-        if (expression instanceof UnaryExpression ue) {
-            return new UnaryExpression(ue.getOperator(), combineLikeTerms(ue.getOperand()));
+                List<Term> terms = collectTerms(expression, ScalarAlgebra::combineLikeTerms);
+                return sumTerms(terms, be.dimensions());
+            }
+            case BinaryExpression be -> {
+                return new BinaryExpression(be.getOperator(), combineLikeTerms(be.getLeft()), combineLikeTerms(be.getRight()));
+            }
+            case UnaryExpression ue -> {
+                return new UnaryExpression(ue.getOperator(), combineLikeTerms(ue.getOperand()));
+            }
+            case null, default -> {
+            }
         }
 
         return expression;

@@ -27,7 +27,7 @@ public class PlateNodeHelper {
      */
     public UnknownNode[][] createPlateNodes(SimulationModel model) {
 
-        int totalNx = layers.get(0).nx;
+        int totalNx = layers.getFirst().nx;
         int totalNy = 1;
         for (Layer layer : layers) totalNy += layer.ny;
 
@@ -60,7 +60,7 @@ public class PlateNodeHelper {
         // ----------------------------------------------------------------
         // Horizontal links — interior rows of each layer
         // Edge rows (bottom boundary of layer, top boundary of last layer)
-        // use half-cell height dy/2; interior rows use full dy.
+        // use half-cell height dy/2; interior rows utilize full dy.
         // Interface rows are handled separately below.
         // ----------------------------------------------------------------
         nodeRowStart = 0;
@@ -123,20 +123,13 @@ public class PlateNodeHelper {
         return nodes;
     }
 
-    public static class Layer {
-        public Material material;
-        public double   thickness; // meters, Y-direction
-        public double   length;    // meters, X-direction
-        public int      nx;           // nodes along length
-        public int      ny;           // nodes along thickness
-
-        public Layer(Material material, double length, double thickness, int nx, int ny) {
-            this.material = material;
-            this.length = length;
-            this.thickness = thickness;
-            this.nx = nx;
-            this.ny = ny;
-        }
+    /**
+     * @param thickness meters, Y-direction
+     * @param length    meters, X-direction
+     * @param nx        nodes along length
+     * @param ny        nodes along thickness
+     */
+    public record Layer(Material material, double length, double thickness, int nx, int ny) {
     }
 
 }

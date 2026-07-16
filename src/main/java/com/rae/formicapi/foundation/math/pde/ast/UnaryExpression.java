@@ -21,8 +21,7 @@ public class UnaryExpression extends Expression {
     }
 
     private static boolean appliesTo(UnaryOperators operator, Expression operand) {
-        return (operator.appliesTimeDifferentiation() && operand.isTimeDifferentiable())
-                || (operator.appliesSpaceDifferentiation() && operand.isSpaceDifferentiable());
+        return operator.appliesTimeDifferentiation && operand.isTimeDifferentiable() || operator.appliesSpaceDifferentiation && operand.isSpaceDifferentiable();
     }
 
     private static boolean isAxisDerivative(UnaryOperators operator) {
@@ -114,7 +113,7 @@ public class UnaryExpression extends Expression {
 
     @Override
     public String prettyPrint() {
-        return operator.representation() + "(" + operand.prettyPrint() + ")";
+        return operator.representation + "(" + operand.prettyPrint() + ")";
     }
 
     @Override
@@ -231,8 +230,8 @@ public class UnaryExpression extends Expression {
          * ------------------------------------------------------------
          */
 
-        if ((operator.appliesTimeDifferentiation()
-                || operator.appliesSpaceDifferentiation())
+        if ((operator.appliesTimeDifferentiation
+                || operator.appliesSpaceDifferentiation)
                 && expandedOperand instanceof ConstantExpression) {
 
             return new ConstantExpression(

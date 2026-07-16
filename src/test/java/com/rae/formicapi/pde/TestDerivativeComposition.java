@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class TestDerivativeComposition {
 
     // ------------------------------------------------------------------
-    // div(grad(...)) -> laplacian
+    // div(grad(...)) -> Laplacian
     // ------------------------------------------------------------------
 
     @Test

@@ -24,7 +24,7 @@ class TwoDTabulatedFunctionTest {
         return new TwoDTabulatedFunction(table, 1f, 1f, StepMode.LINEAR, StepMode.LINEAR, clamp);
     }
 
-    private TwoDTabulatedFunction makeFuncWithHoles(boolean clamp) {
+    private TwoDTabulatedFunction makeFuncWithHoles() {
         // z(x,y) = x + y, but missing some rows and entries
         TreeMap<Float, TreeMap<Float, Float>> table = new TreeMap<>();
         for (int xi = 0; xi <= 5; xi++) {
@@ -36,7 +36,7 @@ class TwoDTabulatedFunctionTest {
             }
             table.put((float) xi, row);
         }
-        return new TwoDTabulatedFunction(table, 1f, 1f, StepMode.LINEAR, StepMode.LINEAR, clamp);
+        return new TwoDTabulatedFunction(table, 1f, 1f, StepMode.LINEAR, StepMode.LINEAR, false);
     }
 
     @Test
@@ -76,7 +76,7 @@ class TwoDTabulatedFunctionTest {
 
     @Test
     void testHoles() {
-        TwoDTabulatedFunction f = makeFuncWithHoles(false);
+        TwoDTabulatedFunction f = makeFuncWithHoles();
 
         // Hole in X row: x=2 missing → should interpolate between x=1 and x=3
         float val = f.evaluate(2f, 4f);
@@ -89,7 +89,7 @@ class TwoDTabulatedFunctionTest {
 
     @Test
     void stressRandomInputs() {
-        TwoDTabulatedFunction f = makeFuncWithHoles(false);
+        TwoDTabulatedFunction f = makeFuncWithHoles();
         Random rnd = new Random(42);
 
         for (int i = 0; i < 5000; i++) {

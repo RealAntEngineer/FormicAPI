@@ -62,7 +62,7 @@ public class SimpleSolvers {
 
     /**
      * Uses gradient descent to find the minimum of a given function, with adaptive step size.
-     * (generated in part with chatgpt)
+     * (generated in part with ChatGPT)
      *
      * @param function a function that has a minimum
      * @param start    starting point
@@ -108,7 +108,7 @@ public class SimpleSolvers {
 
     /**
      * Uses gradient descent to find the minimum of a given function, with adaptive step size.
-     * (generated in part with chatgpt)
+     * (generated in part with ChatGPT)
      *
      * @param function  a function that has a minimum
      * @param start     starting point

@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class FormicApiLang extends Lang {
-    static TreeMap<Double, String> MULTIPLE_SYMBOLS = new TreeMap<>();
+    static final TreeMap<Double, String> MULTIPLE_SYMBOLS = new TreeMap<>();
 
     static {
         MULTIPLE_SYMBOLS.put(1e30,  "Q");  // quetta (2022)

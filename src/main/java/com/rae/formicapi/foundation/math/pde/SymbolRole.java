@@ -8,16 +8,15 @@ public enum SymbolRole {
     UNKNOWN(true, true),
 
     /**
-     * Used to compute entries of A.
+     * Runtime value contributing to b.
+     * Typically, another field like velocity in the context of temperature transport
      */
-    COEFFICIENT,
+    EVALUATED_FIELD(false, true),
 
     /**
-     * Runtime value contributing to b.
-     * Typically another field or the previous
-     * nonlinear iteration.
+     * Used to compute entries of A, it supposed to be constant across time and space
      */
-    EVALUATED_FIELD(true),
+    COEFFICIENT,
 
     /**
      * Compile-time constant.
@@ -34,10 +33,6 @@ public enum SymbolRole {
     SymbolRole(boolean timeDif, boolean spaceDif) {
         this.timeDifferentiable = timeDif;
         this.spaceDifferentiable = spaceDif;
-    }
-
-    SymbolRole(boolean spaceDif) {
-        this(false, spaceDif);
     }
 
     public boolean isTimeDifferentiable() {

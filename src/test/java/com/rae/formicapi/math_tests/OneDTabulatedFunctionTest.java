@@ -20,14 +20,14 @@ class OneDTabulatedFunctionTest {
         return new OneDTabulatedFunction(table, 1f, StepMode.LINEAR, clamp);
     }
 
-    private OneDTabulatedFunction makeLinearFuncWithHoles(boolean clamp) {
+    private OneDTabulatedFunction makeLinearFuncWithHoles() {
         // y = 2x, but missing some keys (holes at 3,4,7)
         TreeMap<Float, Float> table = new TreeMap<>();
         for (int i = 0; i <= 10; i++) {
             if (i == 3 || i == 4 || i == 7) continue; // hole
             table.put((float) i, (float) (2 * i));
         }
-        return new OneDTabulatedFunction(table, 1f, StepMode.LINEAR, clamp);
+        return new OneDTabulatedFunction(table, 1f, StepMode.LINEAR, false);
     }
 
     @Test
@@ -74,7 +74,7 @@ class OneDTabulatedFunctionTest {
 
     @Test
     void testInterpolationWithHoles() {
-        OneDTabulatedFunction f = makeLinearFuncWithHoles(false);
+        OneDTabulatedFunction f = makeLinearFuncWithHoles();
 
         // Direct point that exists
         assertEquals(6f, f.evaluate(3f), 1e-6,
@@ -94,7 +94,7 @@ class OneDTabulatedFunctionTest {
 
     @Test
     void stressRandomInputs() {
-        OneDTabulatedFunction f = makeLinearFuncWithHoles(false);
+        OneDTabulatedFunction f = makeLinearFuncWithHoles();
         Random rnd = new Random(42);
 
         for (int i = 0; i < 10000; i++) {

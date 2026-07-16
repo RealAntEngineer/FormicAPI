@@ -18,6 +18,7 @@ public class SimulationModel {
         coupling.getInternalNodes().forEach(this::addNode);
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public Node addNode(Node node) {
         node.getDomains().forEach(type -> domain(type).addNode(node));
         return node;
