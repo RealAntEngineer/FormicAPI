@@ -1,4 +1,4 @@
-package com.rae.formicapi.math_tests;
+package com.rae.formicapi.math_tests.tabulated_functions;
 
 import com.rae.formicapi.foundation.math.data.OneDTabulatedFunction;
 import com.rae.formicapi.foundation.math.data.StepMode;

@@ -26,19 +26,19 @@ import java.util.Arrays;
 @SuppressWarnings("unused")
 public class PaddedCSRMatrix implements MutableMatrix {
 
-    private final int rows;
-    private final int cols;
+    private int rows;
+    private int cols;
     private final int nnzPerRow;
 
     /**
      * CSR values (mutable)
      */
-    private final double[] values;
+    private double[] values;
 
     /**
      * CSR column indices
      */
-    private final int[] colIndex;
+    private int[] colIndex;
 
     /**
      * Constructs a fully defined CSR matrix.
@@ -75,27 +75,25 @@ public class PaddedCSRMatrix implements MutableMatrix {
     }
 
     /**
-     * Returns a new {@link PaddedCSRMatrix} with {@code newRows} rows, sharing no
-     * storage with this instance.
+     * Resizes this matrix in-place.
      *
-     * <p>If {@code newRows < rows}: trailing rows are dropped — two {@link Arrays#copyOf}
-     * calls, no per-row work.
-     * <br>
-     * If {@code newRows > rows}: new rows are zero-initialized (values) and their column
-     * indices default to 0 — caller must populate them via {@link #setRow} before solving.
+     * <p>If growing, new entries are zero initialized and column indices are
+     * initialized to 0. Caller must populate new rows using {@link #setRow}.
+     * If shrinking, trailing rows are discarded logically.
      *
-     * @param newRows target row (and column) count
-     * @return a resized copy
+     * @param newRows new row/column count
      */
-    public PaddedCSRMatrix resize(int newRows) {
-        int len = newRows * nnzPerRow;
-        return new PaddedCSRMatrix(
-                newRows, newRows, nnzPerRow,
-                Arrays.copyOf(values, len),
-                Arrays.copyOf(colIndex, len)
-        );
-    }
+    public void resize(int newRows) {
+        int requiredLength = newRows * nnzPerRow;
 
+        if (requiredLength > values.length) {
+            values = Arrays.copyOf(values, requiredLength);
+            colIndex = Arrays.copyOf(colIndex, requiredLength);
+        }
+
+        rows = newRows;
+        cols = newRows;
+    }
     /**
      * Adds a value to an existing entry in the CSR structure.
      *

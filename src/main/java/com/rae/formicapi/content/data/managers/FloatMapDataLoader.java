@@ -22,7 +22,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static com.rae.formicapi.Event.getSideAwareRegistry;
+import static com.rae.formicapi.content.event.Event.getSideAwareRegistry;
 
 @NonnullDefault
 public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {

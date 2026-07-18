@@ -1,4 +1,4 @@
-package com.rae.formicapi.math_tests;
+package com.rae.formicapi.math_tests.matrix;
 
 import com.rae.formicapi.foundation.math.operators.CSRMatrix;
 import com.rae.formicapi.foundation.math.operators.DynamicCSRMatrix;

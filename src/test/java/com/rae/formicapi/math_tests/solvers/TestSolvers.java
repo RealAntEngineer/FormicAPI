@@ -1,4 +1,4 @@
-package com.rae.formicapi.math_tests;
+package com.rae.formicapi.math_tests.solvers;
 
 import com.rae.formicapi.foundation.math.solvers.SimpleSolvers;
 import org.junit.jupiter.api.Test;

@@ -27,6 +27,10 @@ public interface Matrix {
      */
     void multiply(double[] x, double[] result);
 
+
+
+    //void multiplyOnly(double[] x, int[] index, double[] result, int n);
+
     /**
      * Multiplies the transpose of this matrix by vector {@code x},
      * storing Aᵀx in {@code result}.

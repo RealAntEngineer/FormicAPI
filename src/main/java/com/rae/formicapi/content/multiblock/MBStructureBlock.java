@@ -39,7 +39,9 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Structure Block for a MultiBlock, it always as a full hit-box
+ * Structure Block for a MultiBlock. Its hit-box mirrors the slice of the controller's
+ * global shape that occupies this position, so it is not always a full block - it falls
+ * back to a full block only when no valid master is found.
  */
 @NonnullDefault
 public class MBStructureBlock extends DirectionalBlock implements IWrenchable, IProxyHoveringInformation {
@@ -76,7 +78,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     }
 
     //TODO rewrite this
-    @SuppressWarnings("ConstantValue")
+    @SuppressWarnings("ConstantConditions")
     public static @Nullable BlockPos getMaster(BlockGetter level, BlockPos initialPos) {
         //makeSomething to prevent stackOverFlow -> while
         ArrayList<BlockPos> posDiscovered = new ArrayList<>();
@@ -93,7 +95,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
             if (posDiscovered.contains(targetedPos))
                 return null;
 
-            if (targetedState.getBlock() instanceof MBStructureBlock structureBlock) {
+            if (targetedState.getBlock() instanceof MBStructureBlock) {
                 posDiscovered.add(targetedPos);
                 Direction direction = targetedState.getValue(FACING);
                 targetedPos = targetedPos.relative(direction);
@@ -215,7 +217,7 @@ public class MBStructureBlock extends DirectionalBlock implements IWrenchable, I
     @Override
     public BlockPos getInformationSource(Level level, BlockPos pos, BlockState state) {
         BlockPos masterPos = getMaster(level, pos);
-        return stillValid(level, pos, state) && masterPos!= null ? masterPos : pos;
+        return stillValid(level, pos, state) && masterPos != null ? masterPos : pos;
     }
 
     public static class RenderProperties implements IClientBlockExtensions, MultiPosDestructionHandler {

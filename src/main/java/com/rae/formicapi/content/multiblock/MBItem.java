@@ -1,23 +1,23 @@
 package com.rae.formicapi.content.multiblock;
 
-import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.lwjgl.system.NonnullDefault;
 
-import java.util.Objects;
-
+/**
+ * {@link BlockItem} for an {@link IMBController} block. Before placing the controller, this
+ * checks that the controller's entire (state-dependent) bounding box - not just the clicked
+ * position - is clear of obstructions, since placing the controller also fills the rest of the
+ * box with {@link MBStructureBlock}s.
+ */
 @NonnullDefault
+@SuppressWarnings("unused")
 public class MBItem extends BlockItem {
+    /** @throws IllegalArgumentException if {@code block} doesn't implement {@link IMBController} */
     public MBItem(Block block, Properties properties) {
         super(block, properties);
         if (!(block instanceof IMBController)) {
@@ -25,49 +25,27 @@ public class MBItem extends BlockItem {
         }
     }
 
+    /**
+     * Checks every position inside the controller's bounding box (per {@code pState}, the state
+     * that will actually be placed) is air before allowing placement.
+     */
     @Override
-    protected boolean canPlace(BlockPlaceContext pContext, BlockState pState) {
+    protected boolean canPlace(BlockPlaceContext placingContext, BlockState placedState) {
         IMBController main    = (IMBController) getBlock();
-        Level         lvl     = pContext.getLevel();
-        Direction     facing  = pContext.getClickedFace();
-        Vec3i         offset  = main.getOffset(facing, false);//nope this isn't the correct offset to know where to verify the blocks
-        BlockPos      mainPos = pContext.getClickedPos();//.offset(offset);
-        boolean       flag    = true;
-        Vec3i         size    = main.getSize(facing);
-        for (int x = -offset.getX(); x < size.getX() - offset.getX(); x++) {
-            for (int y = -offset.getY(); y < size.getY() - offset.getY(); y++) {
-                for (int z = -offset.getZ(); z < size.getZ() - offset.getZ(); z++) {
-                    if (!lvl.getBlockState(mainPos.offset(x, y, z)).isAir()) {
-                        flag = false;
-                        break;
-                    }
-                }
-                if (!flag) {
-                    break;
-                }
-            }
-            if (!flag) {
-                break;
-            }
-        }
-        return flag;
+        Level         lvl     = placingContext.getLevel();
+        BlockPos      mainPos = placingContext.getClickedPos();
+        return main.hasSpace(lvl, placedState, mainPos, false);
     }
 
+    /**
+     * Places the controller via {@code setBlockAndUpdate} (sends neighbor + client updates).
+     * {@code setPlacedBy} and the placement advancement trigger are deliberately <i>not</i> called
+     * here - {@code BlockItem.place} already calls both, with its own "is this still the block we
+     * placed" check, immediately after this method returns. Duplicating that call here would fire
+     * {@code setPlacedBy} - and therefore {@code repairStructure} - twice per placement.
+     */
     @Override
     protected boolean placeBlock(BlockPlaceContext pContext, BlockState pState) {
-        Block    main    = getBlock();
-        Level    lvl     = pContext.getLevel();
-        BlockPos mainPos = pContext.getClickedPos();
-        lvl.setBlockAndUpdate(mainPos, Objects.requireNonNull(main.getStateForPlacement(pContext)));
-
-        Player     player      = pContext.getPlayer();
-        ItemStack  itemstack   = pContext.getItemInHand();
-        BlockState blockstate1 = lvl.getBlockState(mainPos);
-        blockstate1.getBlock().setPlacedBy(lvl, mainPos, blockstate1, player, itemstack);
-        if (player instanceof ServerPlayer) {
-            CriteriaTriggers.PLACED_BLOCK.trigger((ServerPlayer) player, mainPos, itemstack);
-        }
-
-        return true;
+        return pContext.getLevel().setBlockAndUpdate(pContext.getClickedPos(), pState);
     }
 }

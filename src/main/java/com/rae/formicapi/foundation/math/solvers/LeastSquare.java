@@ -2,6 +2,7 @@ package com.rae.formicapi.foundation.math.solvers;
 
 import com.rae.formicapi.foundation.math.operators.Matrix;
 
+@Deprecated
 public class LeastSquare {
 
     /**

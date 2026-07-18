@@ -2,7 +2,6 @@ package com.rae.formicapi.foundation.math.pde.ast;
 
 import com.rae.formicapi.foundation.math.pde.FieldType;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
