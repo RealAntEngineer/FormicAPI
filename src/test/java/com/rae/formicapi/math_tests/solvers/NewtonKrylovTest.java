@@ -6,7 +6,7 @@ import com.rae.formicapi.foundation.math.operators.PaddedCSR2Tensor;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class NewtonKrylovTest {
     @Test
@@ -35,6 +35,7 @@ public class NewtonKrylovTest {
 
         double[] x = {0, 0};
 
+        double[] Ax = new double[2];
         double[] F = new double[2];
         double[] dx = new double[2];
         double[] r = new double[2];
@@ -47,9 +48,8 @@ public class NewtonKrylovTest {
         NewtonKrylov.solve(C, A, x, b,
                 20, 20,
                 1e-12, 1e-12,
-                F, dx, r, rHat0, p, v, s, t);
+                Ax,F, dx, r, rHat0, p, v, s, t);
 
-        assertEquals(1.0, x[0], 1e-8);
-        assertEquals(2.0, x[1], 1e-8);
+        assertArrayEquals(new double[]{1.0, 2.0}, x, 1e-8);
     }
 }

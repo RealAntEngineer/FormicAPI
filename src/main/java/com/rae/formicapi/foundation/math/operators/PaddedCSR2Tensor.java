@@ -28,11 +28,8 @@ import java.util.Arrays;
  */
 public class PaddedCSR2Tensor {
 
-    //this can get resized at will using a
     private       int equations;
 
-    //those 2 are supposed to be constant
-    private final int variables;
     private final int termsPerEquation;
 
     /**
@@ -60,7 +57,6 @@ public class PaddedCSR2Tensor {
      */
     public PaddedCSR2Tensor(int equations, int variables, int termsPerEquation) {
         this.equations = equations;
-        this.variables = variables;
         this.termsPerEquation = termsPerEquation;
 
         int size = equations * termsPerEquation;
@@ -76,19 +72,19 @@ public class PaddedCSR2Tensor {
      *
      * @param equation equation index
      * @param newValues coefficients
-     * @param newVar1 first variable indices
-     * @param newVar2 second variable indices
+     * @param var1Index first variable indices
+     * @param var2Index second variable indices
      * @param count number of active terms
      */
-    public void setRow(int equation, double[] newValues, int[] newVar1,int[] newVar2, int count) {
+    public void setRow(int equation, double[] newValues, int[] var1Index,int[] var2Index, int count) {
 
         if (count > termsPerEquation)
             throw new IllegalArgumentException(
                     "Too many terms: " + count
             );
 
-        if (newVar1.length < count ||
-                newVar2.length < count ||
+        if (var1Index.length < count ||
+                var2Index.length < count ||
                 newValues.length < count)
             throw new IllegalArgumentException(
                     "Input arrays shorter than count"
@@ -99,8 +95,8 @@ public class PaddedCSR2Tensor {
 
         for (int i = 0; i < count; i++) {
             values[base + i] = newValues[i];
-            var1Index[base + i] = newVar1[i];
-            var2Index[base + i] = newVar2[i];
+            this.var1Index[base + i] = var1Index[i];
+            this.var2Index[base + i] = var2Index[i];
         }
 
 
@@ -109,12 +105,12 @@ public class PaddedCSR2Tensor {
             values[base + i] = 0.0;
 
             // safe default indices
-            var1Index[base + i] = 0;
-            var2Index[base + i] = 0;
+            this.var1Index[base + i] = 0;
+            this.var2Index[base + i] = 0;
         }
     }
 
-
+    //There should be a better way of doing it, a loop is bad for something that should be time constant
     /**
      * Adds a coefficient to an existing quadratic term.
      *
@@ -237,22 +233,15 @@ public class PaddedCSR2Tensor {
         return equations;
     }
 
-
-    public int variables() {
-        return variables;
-    }
-
-
     public int termsPerEquation() {
         return termsPerEquation;
     }
-
 
     public void resize(int newEquations) {
 
         int required = newEquations * termsPerEquation;
 
-        if (required > values.length) {
+        if (required > values.length || required > var1Index.length || required > var2Index.length) {
 
             values = Arrays.copyOf(values, required);
             var1Index = Arrays.copyOf(var1Index, required);

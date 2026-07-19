@@ -64,6 +64,7 @@ public class NewtonKrylov {
      * @param maxLinearIter maximum BiCGSTAB iterations per Newton step
      * @param newtonTol convergence tolerance on {@code ||F(x)||₂}
      * @param linearTol convergence tolerance for each linear solve
+     * @param Ax nonlinear buffer
      * @param F nonlinear residual buffer; length ≥ number of equations
      * @param dx Newton correction buffer; length ≥ number of variables
      * @param r BiCGSTAB residual buffer
@@ -78,12 +79,10 @@ public class NewtonKrylov {
      * @throws IllegalArgumentException if the supplied buffers are too small.
      */
     public static double[] solve(PaddedCSR2Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
-                                 double newtonTol, double linearTol, double[] F, double[] dx, double[] r, double[] rHat0,
+                                 double newtonTol, double linearTol,double[] Ax, double[] F, double[] dx, double[] r, double[] rHat0,
                                  double[] p, double[] v, double[] s, double[] t) {
 
         int n = b.length;
-
-        double[] Ax = new double[n];
 
         for (int iteration = 0; iteration < maxNewtonIter; iteration++) {
 
@@ -100,18 +99,14 @@ public class NewtonKrylov {
             if (Math.sqrt(norm) < newtonTol)
                 return x;
 
-
             for (int i = 0; i < n; i++)
                 dx[i] = 0;
 
-
             solveNewtonStep(C, A, x, dx, F, maxLinearIter, linearTol, r, rHat0, p, v, s, t);
 
-
             for (int i = 0; i < n; i++)
-                x[i] += dx[i];
+                x[i] -= dx[i];
         }
-
         return x;
     }
 
@@ -122,7 +117,7 @@ public class NewtonKrylov {
      * <pre>
      *     J(x)Δx = -F(x)
      * </pre>
-     *
+     * <p>
      * using a matrix-free BiCGSTAB iteration.
      *
      * <p>The Jacobian is evaluated only through Jacobian-vector products. No
@@ -133,24 +128,22 @@ public class NewtonKrylov {
      *
      * <p>All working buffers are overwritten.
      *
-     * @param C quadratic tensor term
-     * @param A linear matrix term
-     * @param x current Newton iterate
-     * @param dx initial guess on entry, Newton correction on exit
-     * @param b right-hand side of the linearized system (typically {@code -F(x)})
+     * @param C       quadratic tensor term
+     * @param A       linear matrix term
+     * @param x       current Newton iterate
+     * @param dx      initial guess on entry, Newton correction on exit
+     * @param b       right-hand side of the linearized system (typically {@code -F(x)})
      * @param maxIter maximum BiCGSTAB iterations
-     * @param tol convergence tolerance on the linear residual
-     * @param r residual buffer
-     * @param rHat0 shadow residual buffer
-     * @param p search direction buffer
-     * @param v working buffer storing {@code J(x)p}
-     * @param s stabilizer buffer
-     * @param t working buffer storing {@code J(x)s}
-     *
-     * @return {@code dx}
+     * @param tol     convergence tolerance on the linear residual
+     * @param r       residual buffer
+     * @param rHat0   shadow residual buffer
+     * @param p       search direction buffer
+     * @param v       working buffer storing {@code J(x)p}
+     * @param s       stabilizer buffer
+     * @param t       working buffer storing {@code J(x)s}
      */
-    private static double[] solveNewtonStep(PaddedCSR2Tensor C, Matrix A, double[] x, double[] dx, double[] b, int maxIter,
-                                            double tol, double[] r, double[] rHat0, double[] p, double[] v, double[] s, double[] t) {
+    private static void solveNewtonStep(PaddedCSR2Tensor C, Matrix A, double[] x, double[] dx, double[] b, int maxIter,
+                                        double tol, double[] r, double[] rHat0, double[] p, double[] v, double[] s, double[] t) {
 
         int n = b.length;
 
@@ -180,9 +173,6 @@ public class NewtonKrylov {
             for (int i = 0; i < n; i++)
                 p[i] = r[i] + beta * (p[i] - omega * v[i]);
 
-
-
-            //TODO code duplicate, should go into a private function
             // v = J(x)*p
             C.multiplyJacobian(x, p, v);
             A.multiply(p, t);
@@ -209,7 +199,6 @@ public class NewtonKrylov {
                 break;
             }
 
-
             // t = J(x)*s
             C.multiplyJacobian(x, s, t);
             A.multiply(s, v);
@@ -219,28 +208,22 @@ public class NewtonKrylov {
 
 
             double tt = dot(t, t, n);
+
             if (tt == 0)
                 break;
 
             omega = dot(t, s, n) / tt;
-
 
             for (int i = 0; i < n; i++) {
                 dx[i] += alpha * p[i] + omega * s[i];
                 r[i] = s[i] - omega * t[i];
             }
 
-
-            if (norm(r) < tol)
-                break;
-
-            if (omega == 0)
+            if (norm(r) < tol || omega == 0)
                 break;
 
             rho = rhoNew;
         }
-
-        return dx;
     }
 
 
