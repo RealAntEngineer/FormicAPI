@@ -105,10 +105,7 @@ public class ConjugateGradient {
      *
      * @param tol
      *        convergence threshold on the residual norm:
-     *
-     *        <pre>
-     *        ||r||₂ < tol
-     *        </pre>
+     *{@code ||r||₂ < tol}
      *
      * @param r
      *        pre-allocated residual buffer. Length must be at least {@code n}.
