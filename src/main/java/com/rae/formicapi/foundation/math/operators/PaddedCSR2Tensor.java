@@ -162,10 +162,9 @@ public class PaddedCSR2Tensor {
             double sum = 0.0;
 
             int base = row * termsPerEquation;
+            int end = base + termsPerEquation;
 
-            for (int i = 0; i < termsPerEquation; i++) {
-
-                int idx = base + i;
+            for (int idx = base; idx < end; idx++) {
 
                 sum += values[idx]
                         * x[var1Index[idx]]
@@ -198,31 +197,29 @@ public class PaddedCSR2Tensor {
      */
     public void multiplyJacobian(double[] x, double[] direction, double[] result) {
 
+        // Local references so the JIT doesn't re-fetch instance fields on
+        // every iteration of the inner loop.
+        final double[] values = this.values;
+        final int[] var1Index = this.var1Index;
+        final int[] var2Index = this.var2Index;
+
         for (int row = 0; row < equations; row++) {
 
             double sum = 0.0;
 
             int base = row * termsPerEquation;
+            int end = base + termsPerEquation;
 
-            for (int i = 0; i < termsPerEquation; i++) {
-
-                int idx = base + i;
+            for (int idx = base; idx < end; idx++) {
 
                 double c = values[idx];
-
                 int j = var1Index[idx];
                 int k = var2Index[idx];
 
-                if (j == k) {
-                    // d(c*x_j*x_j) = 2*c*x_j*dx_j
-                    sum += 2.0 * c * x[j] * direction[j];
-                } else {
-                    // d(c*x_j*x_k) = c*(x_k*dx_j + x_j*dx_k)
-                    sum += c * (
-                            direction[j] * x[k]
-                                    + x[j] * direction[k]
-                    );
-                }
+                // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k)
+                // This reduces to 2*c*x_j*dx_j automatically when j == k,
+                // so no branch is needed to special-case it.
+                sum += c * (direction[j] * x[k] + x[j] * direction[k]);
             }
 
             result[row] = sum;

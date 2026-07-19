@@ -2,6 +2,7 @@ package com.rae.formicapi.foundation.math.solvers;
 
 import com.rae.formicapi.foundation.math.operators.Matrix;
 import com.rae.formicapi.foundation.math.operators.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.PaddedCSRMatrix;
 
 /**
  * Newton-Krylov solver for nonlinear systems of the form
@@ -40,6 +41,16 @@ import com.rae.formicapi.foundation.math.operators.PaddedCSR2Tensor;
  */
 public class NewtonKrylov {
 
+
+    public static void solve(PaddedCSR2Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
+                             double newtonTol, double linearTol) {
+        int n = C.equations();
+
+        solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol,
+                new double[n], new double[n], new double[n], new double[n], new double[n], new double[n],
+                new double[n], new double[n], new double[n]);
+    }
+
     /**
      * Solve the nonlinear system
      *
@@ -49,6 +60,26 @@ public class NewtonKrylov {
      *
      * using Newton iterations with matrix-free BiCGSTAB linear solves.
      *
+     * <p>At each Newton iteration, the Jacobian system is solved without
+     * explicitly assembling the Jacobian:
+     *
+     * <pre>
+     *     J(x) * dx = F(x)
+     * </pre>
+     *
+     * where {@code dx} is the correction direction applied as:
+     *
+     * <pre>
+     *     x = x - dx
+     * </pre>
+     *
+     * <p>The Jacobian-vector products are evaluated directly from the nonlinear
+     * tensor and linear matrix terms:
+     *
+     * <pre>
+     *     J(x)v = C'(x)v + A*v
+     * </pre>
+     *
      * <p>{@code x} is both the initial guess and the solution. Supplying a warm
      * start from a previous solve can significantly reduce the number of Newton
      * iterations.
@@ -56,7 +87,7 @@ public class NewtonKrylov {
      * <p>No temporary arrays are allocated. Every working buffer is supplied by
      * the caller and overwritten during the solve.
      *
-     * @param C quadratic tensor term
+     * @param C quadratic tensor term defining the nonlinear contribution
      * @param A linear matrix term
      * @param x initial guess on entry, solution on exit
      * @param b right-hand side vector
@@ -64,22 +95,22 @@ public class NewtonKrylov {
      * @param maxLinearIter maximum BiCGSTAB iterations per Newton step
      * @param newtonTol convergence tolerance on {@code ||F(x)||₂}
      * @param linearTol convergence tolerance for each linear solve
-     * @param Ax nonlinear buffer
-     * @param F nonlinear residual buffer; length ≥ number of equations
-     * @param dx Newton correction buffer; length ≥ number of variables
+     * @param Ax buffer for the linear contribution {@code A*x}
+     * @param F nonlinear residual buffer; stores {@code C:x:x + A*x - b}
+     * @param dx Newton correction direction buffer; applied as {@code x -= dx}
      * @param r BiCGSTAB residual buffer
      * @param rHat0 BiCGSTAB shadow residual buffer
      * @param p BiCGSTAB search direction buffer
-     * @param v working buffer storing {@code J(x)p}
+     * @param v working buffer for Jacobian-vector products
      * @param s BiCGSTAB stabilizer buffer
-     * @param t working buffer storing {@code J(x)s}
+     * @param t working buffer for Jacobian-vector products
      *
      * @return {@code x} (same array passed as input)
      *
      * @throws IllegalArgumentException if the supplied buffers are too small.
      */
     public static double[] solve(PaddedCSR2Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
-                                 double newtonTol, double linearTol,double[] Ax, double[] F, double[] dx, double[] r, double[] rHat0,
+                                 double newtonTol, double linearTol, double[] Ax, double[] F, double[] dx, double[] r, double[] rHat0,
                                  double[] p, double[] v, double[] s, double[] t) {
 
         int n = b.length;
@@ -96,6 +127,13 @@ public class NewtonKrylov {
                 norm += F[i] * F[i];
             }
 
+            if (!Double.isFinite(norm))
+                throw new ArithmeticException(
+                        "NewtonKrylov: residual became non-finite at Newton iteration " + iteration
+                                + " (norm=" + norm + "). The linear solve likely diverged/broke down"
+                                + " on the previous step -- check conditioning (e.g. pressure penalty,"
+                                + " time step size) rather than continuing.");
+
             if (Math.sqrt(norm) < newtonTol)
                 return x;
 
@@ -104,55 +142,74 @@ public class NewtonKrylov {
 
             solveNewtonStep(C, A, x, dx, F, maxLinearIter, linearTol, r, rHat0, p, v, s, t);
 
-            for (int i = 0; i < n; i++)
-                x[i] -= dx[i];
+            for (int i = 0; i < n; i++) {
+                if (!Double.isFinite(dx[i]))
+                    throw new ArithmeticException(
+                            "NewtonKrylov: BiCGSTAB produced a non-finite correction at Newton iteration "
+                                    + iteration + ", dx[" + i + "]=" + dx[i]
+                                    + ". This indicates a Krylov breakdown (near-zero pivot) on an"
+                                    + " ill-conditioned/near-singular Jacobian.");
+                x[i] += dx[i];
+            }
         }
         return x;
     }
 
     //return value is redundant.
     /**
-     * Solve one Newton linearization
+     * Solve one Newton linearization:
      *
      * <pre>
-     *     J(x)Δx = -F(x)
+     *     J(x) * dx = -F(x)
      * </pre>
-     * <p>
+     *
      * using a matrix-free BiCGSTAB iteration.
      *
-     * <p>The Jacobian is evaluated only through Jacobian-vector products. No
-     * Jacobian matrix is assembled.
+     * <p>The Jacobian is never assembled explicitly. Matrix-vector products are
+     * evaluated directly through the quadratic tensor Jacobian contribution and
+     * the linear matrix term:
+     *
+     * <pre>
+     *     J(x)v = C'(x)v + A*v
+     * </pre>
      *
      * <p>{@code dx} is both the initial guess and the solution. It is typically
-     * initialized to zero by the caller before each Newton iteration.
+     * initialized to zero by the caller before each Newton iteration. The
+     * resulting correction is applied by the caller using:
      *
-     * <p>All working buffers are overwritten.
+     * <pre>
+     *     x += dx
+     * </pre>
      *
-     * @param C       quadratic tensor term
+     * <p>All working buffers are overwritten during the solve and their contents
+     * are undefined afterward.
+     *
+     * @param C       quadratic tensor term defining the nonlinear Jacobian contribution
      * @param A       linear matrix term
-     * @param x       current Newton iterate
+     * @param x       current Newton iterate where the Jacobian is evaluated
      * @param dx      initial guess on entry, Newton correction on exit
-     * @param b       right-hand side of the linearized system (typically {@code -F(x)})
+     * @param F       nonlinear residual {@code F(x)}; the solver internally solves
+     *                the system with right-hand side {@code -F(x)}
      * @param maxIter maximum BiCGSTAB iterations
-     * @param tol     convergence tolerance on the linear residual
-     * @param r       residual buffer
-     * @param rHat0   shadow residual buffer
-     * @param p       search direction buffer
-     * @param v       working buffer storing {@code J(x)p}
-     * @param s       stabilizer buffer
-     * @param t       working buffer storing {@code J(x)s}
+     * @param tol     convergence tolerance on the linear residual norm
+     * @param r       BiCGSTAB residual buffer
+     * @param rHat0   BiCGSTAB shadow residual buffer
+     * @param p       BiCGSTAB search direction buffer
+     * @param v       temporary buffer for Jacobian-vector products
+     * @param s       BiCGSTAB stabilizer buffer
+     * @param t       temporary buffer for Jacobian-vector products
      */
-    private static void solveNewtonStep(PaddedCSR2Tensor C, Matrix A, double[] x, double[] dx, double[] b, int maxIter,
+    private static void solveNewtonStep(PaddedCSR2Tensor C, Matrix A, double[] x, double[] dx, double[] F, int maxIter,
                                         double tol, double[] r, double[] rHat0, double[] p, double[] v, double[] s, double[] t) {
 
-        int n = b.length;
+        int n = F.length;
 
-        // r = b - J(x)*dx
+        // r = F - J(x)*dx, evaluated matrix-free
         C.multiplyJacobian(x, dx, v);
         A.multiply(dx, t);
 
         for (int i = 0; i < n; i++) {
-            r[i] = b[i] - v[i] - t[i];
+            r[i] = -F[i] - v[i] - t[i];
             rHat0[i] = r[i];
             p[i] = 0;
             v[i] = 0;
@@ -162,11 +219,36 @@ public class NewtonKrylov {
         double alpha = 1;
         double omega = 1;
 
+        // Breakdown threshold: BiCGSTAB divides by rho, rHatV, and tt each
+        // iteration. On an ill-conditioned/near-singular Jacobian (e.g. a
+        // saddle-point system with a very small pressure penalty) these can
+        // shrink toward zero without ever hitting it exactly, so alpha/beta
+        // blow up and silently poison dx with Inf/NaN. Treat "small" the
+        // same as "zero" and restart the Krylov subspace from the current
+        // dx instead of dividing by near-nothing.
+        double breakdownTol = 1e-30;
+
         for (int k = 0; k < maxIter; k++) {
 
             double rhoNew = dot(rHat0, r, n);
-            if (rhoNew == 0)
-                break;
+
+            if (Math.abs(rhoNew) < breakdownTol) {
+                // Restart: recompute the true residual at the current dx and
+                // reseed the shadow residual, rather than aborting with
+                // whatever dx we happened to have.
+                C.multiplyJacobian(x, dx, v);
+                A.multiply(dx, t);
+                for (int i = 0; i < n; i++) {
+                    r[i] = -F[i] - v[i] - t[i];
+                    rHat0[i] = r[i];
+                    p[i] = 0;
+                    v[i] = 0;
+                }
+                rho = 1;
+                alpha = 1;
+                omega = 1;
+                continue;
+            }
 
             double beta = (rhoNew / rho) * (alpha / omega);
 
@@ -182,10 +264,16 @@ public class NewtonKrylov {
 
 
             double rHatV = dot(rHat0, v, n);
-            if (rHatV == 0)
+            if (Math.abs(rHatV) < breakdownTol)
                 break;
 
             alpha = rhoNew / rHatV;
+
+            if (!Double.isFinite(alpha))
+                throw new ArithmeticException(
+                        "NewtonKrylov: BiCGSTAB coefficient alpha became non-finite at linear iteration "
+                                + k + " (rhoNew=" + rhoNew + ", rHatV=" + rHatV + "). Indicates a Krylov"
+                                + " breakdown on an ill-conditioned/near-singular Jacobian.");
 
 
             for (int i = 0; i < n; i++)
@@ -209,10 +297,16 @@ public class NewtonKrylov {
 
             double tt = dot(t, t, n);
 
-            if (tt == 0)
+            if (Math.abs(tt) < breakdownTol)
                 break;
 
             omega = dot(t, s, n) / tt;
+
+            if (!Double.isFinite(omega))
+                throw new ArithmeticException(
+                        "NewtonKrylov: BiCGSTAB coefficient omega became non-finite at linear iteration "
+                                + k + " (tt=" + tt + "). Indicates a Krylov breakdown on an"
+                                + " ill-conditioned/near-singular Jacobian.");
 
             for (int i = 0; i < n; i++) {
                 dx[i] += alpha * p[i] + omega * s[i];
@@ -235,7 +329,6 @@ public class NewtonKrylov {
 
         return sum;
     }
-
 
     private static double norm(double[] a) {
         return Math.sqrt(dot(a, a, a.length));
