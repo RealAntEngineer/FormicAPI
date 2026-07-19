@@ -38,8 +38,31 @@ jobs:
       - name: Build
         run: ./gradlew build
 
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create or move tag
+        run: |
+          TAG="v${{ steps.versions.outputs.mc }}-${{ steps.versions.outputs.mod }}-dev"
+
+          # Delete local tag if it exists
+          git tag -d "$TAG" 2>/dev/null || true
+
+          # Delete remote tag if it exists
+          git push origin ":refs/tags/$TAG" 2>/dev/null || true
+
+          # Recreate it on the current commit
+          git tag "$TAG"
+          git push origin "$TAG" --force
+
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Upload JAR to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}-{1}-dev', steps.versions.outputs.mc, steps.versions.outputs.mod) || github.ref_name }}
+          tag_name: ${{ env.TAG }}
           files: build/libs/*.jar
+          replace_artifacts: true
+          generate_release_notes: true
