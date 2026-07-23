@@ -1,4 +1,4 @@
-package com.rae.formicapi.foundation.math.operators;
+package com.rae.formicapi.foundation.math.operators.linear;
 
 import java.util.*;
 
@@ -155,7 +155,7 @@ public class CSRMatrix implements Matrix {
      *
      * <p>Performs a linear scan of the stored entries in row {@code r}.
      * O(nnz_per_row) — avoid calling this in hot loops; use
-     * {@link #multiply} or {@link #transposeMultiply} instead.
+     * {@link #multiply} or {@link #transposeApply} instead.
      *
      * @param r row index
      * @param c column index

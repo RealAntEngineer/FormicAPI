@@ -1,4 +1,6 @@
-package com.rae.formicapi.foundation.math.operators;
+package com.rae.formicapi.foundation.math.operators.nonlinear;
+
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 
 import java.util.Arrays;
 
@@ -37,11 +39,12 @@ public class PaddedCSR2Tensor {
      */
     private double[] values;
 
+
+    //pack both indexes into a long for faster access ?
     /**
      * First variable index of each quadratic term.
      */
     private int[] var1Index;
-
     /**
      * Second variable index of each quadratic term.
      */
@@ -52,10 +55,9 @@ public class PaddedCSR2Tensor {
      * Creates an empty quadratic tensor.
      *
      * @param equations number of output equations
-     * @param variables number of unknown variables
      * @param termsPerEquation fixed number of quadratic terms per equation
      */
-    public PaddedCSR2Tensor(int equations, int variables, int termsPerEquation) {
+    public PaddedCSR2Tensor(int equations, int termsPerEquation) {
         this.equations = equations;
         this.termsPerEquation = termsPerEquation;
 
@@ -69,6 +71,13 @@ public class PaddedCSR2Tensor {
 
     /**
      * Replaces one equation's quadratic structure.
+     *
+     * <p><b>GPU note:</b> The current storage layout is equation-major:
+     * all terms belonging to one equation are stored contiguously. This layout
+     * is convenient for CPU evaluation, but is not optimal for GPU execution.
+     * A GPU implementation should likely use a term-major layout
+     * ({@code term × equation}) to allow adjacent threads to access contiguous
+     * memory locations.
      *
      * @param equation equation index
      * @param newValues coefficients
@@ -91,7 +100,7 @@ public class PaddedCSR2Tensor {
             );
 
 
-        int base = equation * termsPerEquation;
+        int base = equation * termsPerEquation;//
 
         for (int i = 0; i < count; i++) {
             values[base + i] = newValues[i];
@@ -157,6 +166,10 @@ public class PaddedCSR2Tensor {
      */
     public void multiply(double[] x, double[] result) {
 
+        final double[] values = this.values;
+        final int[] var1Index = this.var1Index;
+        final int[] var2Index = this.var2Index;
+
         for (int row = 0; row < equations; row++) {
 
             double sum = 0.0;
@@ -202,24 +215,27 @@ public class PaddedCSR2Tensor {
         final double[] values = this.values;
         final int[] var1Index = this.var1Index;
         final int[] var2Index = this.var2Index;
+        double sum, c;
+        int j, k;
 
         for (int row = 0; row < equations; row++) {
 
-            double sum = 0.0;
+            sum = 0.0;
 
-            int base = row * termsPerEquation;
-            int end = base + termsPerEquation;
+            int idx = row * termsPerEquation;
+            int end = idx + termsPerEquation;
 
-            for (int idx = base; idx < end; idx++) {
+            while (idx < end) {
 
-                double c = values[idx];
-                int j = var1Index[idx];
-                int k = var2Index[idx];
+                c = values[idx];
+                j = var1Index[idx];
+                k = var2Index[idx];
 
                 // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k)
                 // This reduces to 2*c*x_j*dx_j automatically when j == k,
                 // so no branch is needed to special-case it.
                 sum += c * (direction[j] * x[k] + x[j] * direction[k]);
+                idx++;
             }
 
             result[row] = sum;

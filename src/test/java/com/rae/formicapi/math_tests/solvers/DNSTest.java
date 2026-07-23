@@ -1,7 +1,7 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.foundation.math.operators.PaddedCSR2Tensor;
-import com.rae.formicapi.foundation.math.operators.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +20,7 @@ class DNSTest {
 
         int cells = nx * ny;
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(cells * 2, cells * 2, 9);
+        PaddedCSR2Tensor C = new PaddedCSR2Tensor(cells * 2, 9);
 
         PaddedCSRMatrix A = new PaddedCSRMatrix(cells * 2, cells * 2, 5);
 
@@ -162,17 +162,17 @@ class DNSTest {
         int nx = 64;
         int ny = 64;
 
-        double viscosity = 0.1;
-        double pressurePenalty = 1e-3;
+        double viscosity = 0.1;// -> make it so it's not possible to have
+        double pressurePenalty = 1e-2;//This break the simulation too easily
 
-        double dt = 0.1;
-        int nSteps = 50000;
-        int printEvery = 1000;
+        double dt = 1d/50;
+        int nSteps = 5000;
+        int printEvery = 100;
 
         int cells = nx * ny;
         int n = cells * 3;
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(n, n, 9);
+        PaddedCSR2Tensor C = new PaddedCSR2Tensor(n, 4);
         PaddedCSRMatrix A = new PaddedCSRMatrix(n, n, 7);
 
         double[] x = new double[n];
@@ -227,7 +227,53 @@ class DNSTest {
             }
         }
 
+
+        // -----------------------------------------------------------
+        // XChart setup: one window for convergence (log-scale residual
+        // + Newton iteration count), one for flow diagnostics (max
+        // velocity, TKE proxy). Kept separate because the residual
+        // spans many orders of magnitude and would flatten the
+        // velocity/TKE curves to invisibility on a shared linear axis.
+        // -----------------------------------------------------------
+
+        /*XYChart convergenceChart = new XYChartBuilder()
+                .width(900).height(500)
+                .title("Newton convergence per time step")
+                .xAxisTitle("t").yAxisTitle("final residual (log)")
+                .build();
+        convergenceChart.getStyler().setYAxisLogarithmic(true);
+        convergenceChart.getStyler().setLegendPosition(Styler.LegendPosition.InsideNW);
+        convergenceChart.addSeries("final residual", new double[]{0}, new double[]{1});
+        convergenceChart.addSeries("newton iterations", new double[]{0}, new double[]{1});
+        //        .setYAxisGroup(1);
+        //convergenceChart.setYAxisGroupTitle(1, "newton iterations");
+        //convergenceChart.getStyler().gr(1, Styler.TextAlignment.Right);
+
+        XYChart diagnosticsChart = new XYChartBuilder()
+                .width(900).height(500)
+                .title("Flow diagnostics")
+                .xAxisTitle("t").yAxisTitle("value")
+                .build();
+        diagnosticsChart.getStyler().setLegendPosition(Styler.LegendPosition.InsideNW);
+        diagnosticsChart.addSeries("max |velocity|", new double[]{0}, new double[]{0});
+        diagnosticsChart.addSeries("TKE proxy", new double[]{0}, new double[]{0});
+
+        SwingWrapper<XYChart> convergenceWindow = new SwingWrapper<>(convergenceChart).displayChart();
+        SwingWrapper<XYChart> diagnosticsWindow = new SwingWrapper<>(diagnosticsChart).displayChart();
+
+        List<Double> tAll          = new ArrayList<>();
+        List<Double> residualAll   = new ArrayList<>();
+        List<Double> newtonIterAll = new ArrayList<>();
+
+        List<Double> tSampled = new ArrayList<>();
+        List<Double> maxSpeedSampled = new ArrayList<>();
+        List<Double> tkeSampled = new ArrayList<>();*/
+
+
+        NewtonKrylov.Stats stats = new NewtonKrylov.Stats();
+        long startTime;
         for (int step = 0; step < nSteps; step++) {
+            startTime = System.nanoTime();
 
             // Assemble b_eff for this step: boundary dofs hold their fixed
             // BC value, pressure dofs are always 0 (no time derivative),
@@ -238,9 +284,24 @@ class DNSTest {
                 else b[i] = x[i] / dt;//?? what is this
             }
 
-            // x already holds x^n and is reused as the warm start for x^{n+1}
-            NewtonKrylov.solve(C, A, x, b, 20, 200, 1e-4 * nx * ny, 1e-3 * nx * ny,
-            Ax, F, dx, r, rHatO, vBuf, pBuf, sBuf, tBuf);
+            stats.reset();
+
+
+            // x already holds x^n and is reused as the warm start for x^{n+1}-
+            NewtonKrylov.solve(C, A, x, b, 20, 200, 1e-5 * nx * ny, 1e-6 * nx * ny,
+            Ax, F, dx, r, rHatO, vBuf, pBuf, sBuf, tBuf, stats);
+
+            if (step % printEvery == 0){
+                long newTime = System.nanoTime();
+                System.out.printf("Newton converged=%b in %d iters%n, it took %3.3e ns per cells%n",
+                        stats.converged, stats.newtonIterationCount, ((float) (newTime - startTime)/ cells));
+
+                for (int i = 0; i < stats.newtonResiduals.size(); i++)
+                    System.out.printf("  iter %d: residual=%.3e, linear iters=%d%n",
+                            i, stats.newtonResiduals.get(i), (stats.linearIterations.size() - 1 >= i ? stats.linearIterations.get(i) : 0));
+            }
+
+
 
             if (step % printEvery == 0 || step == nSteps - 1) {
 
@@ -256,10 +317,10 @@ class DNSTest {
                         speed[i][j] = Math.hypot(u[i][j], v[i][j]);
                     }
 
-                System.out.printf("t = %.4f (step %d/%d)%n", step * dt, step, nSteps);
-                printDiagnostics(nx, ny, u, v, speed);
+                //System.out.printf("t = %.4f (step %d/%d)%n", step * dt, step, nSteps);
+                //printDiagnostics(nx, ny, u, v, speed);
 
-                Field2DRenderer.saveHeatmap(speed, String.format("cavity_speed_%04d.png", step), Field2DRenderer.Interpolation.NEAREST);
+                Field2DRenderer.saveHeatmap(speed, String.format("cavity/speed_%04d.png", step), Field2DRenderer.Interpolation.NEAREST);
             }
         }
     }
@@ -351,7 +412,7 @@ class DNSTest {
                     A.setRow(u, new double[]{1}, new int[]{u}, 1);
                     A.setRow(v, new double[]{1}, new int[]{v}, 1);
 
-                    C.setRow(u, new double[0], new int[0], new int[0], 0);
+                    C.setRow(u, new double[0], new int[0], new int[0], 0);// what ? a 0 count
                     C.setRow(v, new double[0], new int[0], new int[0], 0);
                     C.setRow(p, new double[0], new int[0], new int[0], 0);
 
@@ -472,6 +533,8 @@ class DNSTest {
                 var2[3] = south + 1;
 
                 C.setRow(v, values, var1, var2, 4);
+
+                //No non-linearity on P, so we miss a bit of sparsity on C
             }
         }
     }

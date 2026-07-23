@@ -1,123 +1,151 @@
 package com.rae.formicapi.foundation.math.solvers;
 
-import com.rae.formicapi.foundation.math.operators.Matrix;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuVector;
+import com.rae.formicapi.foundation.math.operators.linear.Matrix;
+import com.rae.formicapi.foundation.math.operators.vectors.Vector;
+import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 
-@Deprecated
 public class LeastSquare {
 
-    /**
-     * Convenience overload: zero initial guess, allocates working buffers internally.
-     * Use only when the caller has no long-lived matrix to cache buffers on — prefer
-     * the pre-allocated overload for any hot path.
-     */
-    public static double[] solve(Matrix A, double[] b, int maxIter, float tol) {
-        int m = A.cols();
-        int n = A.rows();
-        return solve(A, b, maxIter, tol,
-                new double[m], new double[m], new double[m], new double[m], new double[m], new double[n]);
+    private static final int U = 0;
+    private static final int TEMP = 1;
+
+    private static final int V = 0;
+    private static final int W = 1;
+    private static final int TEMP2 = 2;
+
+    public static int solve(Matrix A, double[] b, int maxIter, float tol) {
+        return solve(A, new CpuVector(b), maxIter, tol);
+    }
+        /**
+         * Convenience overload: zero initial guess.
+         */
+    public static int solve(Matrix A, Vector b, int maxIter, float tol) {
+        int n = A.cols();
+
+        return solve(A, b, maxIter, tol, new CpuVector(n),
+                new WorkingBuffer(new CpuVector[2]), new WorkingBuffer(new CpuVector[3])
+        );
     }
 
-    public static double[] solve(Matrix A, double[] b,double[] x0,int maxIter, float tol) {
-        int m = A.cols();
-        int n = A.rows();
-        return solve(A, b, maxIter, tol,
-                x0, new double[m], new double[m], new double[m], new double[m], new double[n]);
+    public static int solve(Matrix A, double[] b, double[] x0, int maxIter, float tol) {
+        return solve(A, new CpuVector(b), new CpuVector(x0), maxIter, tol);
     }
 
-    /**
-     * Solve {@code Ax = b} in the least-squares sense using CG on the normal equations
-     * {@code AᵀA x = Aᵀb}, with caller-supplied working buffers.
-     *
-     * <p>Pass pre-allocated arrays from a long-lived object (e.g. {@code PhysicsMatrix})
-     * to avoid allocating ~4 × n doubles on every call. At 376 832 voxels and 20 ticks/s
-     * the naive version allocates ~240 MB/s; this overload allocates nothing after warmup.
-     *
-     * <p>The contents of all four working arrays are overwritten on every call.
-     * Their values between calls are undefined and must not be read by the caller.
-     *
-     * @param A      input matrix (square or rectangular)
-     * @param b      right-hand side, length {@code A.rows()}
-     * @param maxIter maximum CG iterations
-     * @param tol    convergence tolerance on the residual norm
-     * @param r      pre-allocated residual buffer,          length ≥ {@code A.cols()}
-     * @param p      pre-allocated search-direction buffer,  length ≥ {@code A.cols()}
-     * @param Ap     pre-allocated AᵀA·p buffer,            length ≥ {@code A.cols()}
-     * @param temp   pre-allocated A·p intermediate buffer,  length ≥ {@code A.rows()}
-     * @return solution vector x (a new array of length {@code A.cols()})
-     */
-    public static double[] solve(Matrix A, double[] b, int maxIter, float tol,
-                                 double[] initialX, double[] r, double[] p, double[] Atb, double[] Ap, double[] temp) {
-        int n = A.rows();
-        int m = A.cols();
-
-        if (b.length != n)
-            throw new IllegalArgumentException(
-                    "RHS length (" + b.length + ") != matrix rows (" + n + ")");
-        if (r.length < m || p.length < m || Ap.length < m)
-            throw new IllegalArgumentException(
-                    "Working buffers r/p/Ap must have length >= A.cols() = " + m);
-        if (temp.length < n)
-            throw new IllegalArgumentException(
-                    "Working buffer temp must have length >= A.rows() = " + n);
-        if (initialX.length != m)
-            throw new IllegalArgumentException(
-                    "Initial guess length (" + initialX.length + ") does not match matrix columns (" + m + ")"
-            );
-
-        // Aᵀb — written into r temporarily, then copied to Atb slot
-        A.transposeMultiply(b, Atb);
-
-        return conjugateGradientNormalEq(A, initialX, Atb, maxIter, tol, r, p, Ap, temp);
+    public static int solve(Matrix A, Vector b, Vector x0, int maxIter, float tol) {
+        return solve(A, b, maxIter, tol, x0, new WorkingBuffer(new CpuVector[2]),
+                new WorkingBuffer(new CpuVector[3])
+        );
     }
 
     /**
-     * CG on AᵀA x = Aᵀb without forming AᵀA explicitly.
-     * All working arrays are passed in and reused across calls.
+     * Solve min ||Ax-b|| using LSQR.
+     *
+     * Solution is written into x.
+     *
+     * mBuffer:
+     *  U    -> A.rows()
+     *  TEMP -> A.rows()
+     *
+     * nBuffer:
+     *  V -> A.cols()
+     *  W -> A.cols()
      */
-    private static double[] conjugateGradientNormalEq(
-            Matrix A, double[] x, double[] Atb, int maxIter, double tol,
-            double[] r, double[] p, double[] Ap, double[] temp) {
+    public static int solve(Matrix A, Vector b, int maxIter, double tol, Vector x, WorkingBuffer mBuffer, WorkingBuffer nBuffer) {
 
-        int n = A.rows();
-        int m = A.cols();
+        int m = A.rows();
+        int n = A.cols();
 
-        // r = Atb - AᵀA·x  (x is zero, so r = Atb on first call)
-        multiplyAtA(A, x, temp, Ap);
-        for (int i = 0; i < m; i++) {
-            r[i] = Atb[i] - Ap[i];
-            p[i] = r[i];
+
+        if (b.size() != m)
+            throw new IllegalArgumentException("b size != A.rows()");
+
+        x.resize(n);
+
+        Vector u = mBuffer.get(U);
+        Vector temp = mBuffer.get(TEMP);
+
+        Vector v = nBuffer.get(V);
+        Vector w = nBuffer.get(W);
+        Vector temp2 = nBuffer.get(TEMP2);
+
+        u.resize(m);
+        temp.resize(m);
+
+        v.resize(n);
+        w.resize(n);
+        temp2.resize(n);
+
+        // u = b / ||b||
+
+        u.copy(b);
+
+        double beta = u.norm();
+
+        if (beta == 0)
+            return 0;
+
+        u.scale(1.0 / beta);
+
+        // v = Aᵀu
+        A.transposeApply(u, v);
+
+        double alpha = v.norm();
+
+        if (alpha == 0)
+            return 0;
+
+        v.scale(1.0 / alpha);
+        w.copy(v);
+
+        double phiBar = beta;
+        double rhoBar = alpha;
+
+        for (int iter = 0; iter < maxIter; iter++) {
+            // u = A*v - alpha*u
+            A.apply(v, temp);
+            u.scale(-alpha);//TODO verify that this works
+            u.add(temp);
+
+
+            beta = u.norm();
+
+            if (beta != 0)
+                u.scale(1.0 / beta);
+
+            // v = Aᵀu - beta*v
+            A.transposeApply(u, temp2);
+            v.scale(-beta);
+            v.add(temp2);
+
+
+            alpha = v.norm();
+
+            if (alpha != 0)
+                v.scale(1.0 / alpha);
+
+            // rotation
+            double rho = Math.sqrt(rhoBar * rhoBar + beta * beta);
+
+            double c = rhoBar / rho;
+            double s = beta / rho;
+            double theta = s * alpha;
+
+            rhoBar = -c * alpha;
+
+            double phi = c * phiBar;
+            phiBar = s * phiBar;
+
+            // x += (phi/rho)w
+            x.axpy(phi / rho, w);
+
+            // w = v - (theta/rho)w
+            w.scale(-theta / rho);
+            w.add(v);
+
+            if (Math.abs(phiBar) < tol)
+                return iter + 1;
         }
-
-        double rsold = dot(r, r, m);
-
-        for (int k = 0; k < maxIter; k++) {
-            multiplyAtA(A, p, temp, Ap);
-
-            double dotPAp = dot(p, Ap, m);
-            if (dotPAp == 0) break;
-            double alpha = rsold / dotPAp;
-
-            for (int i = 0; i < m; i++) x[i] += alpha * p[i];
-            for (int i = 0; i < m; i++) r[i] -= alpha * Ap[i];
-
-            double rsnew = dot(r, r, m);
-            if (Math.sqrt(rsnew) < tol) break;
-
-            double beta = rsnew / rsold;
-            for (int i = 0; i < m; i++) p[i] = r[i] + beta * p[i];
-            rsold = rsnew;
-        }
-        return x;
-    }
-
-    private static void multiplyAtA(Matrix A, double[] p, double[] temp, double[] result) {
-        A.multiply(p, temp);
-        A.transposeMultiply(temp, result);
-    }
-
-    private static double dot(double[] a, double[] b, int len) {
-        double sum = 0;
-        for (int i = 0; i < len; i++) sum += a[i] * b[i];
-        return sum;
+        return maxIter;
     }
 }

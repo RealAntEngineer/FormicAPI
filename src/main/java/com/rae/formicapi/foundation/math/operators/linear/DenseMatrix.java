@@ -1,4 +1,4 @@
-package com.rae.formicapi.foundation.math.operators;
+package com.rae.formicapi.foundation.math.operators.linear;
 
 public class DenseMatrix implements MutableMatrix {
 

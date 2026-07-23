@@ -1,12 +1,9 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.foundation.math.operators.DenseMatrix;
-import com.rae.formicapi.foundation.math.operators.Matrix;
-import com.rae.formicapi.foundation.math.operators.MutableMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
 import com.rae.formicapi.foundation.math.solvers.BiCGStab;
 import org.junit.jupiter.api.Test;
-
-import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;

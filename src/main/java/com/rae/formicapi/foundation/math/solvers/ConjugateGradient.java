@@ -1,6 +1,6 @@
 package com.rae.formicapi.foundation.math.solvers;
 
-import com.rae.formicapi.foundation.math.operators.Matrix;
+import com.rae.formicapi.foundation.math.operators.linear.Matrix;
 
 /**
  * Conjugate Gradient solvers for symmetric positive-definite linear systems.

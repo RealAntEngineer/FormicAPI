@@ -1,4 +1,4 @@
-package com.rae.formicapi.foundation.math.operators;
+package com.rae.formicapi.foundation.math.operators.linear;
 
 public interface MutableMatrix extends Matrix {
 

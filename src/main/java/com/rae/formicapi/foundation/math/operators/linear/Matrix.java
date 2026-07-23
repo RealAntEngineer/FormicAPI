@@ -1,4 +1,7 @@
-package com.rae.formicapi.foundation.math.operators;
+package com.rae.formicapi.foundation.math.operators.linear;
+
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuVector;
+import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
@@ -17,7 +20,7 @@ import java.util.Arrays;
  * @see CSRMatrix
  * @see HashSparseMatrix
  */
-public interface Matrix {
+public interface Matrix extends LinearOperator {
 
     /**
      * Multiplies this matrix by vector {@code x}, storing Ax in {@code result}.
@@ -25,12 +28,15 @@ public interface Matrix {
      * @param x      input vector of length {@link #cols()}
      * @param result output vector of length {@link #rows()}, overwritten with Ax
      */
+    @Deprecated
     void multiply(double[] x, double[] result);
 
-
-
-    //void multiplyOnly(double[] x, int[] index, double[] result, int n);
-
+    @Override
+    default void apply(Vector x, Vector result) {
+        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
+            multiply(xCpu.array(), resCpu.array());
+        }
+    }
     /**
      * Multiplies the transpose of this matrix by vector {@code x},
      * storing Aᵀx in {@code result}.
@@ -43,6 +49,7 @@ public interface Matrix {
      * @param x      input vector of length {@link #rows()}
      * @param result output vector of length {@link #cols()}, overwritten with Aᵀx
      */
+    @Deprecated
     default void transposeMultiply(double[] x, double[] result) {
         Arrays.fill(result, 0.0);
         for (int r = 0; r < rows(); r++) {
@@ -51,6 +58,22 @@ public interface Matrix {
             }
         }
     }
+
+
+    default void transposeApply(Vector x, Vector result){
+        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu){
+            transposeMultiply(xCpu.array(), resCpu.array());
+        }
+    }
+
+    /*default void transposeApply(Vector x, Vector result){
+        Arrays.fill(result, 0.0);
+        for (int r = 0; r < rows(); r++) {
+            for (int c = 0; c < cols(); c++) {
+                result[c] += get(r, c) * x[r];
+            }
+        }
+    }*/
 
     /**
      * Returns the number of rows in this matrix.

@@ -1,6 +1,6 @@
 package com.rae.formicapi.math_tests.matrix;
 
-import com.rae.formicapi.foundation.math.operators.DenseMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

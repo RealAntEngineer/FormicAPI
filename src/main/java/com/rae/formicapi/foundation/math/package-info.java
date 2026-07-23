@@ -1,44 +1,77 @@
 /**
- * Mathematical primitives used by the formicapi simulation engine.
+ * Mathematical primitives used by FormicAPI.
  *
- * <p>This package provides the numerical infrastructure that underpins
- * matrix assembly and solving across all physical domains. It is intentionally
- * decoupled from simulation concepts — nothing here references nodes,
- * components, or physical quantities.
+ * <p>This package provides the numerical foundation used by simulation
+ * frameworks. It contains generic mathematical structures and algorithms for
+ * representing, assembling, and solving numerical problems.
+ *
+ * <p>The package is intentionally independent from simulation concepts:
+ * it does not reference nodes, components, materials, or physical domains.
+ * Higher-level simulation code builds on these primitives to implement
+ * physical models.
  *
  * <h2>Sub-packages</h2>
  *
  * <dl>
  *   <dt>{@link com.rae.formicapi.foundation.math.operators}</dt>
- *   <dd>Matrix abstractions and implementations:
+ *   <dd>
+ *     Numerical operators and data structures used to represent mathematical
+ *     transformations.
+ *
+ *     <p>This package is divided into:
  *     <ul>
- *       <li>{@code Matrix} / {@code MutableMatrix} — read and read-write contracts.</li>
- *       <li>{@code DenseMatrix} — full storage, suitable for small systems.</li>
- *       <li>{@code DynamicCSRMatrix} / {@code CSRMatrix} — sparse storage for
- *           large nodal networks with few non-zero entries per row.</li>
- *       <li>{@code HashSparseMatrix} — insertion-order-friendly sparse matrix
- *           used during incremental assembly before conversion to CSR.</li>
+ *       <li>
+ *         {@code operators.linear} —
+ *         Linear operators and matrix representations:
+ *         <ul>
+ *           <li>{@code Matrix} / {@code MutableMatrix} — contracts for
+ *               linear transformations and matrix assembly.</li>
+ *           <li>{@code DenseMatrix} — dense storage for small or dense systems.</li>
+ *           <li>{@code CSRMatrix} / {@code PaddedCSRMatrix} — sparse storage
+ *               optimized for large systems with fixed sparsity patterns.</li>
+ *           <li>{@code HashSparseMatrix} — flexible sparse storage used during
+ *               incremental matrix construction.</li>
+ *         </ul>
+ *       </li>
+ *
+ *       <li>
+ *         {@code operators.nonlinear} —
+ *         Nonlinear operators and tensor representations:
+ *         <ul>
+ *           <li>{@code PaddedCSR2Tensor} — sparse quadratic tensor operator.</li>
+ *           <li>{@code PaddedCSRTensor} — sparse higher-order tensor operator.</li>
+ *         </ul>
+ *       </li>
+ *
+ *       <li>
+ *         {@code operators.vectors} —
+ *         Vector data structures used as inputs and outputs of numerical
+ *         operators and solvers.
+ *       </li>
  *     </ul>
  *   </dd>
  *
  *   <dt>{@link com.rae.formicapi.foundation.math.solvers}</dt>
- *   <dd>Linear system solvers:
+ *   <dd>
+ *     Numerical solvers for linear and nonlinear systems:
  *     <ul>
- *       <li>{@code LeastSquare} — iterative least-squares solver, default for
- *           thermal and hydraulic domains.</li>
- *       <li>{@code ConjugateGradient} — CG solver for symmetric positive-definite
- *           systems.</li>
+ *       <li>{@code LeastSquare} — iterative least-squares solver.</li>
+ *       <li>{@code ConjugateGradient} — solver for symmetric positive-definite
+ *           linear systems.</li>
+ *       <li>{@code NewtonKrylov} — matrix-free nonlinear solver using
+ *           Jacobian-vector products.</li>
  *     </ul>
  *   </dd>
  *
  *   <dt>{@link com.rae.formicapi.foundation.math.data}</dt>
- *   <dd>Tabulated function interpolation for material properties and boundary
- *       conditions that vary with temperature, pressure, or other state variables:
+ *   <dd>
+ *     Data structures for tabulated functions and interpolation used by
+ *     numerical models:
  *     <ul>
- *       <li>{@code OneDTabulatedFunction} — 1D lookup with configurable step mode.</li>
- *       <li>{@code ReversibleOneDTabulatedFunction} — invertible 1D lookup.</li>
+ *       <li>{@code OneDTabulatedFunction} — one-dimensional interpolation.</li>
+ *       <li>{@code ReversibleOneDTabulatedFunction} — invertible lookup.</li>
  *       <li>{@code TwoDTabulatedFunction} / {@code TwoDSparseTabulatedFunction}
- *           — 2D interpolation over dense and sparse grids.</li>
+ *           — two-dimensional interpolation over dense and sparse grids.</li>
  *     </ul>
  *   </dd>
  * </dl>

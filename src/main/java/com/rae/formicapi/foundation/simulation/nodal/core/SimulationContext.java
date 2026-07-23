@@ -1,8 +1,8 @@
 package com.rae.formicapi.foundation.simulation.nodal.core;
 
-import com.rae.formicapi.foundation.math.operators.DenseMatrix;
-import com.rae.formicapi.foundation.math.operators.DynamicCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.MutableMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.DynamicCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
 
 public class SimulationContext {
 

@@ -1,5 +1,6 @@
 package com.rae.formicapi.foundation.simulation.nodal;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuVector;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
 import com.rae.formicapi.foundation.simulation.nodal.core.DomainModel;
 import com.rae.formicapi.foundation.simulation.nodal.core.Node;
@@ -27,8 +28,8 @@ public enum ModelType {
         public void solve(DomainModel domain, List<SimulationComponent> components) {
             SimulationContext ctx    = domain.getContext();
             double[]          x0     = nodeValues(domain);
-            double[]          result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
-            applyResult(domain, result);
+            LeastSquare.solve(ctx.matrix, new CpuVector(ctx.rhs), new CpuVector(x0), 5000, 1e-3f);
+            applyResult(domain, x0);
         }
     },
 
@@ -37,8 +38,8 @@ public enum ModelType {
         public void solve(DomainModel domain, List<SimulationComponent> components) {
             SimulationContext ctx    = domain.getContext();
             double[]          x0     = nodeValues(domain);
-            double[]          result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
-            applyResult(domain, result);
+            LeastSquare.solve(ctx.matrix, new CpuVector(x0), new CpuVector(ctx.rhs), 5000, 1e-3f);
+            applyResult(domain, x0);
         }
     },
 
@@ -47,8 +48,8 @@ public enum ModelType {
         public void solve(DomainModel domain, List<SimulationComponent> components) {
             SimulationContext ctx    = domain.getContext();
             double[]          x0     = nodeValues(domain);
-            double[]          result = LeastSquare.solve(ctx.matrix, x0, ctx.rhs, 5000, 1e-3f);
-            applyResult(domain, result);
+            LeastSquare.solve(ctx.matrix, new CpuVector(ctx.rhs), new CpuVector(x0), 5000, 1e-3f);
+            applyResult(domain, x0);
         }
     };
 

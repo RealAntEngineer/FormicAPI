@@ -1,31 +1,13 @@
-package com.rae.formicapi.foundation.math.operators;
+package com.rae.formicapi.foundation.math.operators.backend.cpu;
+
+import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
-/**
- * Mutable CSR matrix with a fixed sparsity structure.
- *
- * <p>This implementation assumes:
- * <ul>
- *     <li>The sparsity pattern is known at construction time</li>
- *     <li>No structural modifications (no insert/delete of non-zeros)</li>
- *     <li>Only numerical updates are allowed</li>
- * </ul>
- *
- * <p>All (row, col) pairs MUST already exist in the CSR structure.
- * If a non-existing entry is accessed or modified, the implementation
- * throws an {@link IllegalStateException}.
- *
- * <p>This design is optimized for:
- * <ul>
- *     <li>Finite element solvers (FEM)</li>
- *     <li>Iterative linear solvers (CG, GMRES, etc.)</li>
- *     <li>Large sparse systems with fixed connectivity</li>
- * </ul>
- */
-@SuppressWarnings("unused")
-public class PaddedCSRMatrix implements MutableMatrix {
+public class CpuPaddedCSRMatrix implements MutableMatrix {
 
+    CpuExecutor executor;
     private int rows;
     private int cols;
     private final int nnzPerRow;
@@ -56,7 +38,7 @@ public class PaddedCSRMatrix implements MutableMatrix {
      * @param cols number of columns
      *
      */
-    public PaddedCSRMatrix(int rows, int cols, int nnzPerRow) {
+    public CpuPaddedCSRMatrix(int rows, int cols, int nnzPerRow) {
 
         this.rows = rows;
         this.cols = cols;
@@ -66,7 +48,7 @@ public class PaddedCSRMatrix implements MutableMatrix {
         this.colIndex = new int[rows * nnzPerRow];
     }
 
-    private PaddedCSRMatrix(int rows, int cols, int nnzPerRow, double[] values, int[] colIndex) {
+    private CpuPaddedCSRMatrix(int rows, int cols, int nnzPerRow, double[] values, int[] colIndex) {
         this.rows = rows;
         this.cols = cols;
         this.nnzPerRow = nnzPerRow;
@@ -206,9 +188,41 @@ public class PaddedCSRMatrix implements MutableMatrix {
         }
     }
 
+
+    @Override
+    public void apply(Vector x, Vector result) {
+        if (executor  == null) throw new RuntimeException("Executor wasn't setup");//TODO maybe default to serial ?
+        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
+            executor.parallelFor(rows, (start, end) -> {
+                double[] xArr = xCpu.array();
+                double[] resultArr = resCpu.array();
+                long startTime = System.nanoTime();
+                for (int row = start; row < end; row++) {
+                    multiplyRow(row, xArr, resultArr);
+                }
+                System.out.println("tooked "+ (System.nanoTime() - startTime));
+
+            });
+        } else {
+            throw new IllegalArgumentException("For a cpu backend matrix, you need to cpu backend vectors");
+        }
+    }
+
+    private void multiplyRow(int row, double[] x, double[] result) {
+        int    base = row * nnzPerRow;
+        double sum  = 0.0;
+
+        for (int i = 0; i < nnzPerRow; i++) {
+            sum += values[base + i] * x[colIndex[base + i]];
+        }
+
+        result[row] = sum;
+    }
+
     @Override
     public void multiply(double[] x, double[] result) {
-        for (int r = 0; r < rows; r++) {
+        throw new RuntimeException("Unsuported, use vector version instead");
+        /*for (int r = 0; r < rows; r++) {
 
             int    base = r * nnzPerRow;
             double sum  = 0.0;
@@ -218,17 +232,29 @@ public class PaddedCSRMatrix implements MutableMatrix {
             }
 
             result[r] = sum;
-        }
+        }*/
     }
+
+
+    /*@Override
+    public void transposeApply(Vector x, Vector result) {
+        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
+            executor.parallelFor(rows, (start, end) -> {
+                for (int row = start; row < end; row++) {
+                    multiplyRow(row, xCpu.array(), resCpu.array());
+                }
+            });
+        } else {
+            throw new IllegalArgumentException("For a cpu backend matrix, you need to cpu backend vectors");
+        }
+    }*/
 
     @Override
     public void transposeMultiply(double[] x, double[] result) {
         Arrays.fill(result, 0.0);
 
         for (int r = 0; r < rows; r++) {
-
             int base = r * nnzPerRow;
-
             for (int i = 0; i < nnzPerRow; i++) {
                 result[colIndex[base + i]] += values[base + i] * x[r];
             }
@@ -274,5 +300,9 @@ public class PaddedCSRMatrix implements MutableMatrix {
         System.arraycopy(colIndex, base, out, 0, nnzPerRow);
 
         return out;
+    }
+
+    public void setExecutor(CpuExecutor cpuExecutor) {
+        executor = cpuExecutor;
     }
 }

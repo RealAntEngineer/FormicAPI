@@ -1,6 +1,6 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.foundation.math.operators.DenseMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
 import com.rae.formicapi.foundation.math.solvers.ConjugateGradient;
 import org.junit.jupiter.api.Test;
 

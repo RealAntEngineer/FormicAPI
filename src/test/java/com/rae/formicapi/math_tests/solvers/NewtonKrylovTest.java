@@ -1,9 +1,9 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.foundation.math.operators.DenseMatrix;
-import com.rae.formicapi.foundation.math.operators.Matrix;
-import com.rae.formicapi.foundation.math.operators.MutableMatrix;
-import com.rae.formicapi.foundation.math.operators.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.Matrix;
+import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR2Tensor;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +13,7 @@ public class NewtonKrylovTest {
     @Test
     void solveSimpleNonlinearSystem() {
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(2, 2, 1);
+        PaddedCSR2Tensor C = new PaddedCSR2Tensor(2, 1);
 
 
         C.setRow(0,
@@ -57,7 +57,7 @@ public class NewtonKrylovTest {
     @Test
     void solveCoupledQuadraticSystem() {
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(2, 2, 2);
+        PaddedCSR2Tensor C = new PaddedCSR2Tensor(2, 2);
 
         /*
          * F0 = x0*x0 + x0*x1
@@ -93,7 +93,7 @@ public class NewtonKrylovTest {
     @Test
     void solveWithLinearAndQuadraticCoupling() {
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(2, 2, 1);
+        PaddedCSR2Tensor C = new PaddedCSR2Tensor(2, 1);
 
         /*
          * Quadratic:

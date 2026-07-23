@@ -1,6 +1,6 @@
 package com.rae.formicapi.foundation.math.solvers;
 
-import com.rae.formicapi.foundation.math.operators.Matrix;
+import com.rae.formicapi.foundation.math.operators.linear.Matrix;
 
 /**
  * Biconjugate Gradient Stabilized (BiCGSTAB) solver for general (non-symmetric)

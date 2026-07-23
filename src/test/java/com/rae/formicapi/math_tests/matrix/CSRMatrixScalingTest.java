@@ -1,8 +1,8 @@
 package com.rae.formicapi.math_tests.matrix;
 
-import com.rae.formicapi.foundation.math.operators.CSRMatrix;
-import com.rae.formicapi.foundation.math.operators.DynamicCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.HashSparseMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.CSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.DynamicCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.HashSparseMatrix;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -12,7 +12,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Benchmarks {@link CSRMatrix#transposeMultiply} and {@link CSRMatrix#multiply}
+ * Benchmarks {@link CSRMatrix#transposeApply} and {@link CSRMatrix#multiply}
  * scaling with respect to matrix size (n) and non-zeros per row (m).
  *
  * <p>Not a correctness test — validates that wall-clock time grows linearly

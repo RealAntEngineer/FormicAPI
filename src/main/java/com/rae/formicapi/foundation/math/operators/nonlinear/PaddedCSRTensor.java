@@ -1,4 +1,4 @@
-package com.rae.formicapi.foundation.math.operators;
+package com.rae.formicapi.foundation.math.operators.nonlinear;
 
 import java.util.Arrays;
 
