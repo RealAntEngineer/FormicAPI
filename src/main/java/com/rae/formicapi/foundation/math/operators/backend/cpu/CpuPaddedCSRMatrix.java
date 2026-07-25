@@ -196,27 +196,23 @@ public class CpuPaddedCSRMatrix implements MutableMatrix {
             executor.parallelFor(rows, (start, end) -> {
                 double[] xArr = xCpu.array();
                 double[] resultArr = resCpu.array();
-                long startTime = System.nanoTime();
+                //long startTime = System.nanoTime();
                 for (int row = start; row < end; row++) {
-                    multiplyRow(row, xArr, resultArr);
+                    int    base = row * nnzPerRow;
+                    double sum  = 0.0;
+
+                    for (int i = 0; i < nnzPerRow; i++) {
+                        sum += values[base + i] * xArr[colIndex[base + i]];
+                    }
+
+                    resultArr[row] = sum;
                 }
-                System.out.println("tooked "+ (System.nanoTime() - startTime));
+                //System.out.println("took "+ (System.nanoTime() - startTime));
 
             });
         } else {
             throw new IllegalArgumentException("For a cpu backend matrix, you need to cpu backend vectors");
         }
-    }
-
-    private void multiplyRow(int row, double[] x, double[] result) {
-        int    base = row * nnzPerRow;
-        double sum  = 0.0;
-
-        for (int i = 0; i < nnzPerRow; i++) {
-            sum += values[base + i] * x[colIndex[base + i]];
-        }
-
-        result[row] = sum;
     }
 
     @Override

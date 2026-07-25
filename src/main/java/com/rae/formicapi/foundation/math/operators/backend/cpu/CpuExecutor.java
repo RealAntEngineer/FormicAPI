@@ -19,6 +19,8 @@ public final class CpuExecutor {
 
         this.threads = threads;
         this.workers = new Thread[threads];
+        //create our own threads so they have a name ?
+        // and we can add some more info in them.
 
         for (int i = 0; i < threads; i++) {
             workers[i] = new Thread(this::workerLoop);
@@ -69,7 +71,7 @@ public final class CpuExecutor {
         try {
             long start = System.nanoTime();
             latch.await();
-            System.out.println("latch took "+(System.nanoTime() - start));
+            //System.out.println("latch took "+(System.nanoTime() - start));
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();

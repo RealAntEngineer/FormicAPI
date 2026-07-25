@@ -277,6 +277,10 @@ public class BlockSparseMatrix implements MutableMatrix {
         int[] rowIdx = rowGlobalIndexScratch;
         int[] colIdx = colGlobalIndexScratch;
         double[] acc = accumScratch;
+        //todo that's not what I wanted to do. do a new class on a copy of PaddedCSRMAtrix,
+        // name it block sparce matrix 2 and do a loop on 4096 blocks. but how do you do linear coupling of variables ?
+
+
 
         for (int cell = 0; cell < nCells; cell++) {
             for (int k = 0; k < blockSize; k++) {

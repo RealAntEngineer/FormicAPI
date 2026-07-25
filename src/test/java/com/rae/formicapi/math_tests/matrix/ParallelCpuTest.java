@@ -15,9 +15,9 @@ public class ParallelCpuTest {
     @Test
     void multiplyParallelMatchesSerial() {
 
-        int nx = 100;
-        int ny = 10;
-        int nz = 10;
+        int nx = 64;
+        int ny = 64;
+        int nz = 64;
 
         int rows = nx * ny * nz;
         int cols = rows;
@@ -125,23 +125,30 @@ public class ParallelCpuTest {
 
         // Serial
         long start = System.nanoTime();
-        matrixSerial.apply(x, serial);
-        System.out.println("serial tooked "+ (System.nanoTime() - start));
+        for (int i = 0; i < 10; i++) {
+            //matrixSerial.apply(x, serial);
+        }
+
+        System.out.println("serial took   "+ (System.nanoTime() - start)/10);
 
         double[] xArr = x.array();
         double[] serialArr = serial.array();
         start = System.nanoTime();
 
-        matrixSerial.multiply(xArr, serialArr);
-        System.out.println("serial 2 tooked"+ (System.nanoTime() - start));
+        for (int i = 0; i < 10; i++){
+            //matrixSerial.multiply(xArr, serialArr);
+        }
+        System.out.println("serial 2 took "+ (System.nanoTime() - start)/10);
 
         // Parallel
 
         //System.out.println("detected "+Runtime.getRuntime().availableProcessors()+ " available processors");
-        matrix.setExecutor(new CpuExecutor(2));
+        matrix.setExecutor(new CpuExecutor(4));
         start = System.nanoTime();
-        matrix.apply(x, parallel);
-        System.out.println("parallel tooked "+ (System.nanoTime() - start));
+        for (int i = 0; i < 1000; i++) {
+            matrix.apply(x, parallel);
+        }
+        System.out.println("parallel took "+ (System.nanoTime() - start)/1000);
 
         assertArrayEquals(
                 serial.array(),
