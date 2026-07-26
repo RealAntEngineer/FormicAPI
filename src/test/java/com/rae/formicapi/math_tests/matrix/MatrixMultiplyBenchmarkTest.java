@@ -1,8 +1,13 @@
-package com.rae.formicapi.foundation.math.operators.linear;
+package com.rae.formicapi.math_tests.matrix;
+
+import com.rae.formicapi.foundation.math.operators.linear.Block7PointMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
-public class MatrixMultiplyBenchmark {
+public class MatrixMultiplyBenchmarkTest {
 
     private static final int BLOCKS = 64;
     private static final int ROWS = BLOCKS * 4096;
@@ -10,7 +15,8 @@ public class MatrixMultiplyBenchmark {
     private static final int WARMUP = 20;
     private static final int ITERATIONS = 100;
 
-    public static void main(String[] args) {
+    @Test
+    public void compairMul() {
 
         Random random = new Random(42);
 
@@ -22,8 +28,8 @@ public class MatrixMultiplyBenchmark {
         }
 
 
-        Block7PointMatrix block = createBlockMatrix(random);
-        PaddedCSRMatrix padded = createPaddedMatrix(random);
+        Block7PointMatrix block  = createBlockMatrix(random);
+        PaddedCSRMatrix   padded = createPaddedMatrix(random);
 
 
         benchmark(

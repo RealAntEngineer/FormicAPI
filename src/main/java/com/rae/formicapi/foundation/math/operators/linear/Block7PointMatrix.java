@@ -498,6 +498,194 @@ public class Block7PointMatrix implements MutableMatrix {
         }
     }
 
+    public void multiplyFast(double[] xVec, double[] result) {
+        for (int block = 0; block < blocks; block++) {
+
+            int ptr = block * 6;
+
+            int self = block * BLOCK_SIZE;
+            int xm   = blockPtr[ptr + XM - 1];
+            int xp   = blockPtr[ptr + XP - 1];
+            int ym   = blockPtr[ptr + YM - 1];
+            int yp   = blockPtr[ptr + YP - 1];
+            int zm   = blockPtr[ptr + ZM - 1];
+            int zp   = blockPtr[ptr + ZP - 1];
+
+
+            // Interior cells: no boundary checks
+            for (int y = 1; y < BASE_SIZE - 1; y++) {
+                for (int z = 1; z < BASE_SIZE - 1; z++) {
+
+                    int row = self + (z << BASE_BITS) + (y << (BASE_BITS * 2)) + 1;
+
+                    for (int x = 1; x < BASE_SIZE - 1; x++, row++) {
+
+                        int base = row * 7;
+
+                        result[row] =
+                                values[base]      * xVec[row] +
+                                        values[base + XM] * xVec[row - 1] +
+                                        values[base + XP] * xVec[row + 1] +
+                                        values[base + YM] * xVec[row - Y_STEP] +
+                                        values[base + YP] * xVec[row + Y_STEP] +
+                                        values[base + ZM] * xVec[row - Z_STEP] +
+                                        values[base + ZP] * xVec[row + Z_STEP];
+                    }
+                }
+            }
+
+            // Boundary cells: full topology handling
+            for (int idx : BOUNDARY_IDX) {
+
+                int row  = self + idx;
+                int base = row * 7;
+
+                byte mask = BOUNDARY_MASK[idx];
+
+                double sum = values[base] * xVec[row];
+
+                // -X
+                if ((mask & MIN_X) == 0) {
+                    sum += values[base + XM] * xVec[row - 1];
+                } else if (xm != -1) {
+                    sum += values[base + XM] * xVec[xm + idx + X_WRAP];
+                }
+
+                // +X
+                if ((mask & MAX_X) == 0) {
+                    sum += values[base + XP] * xVec[row + 1];
+                } else if (xp != -1) {
+                    sum += values[base + XP] * xVec[xp + idx - X_WRAP];
+                }
+
+                // -Y
+                if ((mask & MIN_Y) == 0) {
+                    sum += values[base + YM] * xVec[row - Y_STEP];
+                } else if (ym != -1) {
+                    sum += values[base + YM] * xVec[ym + idx + Y_WRAP];
+                }
+
+                // +Y
+                if ((mask & MAX_Y) == 0) {
+                    sum += values[base + YP] * xVec[row + Y_STEP];
+                } else if (yp != -1) {
+                    sum += values[base + YP] * xVec[yp + idx - Y_WRAP];
+                }
+
+                // -Z
+                if ((mask & MIN_Z) == 0) {
+                    sum += values[base + ZM] * xVec[row - Z_STEP];
+                } else if (zm != -1) {
+                    sum += values[base + ZM] * xVec[zm + idx + Z_WRAP];
+                }
+
+                // +Z
+                if ((mask & MAX_Z) == 0) {
+                    sum += values[base + ZP] * xVec[row + Z_STEP];
+                } else if (zp != -1) {
+                    sum += values[base + ZP] * xVec[zp + idx - Z_WRAP];
+                }
+
+                result[row] = sum;
+            }
+        }
+    }
+
+    public void transposeMultiplyFast(double[] x, double[] result) {
+        Arrays.fill(result, 0.0);
+
+        for (int block = 0; block < blocks; block++) {
+
+            int ptr = block * 6;
+
+            int self = block * BLOCK_SIZE;
+            int xm   = blockPtr[ptr + XM - 1];
+            int xp   = blockPtr[ptr + XP - 1];
+            int ym   = blockPtr[ptr + YM - 1];
+            int yp   = blockPtr[ptr + YP - 1];
+            int zm   = blockPtr[ptr + ZM - 1];
+            int zp   = blockPtr[ptr + ZP - 1];
+
+
+            // Interior
+            for (int idx : INTERIOR_IDX) {
+
+                int row  = self + idx;
+                int base = row * 7;
+
+                double xi = x[row];
+
+                result[row] += values[base] * xi;
+
+                result[row - 1] += values[base + XM] * xi;
+                result[row + 1] += values[base + XP] * xi;
+
+                result[row - Y_STEP] += values[base + YM] * xi;
+                result[row + Y_STEP] += values[base + YP] * xi;
+
+                result[row - Z_STEP] += values[base + ZM] * xi;
+                result[row + Z_STEP] += values[base + ZP] * xi;
+            }
+
+
+            // Boundary
+            for (int idx : BOUNDARY_IDX) {
+
+                int row  = self + idx;
+                int base = row * 7;
+
+                byte mask = BOUNDARY_MASK[idx];
+
+                double xi = x[row];
+
+
+                result[row] += values[base] * xi;
+
+
+                if ((mask & MIN_X) == 0) {
+                    result[row - 1] += values[base + XM] * xi;
+                } else if (xm != -1) {
+                    result[xm + idx + X_WRAP] += values[base + XM] * xi;
+                }
+
+
+                if ((mask & MAX_X) == 0) {
+                    result[row + 1] += values[base + XP] * xi;
+                } else if (xp != -1) {
+                    result[xp + idx - X_WRAP] += values[base + XP] * xi;
+                }
+
+
+                if ((mask & MIN_Y) == 0) {
+                    result[row - Y_STEP] += values[base + YM] * xi;
+                } else if (ym != -1) {
+                    result[ym + idx + Y_WRAP] += values[base + YM] * xi;
+                }
+
+
+                if ((mask & MAX_Y) == 0) {
+                    result[row + Y_STEP] += values[base + YP] * xi;
+                } else if (yp != -1) {
+                    result[yp + idx - Y_WRAP] += values[base + YP] * xi;
+                }
+
+
+                if ((mask & MIN_Z) == 0) {
+                    result[row - Z_STEP] += values[base + ZM] * xi;
+                } else if (zm != -1) {
+                    result[zm + idx + Z_WRAP] += values[base + ZM] * xi;
+                }
+
+
+                if ((mask & MAX_Z) == 0) {
+                    result[row + Z_STEP] += values[base + ZP] * xi;
+                } else if (zp != -1) {
+                    result[zp + idx - Z_WRAP] += values[base + ZP] * xi;
+                }
+            }
+        }
+    }
+
     @Override
     public int rows() {
         return blocks * BLOCK_SIZE;

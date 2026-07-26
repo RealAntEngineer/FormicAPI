@@ -1,15 +1,24 @@
-package com.rae.formicapi.foundation.math.operators.linear;
+package com.rae.formicapi.math_tests.matrix;
+
+import com.rae.formicapi.foundation.math.operators.linear.Block7PointMatrix;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
-public class BlockCSRMatrixBenchmark {
+public class BlockCSRMatrixBenchmarkTest {
 
     private static final int BLOCKS = 1024;
     private static final int SIZE = BLOCKS * 4096;
 
     private static final int ITERATIONS = 100;
 
-    public static void main(String[] args) {
+    static final double rowsProcessed = (double) SIZE * ITERATIONS;
+
+
+    @Test
+    public void testMul() {
+
+
 
         Block7PointMatrix matrix = new Block7PointMatrix(BLOCKS);
 
@@ -42,7 +51,6 @@ public class BlockCSRMatrixBenchmark {
 
         double seconds = (end - start) / 1e9;
 
-        double rowsProcessed = (double) SIZE * ITERATIONS;
 
         System.out.println("Blocks: " + BLOCKS);
         System.out.println("Rows:   " + SIZE);
@@ -53,8 +61,46 @@ public class BlockCSRMatrixBenchmark {
                 " million rows/sec"
         );
 
+        System.out.println(
+                "multiply: " +
+                        (seconds * 1e9/rowsProcessed) +
+                        " ns / rows"
+        );
+
+        start = System.nanoTime();
+
+        /*for (int i = 0; i < ITERATIONS; i++) {
+            matrix.multiplyFast(x, result);
+        }
+
+        end = System.nanoTime();
+
+
+        seconds = (end - start) / 1e9;
+
+        System.out.println(
+                "fast multiply: " +
+                        (rowsProcessed / seconds / 1e6) +
+                        " million rows/sec"
+        );
+
 
         // transpose benchmark
+
+        for (int i = 0; i < ITERATIONS; i++) {
+            matrix.transposeMultiplyFast(x, result);
+        }
+
+        end = System.nanoTime();
+
+
+        seconds = (end - start) / 1e9;
+
+        System.out.println(
+                "fast transpose: " +
+                        (rowsProcessed / seconds / 1e6) +
+                        " million rows/sec"
+        );
 
         start = System.nanoTime();
 
@@ -72,7 +118,7 @@ public class BlockCSRMatrixBenchmark {
                 "transposeMultiply: " +
                 (rowsProcessed / seconds / 1e6) +
                 " million rows/sec"
-        );
+        );*/
     }
 
 

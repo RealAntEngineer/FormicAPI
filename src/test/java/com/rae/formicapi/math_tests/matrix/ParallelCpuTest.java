@@ -125,20 +125,27 @@ public class ParallelCpuTest {
 
         // Serial
         long start = System.nanoTime();
-        for (int i = 0; i < 10; i++) {
-            //matrixSerial.apply(x, serial);
+        for (int i = 0; i < 1000; i++) {
+            matrixSerial.apply(x, serial);
         }
+        long time = (System.nanoTime() - start);
 
-        System.out.println("serial took   "+ (System.nanoTime() - start)/10);
+        System.out.println("serial took   "+ (System.nanoTime() - start)/1000);
+        System.out.println("effective ns/row :"+((float) time / rows / 1000));
+
 
         double[] xArr = x.array();
         double[] serialArr = serial.array();
         start = System.nanoTime();
 
-        for (int i = 0; i < 10; i++){
-            //matrixSerial.multiply(xArr, serialArr);
+        for (int i = 0; i < 1000; i++){
+            matrixSerial.multiply(xArr, serialArr);
         }
-        System.out.println("serial 2 took "+ (System.nanoTime() - start)/10);
+        time = (System.nanoTime() - start);
+
+        System.out.println("serial 2 took "+ (System.nanoTime() - start)/1000);
+        System.out.println("effective ns/row :"+((float) time / rows / 1000));
+
 
         // Parallel
 
@@ -148,7 +155,10 @@ public class ParallelCpuTest {
         for (int i = 0; i < 1000; i++) {
             matrix.apply(x, parallel);
         }
-        System.out.println("parallel took "+ (System.nanoTime() - start)/1000);
+        time = (System.nanoTime() - start);
+
+        System.out.println("parallel took "+ time/1000);
+        System.out.println("effective ns/row :"+((float) time / rows / 1000));
 
         assertArrayEquals(
                 serial.array(),
