@@ -193,25 +193,30 @@ public class CpuPaddedCSRMatrix implements MutableMatrix {
     public void apply(Vector x, Vector result) {
         if (executor  == null) throw new RuntimeException("Executor wasn't setup");//TODO maybe default to serial ?
         if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
-            executor.parallelFor(rows, (start, end) -> {
-                double[] xArr = xCpu.array();
-                double[] resultArr = resCpu.array();
-                //long startTime = System.nanoTime();
-                for (int row = start; row < end; row++) {
-                    int    base = row * nnzPerRow;
-                    double sum  = 0.0;
+            double[] xArr = xCpu.array();
+            double[] resultArr = resCpu.array();
 
-                    for (int i = 0; i < nnzPerRow; i++) {
-                        sum += values[base + i] * xArr[colIndex[base + i]];
-                    }
+            if (rows < executor.getParallelThreshold()) {
+                applyRange(0, rows, xArr, resultArr);
+                return;
+            }
 
-                    resultArr[row] = sum;
-                }
-                //System.out.println("took "+ (System.nanoTime() - startTime));
-
-            });
+            executor.parallelFor(rows, (start, end) -> applyRange(start, end, xArr, resultArr));
         } else {
             throw new IllegalArgumentException("For a cpu backend matrix, you need to cpu backend vectors");
+        }
+    }
+
+    private void applyRange(int start, int end, double[] xArr, double[] resultArr) {
+        for (int row = start; row < end; row++) {
+            int    base = row * nnzPerRow;
+            double sum  = 0.0;
+
+            for (int i = 0; i < nnzPerRow; i++) {
+                sum += values[base + i] * xArr[colIndex[base + i]];
+            }
+
+            resultArr[row] = sum;
         }
     }
 
@@ -232,29 +237,55 @@ public class CpuPaddedCSRMatrix implements MutableMatrix {
     }
 
 
-    /*@Override
+    @Override
     public void transposeApply(Vector x, Vector result) {
+        if (executor == null) throw new RuntimeException("Executor wasn't setup");
         if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
-            executor.parallelFor(rows, (start, end) -> {
-                for (int row = start; row < end; row++) {
-                    multiplyRow(row, xCpu.array(), resCpu.array());
+            double[] xArr = xCpu.array();
+            double[] resultArr = resCpu.array();
+
+            Arrays.fill(resultArr, 0.0);
+
+            if (rows < executor.getParallelThreshold()) {
+                transposeApplyRange(0, rows, xArr, resultArr);
+                return;
+            }
+
+            final double[] vals = values;
+            final int[] cols = colIndex;
+            final int nnz = nnzPerRow;
+
+            // Scatter-add: two different row ranges can write the same
+            // output column, so a plain parallelFor would race on
+            // `resultArr`. Each worker accumulates into its own private
+            // buffer instead, and the buffers get summed into resultArr
+            // once every row is done.
+            executor.parallelForAccumulate(rows, resultArr, (start, end, local) -> {
+                for (int r = start; r < end; r++) {
+                    int base = r * nnz;
+                    double xr = xArr[r];
+                    for (int i = 0; i < nnz; i++)
+                        local[cols[base + i]] += vals[base + i] * xr;
                 }
             });
         } else {
             throw new IllegalArgumentException("For a cpu backend matrix, you need to cpu backend vectors");
         }
-    }*/
+    }
+
+    private void transposeApplyRange(int start, int end, double[] xArr, double[] resultArr) {
+        for (int r = start; r < end; r++) {
+            int base = r * nnzPerRow;
+            double xr = xArr[r];
+            for (int i = 0; i < nnzPerRow; i++) {
+                resultArr[colIndex[base + i]] += values[base + i] * xr;
+            }
+        }
+    }
 
     @Override
     public void transposeMultiply(double[] x, double[] result) {
-        Arrays.fill(result, 0.0);
-
-        for (int r = 0; r < rows; r++) {
-            int base = r * nnzPerRow;
-            for (int i = 0; i < nnzPerRow; i++) {
-                result[colIndex[base + i]] += values[base + i] * x[r];
-            }
-        }
+        throw new RuntimeException("Unsuported, use vector version instead");
     }
 
     @Override
