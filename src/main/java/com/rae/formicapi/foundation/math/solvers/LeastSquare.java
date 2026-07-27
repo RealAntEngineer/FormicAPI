@@ -14,20 +14,6 @@ public class LeastSquare {
     private static final int W = 1;
     private static final int TEMP2 = 2;
 
-    public static int solve(Matrix A, double[] b, int maxIter, float tol) {
-        return solve(A, new CpuVector(b), maxIter, tol);
-    }
-        /**
-         * Convenience overload: zero initial guess.
-         */
-    public static int solve(Matrix A, Vector b, int maxIter, float tol) {
-        int n = A.cols();
-
-        return solve(A, b, maxIter, tol, new CpuVector(n),
-                new WorkingBuffer(new CpuVector[2]), new WorkingBuffer(new CpuVector[3])
-        );
-    }
-
     public static int solve(Matrix A, double[] b, double[] x0, int maxIter, float tol) {
         return solve(A, new CpuVector(b), new CpuVector(x0), maxIter, tol);
     }
