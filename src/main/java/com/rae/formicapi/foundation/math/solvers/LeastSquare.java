@@ -19,8 +19,10 @@ public class LeastSquare {
     }
 
     public static int solve(Matrix A, Vector b, Vector x0, int maxIter, float tol) {
-        return solve(A, b, maxIter, tol, x0, new WorkingBuffer(new CpuVector[2]),
-                new WorkingBuffer(new CpuVector[3])
+        int m = A.rows();
+        int n = A.cols();
+        return solve(A, b, maxIter, tol, x0, new WorkingBuffer(2, new CpuVector(m)),
+                new WorkingBuffer(3, new CpuVector(n))
         );
     }
 

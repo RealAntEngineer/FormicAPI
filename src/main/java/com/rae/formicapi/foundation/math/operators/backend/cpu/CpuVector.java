@@ -173,6 +173,13 @@ public final class CpuVector implements Vector {
     }
 
     @Override
+    public Vector copy() {
+        Vector vector =  new CpuVector(Arrays.copyOf(data, data.length));
+        vector.resize(size);
+        return vector;
+    }
+
+    @Override
     public void clear() {
         // Same reasoning as copy(): Arrays.fill is already an optimized
         // intrinsic and is memory-bandwidth bound, not compute bound.

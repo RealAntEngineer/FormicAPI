@@ -1,5 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.vectors;
 
+import java.util.Arrays;
+
 /**
  * Reusable temporary vector storage for iterative solvers.
  *
@@ -19,6 +21,11 @@ public final class WorkingBuffer {
      */
     public WorkingBuffer(Vector[] vectors) {
         this.vectors = vectors;
+    }
+
+    public WorkingBuffer(int number, Vector defaultVec) {
+        this.vectors = new Vector[number];
+        Arrays.fill(vectors,defaultVec.copy());
     }
 
 

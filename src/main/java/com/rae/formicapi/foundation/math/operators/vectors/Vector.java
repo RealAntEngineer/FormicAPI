@@ -63,6 +63,8 @@ public interface Vector {
      */
     void copy(Vector x);
 
+    //create a new vector object with the same values
+    Vector copy();
     /**
      * Sets all elements to zero.
      */

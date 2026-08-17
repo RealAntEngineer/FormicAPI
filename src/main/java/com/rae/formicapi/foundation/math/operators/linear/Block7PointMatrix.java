@@ -39,6 +39,7 @@ import java.util.Arrays;
  * </ul>
  */
 @SuppressWarnings("unused")
+@Deprecated(forRemoval = true)//worse than regular CSRMatrix so it's useless.
 public class Block7PointMatrix implements MutableMatrix {
 
     static final         byte   MIN_X         = 1;
