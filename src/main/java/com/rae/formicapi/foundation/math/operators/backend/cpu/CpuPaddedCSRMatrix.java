@@ -1,6 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
@@ -190,9 +191,9 @@ public class CpuPaddedCSRMatrix implements MutableMatrix {
 
 
     @Override
-    public void apply(Vector x, Vector result) {
+    public void apply(DoubleVector x, DoubleVector result) {
         if (executor  == null) throw new RuntimeException("Executor wasn't setup");//TODO maybe default to serial ?
-        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             double[] xArr = xCpu.array();
             double[] resultArr = resCpu.array();
 
@@ -238,9 +239,9 @@ public class CpuPaddedCSRMatrix implements MutableMatrix {
 
 
     @Override
-    public void transposeApply(Vector x, Vector result) {
+    public void transposeApply(DoubleVector x, DoubleVector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
-        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             double[] xArr = xCpu.array();
             double[] resultArr = resCpu.array();
 

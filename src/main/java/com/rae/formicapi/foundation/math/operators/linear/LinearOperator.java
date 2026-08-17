@@ -1,6 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
-import com.rae.formicapi.foundation.math.operators.vectors.Vector;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 
 /**
  * Represents an object that applies a linear transformation:
@@ -13,5 +13,5 @@ public interface LinearOperator {
 
     int cols();
 
-    void apply(Vector x, Vector result);
+    void apply(DoubleVector x, DoubleVector result);
 }

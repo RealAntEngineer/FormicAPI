@@ -1,6 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
@@ -32,8 +33,8 @@ public interface Matrix extends LinearOperator {
     void multiply(double[] x, double[] result);
 
     @Override
-    default void apply(Vector x, Vector result) {
-        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
+    default void apply(DoubleVector x, DoubleVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             multiply(xCpu.array(), resCpu.array());
         }
     }
@@ -60,8 +61,8 @@ public interface Matrix extends LinearOperator {
     }
 
 
-    default void transposeApply(Vector x, Vector result){
-        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu){
+    default void transposeApply(DoubleVector x, DoubleVector result){
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu){
             transposeMultiply(xCpu.array(), resCpu.array());
         }
     }

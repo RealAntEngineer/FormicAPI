@@ -24,39 +24,7 @@ public interface Vector {
      */
     void resize(int size);
 
-    /**
-     * Euclidean norm.
-     */
-    default double norm() {
-        return Math.sqrt(dot(this));
-    }
 
-    /**
-     * Computes the dot product:
-     *
-     * <pre>
-     * this · other
-     * </pre>
-     */
-    double dot(Vector other);
-
-    /**
-     * Performs:
-     *
-     * <pre>
-     * this = this + a*x
-     * </pre>
-     *
-     * @param a scalar multiplier
-     * @param x vector to add
-     */
-    void axpy(double a, Vector x);
-
-    void scale(double a);
-
-    void add(double a);
-
-    void add(Vector x);
 
     /**
      * this = x

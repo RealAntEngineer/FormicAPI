@@ -1,8 +1,8 @@
 package com.rae.formicapi.foundation.math.solvers;
 
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
-import com.rae.formicapi.foundation.math.operators.vectors.Vector;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 
 public class LeastSquare {
@@ -15,14 +15,14 @@ public class LeastSquare {
     private static final int TEMP2 = 2;
 
     public static int solve(Matrix A, double[] b, double[] x0, int maxIter, float tol) {
-        return solve(A, new CpuVector(b), new CpuVector(x0), maxIter, tol);
+        return solve(A, new CpuDoubleVector(b), new CpuDoubleVector(x0), maxIter, tol);
     }
 
-    public static int solve(Matrix A, Vector b, Vector x0, int maxIter, float tol) {
+    public static int solve(Matrix A, DoubleVector b, DoubleVector x0, int maxIter, float tol) {
         int m = A.rows();
         int n = A.cols();
-        return solve(A, b, maxIter, tol, x0, new WorkingBuffer(2, new CpuVector(m)),
-                new WorkingBuffer(3, new CpuVector(n))
+        return solve(A, b, x0, maxIter, tol, new WorkingBuffer<>(2, () -> new CpuDoubleVector(m)),
+                new WorkingBuffer<>(3, () -> new CpuDoubleVector(n))
         );
     }
 
@@ -39,7 +39,7 @@ public class LeastSquare {
      *  V -> A.cols()
      *  W -> A.cols()
      */
-    public static int solve(Matrix A, Vector b, int maxIter, double tol, Vector x, WorkingBuffer mBuffer, WorkingBuffer nBuffer) {
+    public static int solve(Matrix A, DoubleVector b, DoubleVector x, int maxIter, double tol, WorkingBuffer<DoubleVector> mBuffer, WorkingBuffer<DoubleVector> nBuffer) {
 
         int m = A.rows();
         int n = A.cols();
@@ -50,12 +50,12 @@ public class LeastSquare {
 
         x.resize(n);
 
-        Vector u = mBuffer.get(U);
-        Vector temp = mBuffer.get(TEMP);
+        DoubleVector u = mBuffer.get(U);
+        DoubleVector temp = mBuffer.get(TEMP);
 
-        Vector v = nBuffer.get(V);
-        Vector w = nBuffer.get(W);
-        Vector temp2 = nBuffer.get(TEMP2);
+        DoubleVector v = nBuffer.get(V);
+        DoubleVector w = nBuffer.get(W);
+        DoubleVector temp2 = nBuffer.get(TEMP2);
 
         u.resize(m);
         temp.resize(m);
@@ -67,8 +67,9 @@ public class LeastSquare {
         // u = b / ||b||
 
         u.copy(b);
-
+        //System.out.println("b norm : "+ b.norm());
         double beta = u.norm();
+        //System.out.println("beta = " + beta);
 
         if (beta == 0)
             return 0;
@@ -79,6 +80,7 @@ public class LeastSquare {
         A.transposeApply(u, v);
 
         double alpha = v.norm();
+        //System.out.println("alpha = " + alpha);
 
         if (alpha == 0)
             return 0;

@@ -1,5 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,12 +41,12 @@ public final class CpuExecutor implements AutoCloseable {
     // contention at all, atomic or otherwise. The tradeoff is the fixed
     // O(outputSize) clear + reduce cost per call, which is wasteful when
     // outputSize is much larger than the number of actual writes per call.
-    private final double[][] accumBuffers;
-    private volatile IntRangeTask    currentTask;
-    private volatile DoubleRangeTask reduceTask;
-    private volatile AccumulateTask  accumulateTask;
+    private final              double[][]      accumBuffers;
+    private volatile @Nullable IntRangeTask    currentTask;
+    private volatile @Nullable          DoubleRangeTask reduceTask;
+    private volatile @Nullable AccumulateTask  accumulateTask;
     private volatile int             currentSize;
-    private volatile Mode            mode;
+    private volatile @Nullable Mode            mode;
     private       int        accumOutputSize = -1;
     private volatile int     parallelThreshold;
     private volatile boolean shutdown = false;

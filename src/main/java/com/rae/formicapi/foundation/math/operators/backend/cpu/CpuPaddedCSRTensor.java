@@ -127,7 +127,7 @@ public class CpuPaddedCSRTensor {
      */
     public void apply(Vector x, Vector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
-        if (x instanceof CpuVector xCpu && result instanceof CpuVector resCpu) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             double[] xArr = xCpu.array();
             double[] resultArr = resCpu.array();
 
@@ -179,9 +179,9 @@ public class CpuPaddedCSRTensor {
      */
     public void applyJacobian(Vector x, Vector direction, Vector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
-        if (x instanceof CpuVector xCpu &&
-                direction instanceof CpuVector dCpu &&
-                result instanceof CpuVector resCpu) {
+        if (x instanceof CpuDoubleVector xCpu &&
+                direction instanceof CpuDoubleVector dCpu &&
+                result instanceof CpuDoubleVector resCpu) {
 
             double[] xArr = xCpu.array();
             double[] dArr = dCpu.array();

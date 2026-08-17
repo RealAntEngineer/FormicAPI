@@ -2,8 +2,9 @@ package com.rae.formicapi.math_tests.matrix;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
 import org.junit.jupiter.api.Test;
@@ -40,14 +41,14 @@ public class ParallelCpuTest {
 
 
         generateMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
-        CpuExecutor executor = new CpuExecutor(8);
-        CpuVector   x        = new CpuVector(rows);
+        CpuExecutor     executor = new CpuExecutor(8);
+        CpuDoubleVector x        = new CpuDoubleVector(rows);
 
         for (int i = 0; i < rows; i++)
             x.array()[i] = random.nextDouble();
 
-        CpuVector serial   = new CpuVector(rows);
-        CpuVector parallel = new CpuVector(rows);
+        CpuDoubleVector serial   = new CpuDoubleVector(rows);
+        CpuDoubleVector parallel = new CpuDoubleVector(rows);
         //parallel.setExecutor(executor);
 
         // Serial
@@ -108,13 +109,13 @@ public class ParallelCpuTest {
         CpuExecutor executor = new CpuExecutor(4);
         matrix.setExecutor(executor);
 
-        CpuVector x = new CpuVector(rows);
+        CpuDoubleVector x = new CpuDoubleVector(rows);
 
         for (int i = 0; i < rows; i++)
             x.array()[i] = random.nextDouble();
 
-        CpuVector serialResult   = new CpuVector(rows);
-        CpuVector parallelResult = new CpuVector(rows);
+        CpuDoubleVector serialResult   = new CpuDoubleVector(rows);
+        CpuDoubleVector parallelResult = new CpuDoubleVector(rows);
         parallelResult.setExecutor(executor);
 
         // Serial
@@ -143,13 +144,13 @@ public class ParallelCpuTest {
         assertArrayEquals(serialResult.array(), parallelResult.array(), 1e-9);
     }
 
-    private static WorkingBuffer[] createBuffers(int m, int n, CpuExecutor executor) {
-        CpuVector u    = new CpuVector(m);
-        CpuVector temp = new CpuVector(m);
+    private static WorkingBuffer<DoubleVector>[] createBuffers(int m, int n, CpuExecutor executor) {
+        CpuDoubleVector u    = new CpuDoubleVector(m);
+        CpuDoubleVector temp = new CpuDoubleVector(m);
 
-        CpuVector v     = new CpuVector(n);
-        CpuVector w     = new CpuVector(n);
-        CpuVector temp2 = new CpuVector(n);
+        CpuDoubleVector v     = new CpuDoubleVector(n);
+        CpuDoubleVector w     = new CpuDoubleVector(n);
+        CpuDoubleVector temp2 = new CpuDoubleVector(n);
 
         if (executor != null) {
             u.setExecutor(executor);
@@ -159,8 +160,8 @@ public class ParallelCpuTest {
             temp2.setExecutor(executor);
         }
 
-        WorkingBuffer mBuffer = new WorkingBuffer(new CpuVector[]{ u, temp });
-        WorkingBuffer nBuffer = new WorkingBuffer(new CpuVector[]{ v, w, temp2 });
+        WorkingBuffer<DoubleVector> mBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ u, temp });
+        WorkingBuffer<DoubleVector> nBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ v, w, temp2 });
 
         return new WorkingBuffer[]{ mBuffer, nBuffer };
     }
@@ -198,30 +199,30 @@ public class ParallelCpuTest {
 
             // Independent copies so neither solve can accidentally share state
             // with the other through the same backing array.
-            CpuVector bParallel = new CpuVector(bArr.clone());
-            CpuVector bSerial   = new CpuVector(bArr.clone());
+            CpuDoubleVector bParallel = new CpuDoubleVector(bArr.clone());
+            CpuDoubleVector bSerial   = new CpuDoubleVector(bArr.clone());
             bParallel.setExecutor(executor);
 
             int maxIter = 500;
             double tol = 1e-2;
 
-            CpuVector xParallel = new CpuVector(rows);
+            CpuDoubleVector xParallel = new CpuDoubleVector(rows);
             xParallel.setExecutor(executor);
 
             WorkingBuffer[] parallelBuffer = createBuffers(rows, rows, executor);
 
             long start = System.nanoTime();
-            int iterationsParallel = LeastSquare.solve(matrix, bParallel, maxIter, tol, xParallel,
+            int iterationsParallel = LeastSquare.solve(matrix, bParallel, xParallel, maxIter, tol,
                     parallelBuffer[0], parallelBuffer[1]);
 
             long end = System.nanoTime();
 
             System.out.println("parallel took "+ (end  - start)/rows + "ns/row");
             System.out.println("parallel took "+ (end  - start)/rows/iterationsParallel + "ns/row");
-            CpuVector xSerial = new CpuVector(rows);
+            CpuDoubleVector xSerial       = new CpuDoubleVector(rows);
             WorkingBuffer[] serialBuffers = createBuffers(rows, rows, null);
             start = System.nanoTime();
-            int iterationsSerial = LeastSquare.solve(matrixSerial, bSerial, maxIter, tol, xSerial,
+            int iterationsSerial = LeastSquare.solve(matrixSerial, bSerial, xSerial, maxIter, tol,
                     serialBuffers[0], serialBuffers[1]);
             end = System.nanoTime();
 
@@ -240,7 +241,7 @@ public class ParallelCpuTest {
 
             // And check it's actually solving the system, not just agreeing on
             // a wrong answer: ||Ax - b|| should be small relative to ||b||.
-            CpuVector residual = new CpuVector(rows);
+            CpuDoubleVector residual = new CpuDoubleVector(rows);
             residual.setExecutor(executor);
             matrix.apply(xParallel, residual);
             residual.scale(-1.0);

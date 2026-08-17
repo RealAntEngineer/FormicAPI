@@ -1,57 +1,24 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
-public final class CpuVector implements Vector {
+public final class CpuDoubleVector extends CpuExecutable implements DoubleVector {
 
     private double[] data;
     private int      size;
 
-    /** Optional. When null, every operation falls back to a plain serial loop. */
-    private CpuExecutor executor;
-
-    /**
-     * Per-vector override for the parallel dispatch threshold. -1 (default)
-     * means "defer to whatever the attached executor is configured with" via
-     * {@link CpuExecutor#getParallelThreshold()} - which itself defaults to
-     * {@link CpuExecutor#DEFAULT_PARALLEL_THRESHOLD} unless the executor was
-     * tuned with {@link CpuExecutor#calibrateThreshold(int)}. Set this only
-     * if a particular vector's workload genuinely behaves differently from
-     * the executor's general-purpose calibration.
-     */
-    private int parallelThresholdOverride = -1;
-
-    public CpuVector(int size) {
+    public CpuDoubleVector(int size) {
         this.data = new double[size];
         this.size = size;
     }
 
-    public CpuVector(double[] data) {
+    public CpuDoubleVector(double[] data) {
         this.data = data;
         this.size = data.length;
-    }
-
-    /** Attach an executor to enable parallel execution for large vectors. */
-    public void setExecutor(CpuExecutor executor) {
-        this.executor = executor;
-    }
-
-    /** Override the parallel dispatch threshold for this vector specifically. Pass -1 to clear the override. */
-    public void setParallelThreshold(int threshold) {
-        this.parallelThresholdOverride = threshold;
-    }
-
-    private boolean useParallel() {
-        if (executor == null)
-            return false;
-
-        int threshold = parallelThresholdOverride >= 0
-                ? parallelThresholdOverride
-                : executor.getParallelThreshold();
-
-        return size >= threshold;
     }
 
     @Override
@@ -67,9 +34,9 @@ public final class CpuVector implements Vector {
     }
 
     @Override
-    public double dot(Vector other) {
-        CpuVector o = (CpuVector) other;
-        final double[] a = data;
+    public double dot(DoubleVector other) {
+        CpuDoubleVector o = (CpuDoubleVector) other;
+        final double[]  a = data;
         final double[] b = o.data;
 
         if (useParallel()) {
@@ -88,8 +55,29 @@ public final class CpuVector implements Vector {
     }
 
     @Override
-    public void axpy(double a, Vector x) {
-        if (!(x instanceof CpuVector vec))
+    public double skippedDot(DoubleVector other, IntegerVector unknowIdx) {
+        CpuDoubleVector o = (CpuDoubleVector) other;
+        final double[]  a = data;
+        final double[] b = o.data;
+
+        if (useParallel()) {
+            return executor.parallelReduceDouble(unknowIdx.size(), (start, end) -> {
+                double sum = 0.0;
+                for (int i = start; i < end; i++)
+                    sum += a[unknowIdx.get(i)] * b[i];
+                return sum;
+            });
+        }
+
+        double sum = 0.0;
+        for (int i = 0; i < size; i++)
+            sum += a[unknowIdx.get(i)] * b[i];
+        return sum;
+    }
+
+    @Override
+    public void axpy(double a, DoubleVector x) {
+        if (!(x instanceof CpuDoubleVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
         final double[] d = data;
@@ -105,6 +93,27 @@ public final class CpuVector implements Vector {
 
         for (int i = 0; i < size; i++)
             d[i] += a * xd[i];
+    }
+
+    @Override
+    public void scatterAxpy(double alpha, DoubleVector source, IntegerVector idx) {
+        if (!(source instanceof CpuDoubleVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + source.getClass());
+
+        final double[] d = data;
+        final double[] sd = vec.data;
+        final int n = idx.size();
+
+        if (useParallel()) {
+            executor.parallelFor(n, (start, end) -> {
+                for (int i = start; i < end; i++)
+                    d[idx.get(i)] += alpha * sd[i];
+            });
+            return;
+        }
+
+        for (int i = 0; i < n; i++)
+            d[idx.get(i)] += alpha * sd[i];
     }
 
     @Override
@@ -141,7 +150,7 @@ public final class CpuVector implements Vector {
 
     @Override
     public void add(Vector x) {
-        if (!(x instanceof CpuVector vec))
+        if (!(x instanceof CpuDoubleVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
         final double[] d = data;
@@ -161,20 +170,22 @@ public final class CpuVector implements Vector {
 
     @Override
     public void copy(Vector x) {
-        if (!(x instanceof CpuVector vec))
+        if (!(x instanceof CpuDoubleVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
-        if (x.size() < this.size)
-            throw new IllegalArgumentException("can't copy a smaller vector into itself");
+        /*if (x.size() < this.size)
+            throw new IllegalArgumentException("can't copy a smaller vector into itself");//no, you can resize.*/
 
         // System.arraycopy is already an intrinsic memcpy - splitting it
         // across threads doesn't win anything, so this stays serial.
-        System.arraycopy(vec.data, 0, data, 0, size);
+        resize(vec.size);
+        System.arraycopy(vec.data, 0, data, 0, vec.size);
     }
 
     @Override
     public Vector copy() {
-        Vector vector =  new CpuVector(Arrays.copyOf(data, data.length));
+        Vector vector =  new CpuDoubleVector(Arrays.copyOf(data, data.length));
+        //System.out.println("Size " + size);
         vector.resize(size);
         return vector;
     }

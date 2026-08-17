@@ -1,6 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.vectors;
 
 import java.util.Arrays;
+import java.util.function.Supplier;
 
 /**
  * Reusable temporary vector storage for iterative solvers.
@@ -9,7 +10,7 @@ import java.util.Arrays;
  * allocating new objects during iterations. Implementations may reuse
  * memory between solves and may allocate vectors on CPU or GPU backends.
  */
-public final class WorkingBuffer {
+public final class WorkingBuffer<T extends Vector> {
 
     private final Vector[] vectors;
 
@@ -19,13 +20,13 @@ public final class WorkingBuffer {
      *
      * @param vectors reusable vectors
      */
-    public WorkingBuffer(Vector[] vectors) {
+    public WorkingBuffer(T[] vectors) {
         this.vectors = vectors;
     }
 
-    public WorkingBuffer(int number, Vector defaultVec) {
+    public WorkingBuffer(int number, Supplier<T> defaultVec) {
         this.vectors = new Vector[number];
-        Arrays.fill(vectors,defaultVec.copy());
+        Arrays.fill(vectors,defaultVec.get());
     }
 
 
@@ -35,8 +36,8 @@ public final class WorkingBuffer {
      * @param index buffer slot
      * @return reusable vector
      */
-    public Vector get(int index) {
-        return vectors[index];
+    public T get(int index) {
+        return (T) vectors[index];
     }
 
 

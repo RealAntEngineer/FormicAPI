@@ -1,9 +1,12 @@
+import org.gradle.internal.jvm.Jvm
+
 plugins {
     id 'idea'
     id 'maven-publish'
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.107'
     id 'me.champeau.jmh' version '0.7.2'
+
 }
 
 version = minecraft_version + "-" + mod_version
@@ -14,7 +17,7 @@ base {
 }
 
 
-// Mojang ships Java 17 to end users in 1.18+, so your mod should target Java 17.
+// Mojang ships Java 21 to end users in 1.20+, so your mod should target Java 21.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
@@ -236,10 +239,42 @@ jmh {
     //resultsFile = project.file("${project.buildDir}/reports/jmh/results.csv")
 
     zip64 = true
+    //locale = 'en_US'
 
     // Optional: reduce jar size by including only your benchmarks
     includes = ['.*Benchmark.*']
 }
+
+/*
+def jmhReportDir = layout.buildDirectory.dir("reports/jmh")
+
+tasks.register("jmhPerBenchmark") {
+    dependsOn tasks.named("jmhJar")
+
+    doLast {
+        def benchmarkClasses = [
+                "com.rae.formicapi.LeastSquareBenchmark",
+        ]
+
+        benchmarkClasses.each { benchmarkClass ->
+            def simpleName = benchmarkClass.substring(benchmarkClass.lastIndexOf('.') + 1)
+
+            exec {
+                executable = Jvm.current().javaExecutable
+
+                args(
+                        "-jar",
+                        tasks.named("jmhJar").get().archiveFile.get().asFile.absolutePath,
+                        benchmarkClass,
+                        "-rf", "csv",
+                        "-rff", "${jmhReportDir.get().asFile}/${simpleName}.csv"
+                )
+            }
+        }
+    }
+}*/
+
+
 // However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
 // tasks.named('publish').configure {
 //     dependsOn 'reobfJar'

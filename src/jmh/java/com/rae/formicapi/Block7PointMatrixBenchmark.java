@@ -23,10 +23,11 @@ import java.util.concurrent.TimeUnit;
 @Fork(2)
 public class Block7PointMatrixBenchmark {
 
+    @Param({"16384", "65536", "262144"})
+    private int size;
+
     private static final int BLOCK_SIZE = 4096;
 
-    @Param({"64", "256", "1024"})
-    private int blocks;
 
     private Block7PointMatrix matrix;
     private double[] x;
@@ -34,11 +35,10 @@ public class Block7PointMatrixBenchmark {
 
     @Setup(Level.Trial)
     public void setup() {
-        int size = blocks * BLOCK_SIZE;
 
-        matrix = new Block7PointMatrix(blocks);
+        matrix = new Block7PointMatrix(size/BLOCK_SIZE);
         Random random = new Random(42);
-        initialize(matrix, blocks, random);
+        initialize(matrix, size/BLOCK_SIZE, random);
 
         x = new double[size];
         for (int i = 0; i < size; i++)
