@@ -1,5 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
+import com.rae.formicapi.foundation.math.operators.GeneralOperator;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 
 /**
@@ -7,7 +8,7 @@ import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
  *
  * y = A*x
  */
-public interface LinearOperator {
+public interface LinearOperator extends GeneralOperator {
 
     int rows();
 

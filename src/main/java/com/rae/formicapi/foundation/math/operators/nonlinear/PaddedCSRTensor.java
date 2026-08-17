@@ -1,5 +1,8 @@
 package com.rae.formicapi.foundation.math.operators.nonlinear;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+
 import java.util.Arrays;
 
 /**
@@ -15,7 +18,7 @@ import java.util.Arrays;
  *
  * <p>The sparsity pattern is fixed after construction.
  */
-public class PaddedCSRTensor {
+public class PaddedCSRTensor implements NonlinearOperator {
 
     private final int termsPerEquation;
     private final int order;
@@ -233,6 +236,11 @@ public class PaddedCSRTensor {
         }
     }
 
+    public void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result){
+        if (x instanceof CpuDoubleVector xCpu && direction instanceof CpuDoubleVector dirCpu && result instanceof CpuDoubleVector resCpu) {
+            multiplyJacobian(xCpu.array(), dirCpu.array(),  resCpu.array());
+        }
+    }
 
     public int equations() {
         return equations;
@@ -262,5 +270,12 @@ public class PaddedCSRTensor {
             variableIndices = newIndices;
         }
         equations = newEquations;
+    }
+
+    @Override
+    public void apply(DoubleVector x, DoubleVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
+            multiply(xCpu.array(), resCpu.array());
+        }
     }
 }

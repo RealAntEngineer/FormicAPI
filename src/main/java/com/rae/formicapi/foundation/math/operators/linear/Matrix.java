@@ -7,7 +7,7 @@ import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import java.util.Arrays;
 
 /**
- * Represents a matrix used in nodal network simulations.
+ * Represents a matrix used in simulations.
  *
  * <p>Implementations may be dense or sparse, mutable or immutable.
  * The interface exposes the minimal operations required by iterative
@@ -66,15 +66,6 @@ public interface Matrix extends LinearOperator {
             transposeMultiply(xCpu.array(), resCpu.array());
         }
     }
-
-    /*default void transposeApply(Vector x, Vector result){
-        Arrays.fill(result, 0.0);
-        for (int r = 0; r < rows(); r++) {
-            for (int c = 0; c < cols(); c++) {
-                result[c] += get(r, c) * x[r];
-            }
-        }
-    }*/
 
     /**
      * Returns the number of rows in this matrix.

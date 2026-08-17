@@ -1,6 +1,8 @@
 package com.rae.formicapi.foundation.math.operators.nonlinear;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 
 import java.util.Arrays;
 
@@ -28,7 +30,7 @@ import java.util.Arrays;
  *
  * <p>The sparsity pattern is fixed after construction.
  */
-public class PaddedCSR2Tensor {
+public class PaddedCSR2Tensor implements NonlinearOperator {
 
     private       int equations;
 
@@ -188,6 +190,12 @@ public class PaddedCSR2Tensor {
         }
     }
 
+    @Override
+    public void apply(DoubleVector x, DoubleVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
+            multiply(xCpu.array(), resCpu.array());
+        }
+    }
     /**
      * Evaluates the Jacobian-vector product:
      *
@@ -242,6 +250,12 @@ public class PaddedCSR2Tensor {
         }
     }
 
+    public void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result){
+        if (x instanceof CpuDoubleVector xCpu && direction instanceof CpuDoubleVector dirCpu && result instanceof CpuDoubleVector resCpu) {
+            multiplyJacobian(xCpu.array(), dirCpu.array(),  resCpu.array());
+        }
+    }
+
     public int equations() {
         return equations;
     }
@@ -263,4 +277,6 @@ public class PaddedCSR2Tensor {
 
         equations = newEquations;
     }
+
+
 }
