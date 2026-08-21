@@ -8,7 +8,7 @@ import java.util.Arrays;
 public final class CpuIntegerVector extends CpuExecutable implements IntegerVector {
 
     private int[] data;
-    private int      size;
+    private int   size;
 
     public CpuIntegerVector(int size) {
         this.data = new int[size];
@@ -48,7 +48,7 @@ public final class CpuIntegerVector extends CpuExecutable implements IntegerVect
 
     @Override
     public IntegerVector copy() {
-        IntegerVector vector =  new CpuIntegerVector(Arrays.copyOf(data, data.length));
+        IntegerVector vector = new CpuIntegerVector(Arrays.copyOf(data, data.length));
         //System.out.println("Size " + size);
         vector.resize(size);
         return vector;

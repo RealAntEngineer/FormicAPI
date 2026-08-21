@@ -1,8 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
 import com.rae.formicapi.foundation.math.operators.vectors.BooleanVector;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
-import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
@@ -10,7 +8,7 @@ import java.util.Arrays;
 public final class CpuBooleanVector extends CpuExecutable implements BooleanVector {
 
     private boolean[] data;
-    private int      size;
+    private int       size;
 
     public CpuBooleanVector(int size) {
         this.data = new boolean[size];
@@ -51,7 +49,7 @@ public final class CpuBooleanVector extends CpuExecutable implements BooleanVect
 
     @Override
     public Vector copy() {
-        Vector vector =  new CpuBooleanVector(Arrays.copyOf(data, data.length));
+        Vector vector = new CpuBooleanVector(Arrays.copyOf(data, data.length));
         //System.out.println("Size " + size);
         vector.resize(size);
         return vector;

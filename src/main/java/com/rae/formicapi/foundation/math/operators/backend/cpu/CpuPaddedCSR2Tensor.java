@@ -25,13 +25,12 @@ import java.util.Arrays;
  */
 public class CpuPaddedCSR2Tensor extends CpuExecutable {
 
-    private int equations;
-    private final int termsPerEquation;
-
+    private final int      termsPerEquation;
+    private       int      equations;
     /**
      * Quadratic coefficients.
      */
-    private double[] values;
+    private       double[] values;
 
     /**
      * First variable index of each quadratic term.
@@ -132,7 +131,7 @@ public class CpuPaddedCSR2Tensor extends CpuExecutable {
     public void apply(Vector x, Vector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
-            double[] xArr = xCpu.array();
+            double[] xArr      = xCpu.array();
             double[] resultArr = resCpu.array();
 
             if (equations < executor.getParallelThreshold()) {
@@ -148,15 +147,15 @@ public class CpuPaddedCSR2Tensor extends CpuExecutable {
 
     private void applyRange(int start, int end, double[] xArr, double[] resultArr) {
 
-        final double[] values = this.values;
-        final int[] var1Index = this.var1Index;
-        final int[] var2Index = this.var2Index;
+        final double[] values    = this.values;
+        final int[]    var1Index = this.var1Index;
+        final int[]    var2Index = this.var2Index;
 
         for (int row = start; row < end; row++) {
 
             double sum = 0.0;
 
-            int base = row * termsPerEquation;
+            int base   = row * termsPerEquation;
             int rowEnd = base + termsPerEquation;
 
             for (int idx = base; idx < rowEnd; idx++) {
@@ -186,8 +185,8 @@ public class CpuPaddedCSR2Tensor extends CpuExecutable {
                 direction instanceof CpuDoubleVector dCpu &&
                 result instanceof CpuDoubleVector resCpu) {
 
-            double[] xArr = xCpu.array();
-            double[] dArr = dCpu.array();
+            double[] xArr      = xCpu.array();
+            double[] dArr      = dCpu.array();
             double[] resultArr = resCpu.array();
 
             if (equations < executor.getParallelThreshold()) {
@@ -203,22 +202,22 @@ public class CpuPaddedCSR2Tensor extends CpuExecutable {
 
     private void applyJacobianRange(int start, int end, double[] xArr, double[] dArr, double[] resultArr) {
 
-        final double[] values = this.values;
-        final int[] var1Index = this.var1Index;
-        final int[] var2Index = this.var2Index;
+        final double[] values    = this.values;
+        final int[]    var1Index = this.var1Index;
+        final int[]    var2Index = this.var2Index;
 
         for (int row = start; row < end; row++) {
 
             double sum = 0.0;
 
-            int idx = row * termsPerEquation;
+            int idx    = row * termsPerEquation;
             int rowEnd = idx + termsPerEquation;
 
             while (idx < rowEnd) {
 
                 double c = values[idx];
-                int j = var1Index[idx];
-                int k = var2Index[idx];
+                int    j = var1Index[idx];
+                int    k = var2Index[idx];
 
                 sum += c * (dArr[j] * xArr[k] + xArr[j] * dArr[k]);
                 idx++;

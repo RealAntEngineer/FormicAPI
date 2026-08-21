@@ -1,8 +1,8 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
+import com.rae.formicapi.foundation.math.operators.GeneralOperator;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
-import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
@@ -21,7 +21,14 @@ import java.util.Arrays;
  * @see CSRMatrix
  * @see HashSparseMatrix
  */
-public interface Matrix extends LinearOperator {
+public interface Matrix extends GeneralOperator {
+
+    @Override
+    default void apply(DoubleVector x, DoubleVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
+            multiply(xCpu.array(), resCpu.array());
+        }
+    }
 
     /**
      * Multiplies this matrix by vector {@code x}, storing Ax in {@code result}.
@@ -33,11 +40,21 @@ public interface Matrix extends LinearOperator {
     void multiply(double[] x, double[] result);
 
     @Override
-    default void apply(DoubleVector x, DoubleVector result) {
+    default int inputSize() {
+        return cols();
+    }
+
+    @Override
+    default int outputSize() {
+        return rows();
+    }
+
+    default void transposeApply(DoubleVector x, DoubleVector result) {
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
-            multiply(xCpu.array(), resCpu.array());
+            transposeMultiply(xCpu.array(), resCpu.array());
         }
     }
+
     /**
      * Multiplies the transpose of this matrix by vector {@code x},
      * storing Aᵀx in {@code result}.
@@ -57,13 +74,6 @@ public interface Matrix extends LinearOperator {
             for (int c = 0; c < cols(); c++) {
                 result[c] += get(r, c) * x[r];
             }
-        }
-    }
-
-
-    default void transposeApply(DoubleVector x, DoubleVector result){
-        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu){
-            transposeMultiply(xCpu.array(), resCpu.array());
         }
     }
 

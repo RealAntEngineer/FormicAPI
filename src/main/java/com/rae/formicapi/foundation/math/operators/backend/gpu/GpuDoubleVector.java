@@ -26,8 +26,13 @@ import org.jocl.cl_mem;
 public final class GpuDoubleVector extends GpuExecutable implements DoubleVector {
 
     private cl_mem buffer;
-    private int size;
-    private int capacity;
+    private int    size;
+    private int    capacity;
+
+    public GpuDoubleVector(GpuExecutor executor, double[] hostData) {
+        this(executor, hostData.length);
+        upload(hostData);
+    }
 
     public GpuDoubleVector(GpuExecutor executor, int size) {
         setExecutor(executor);
@@ -37,21 +42,20 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
         executor.fillDoubleBuffer(buffer, 0.0, size);
     }
 
-    public GpuDoubleVector(GpuExecutor executor, double[] hostData) {
-        this(executor, hostData.length);
-        upload(hostData);
-    }
-
     // ---------------------------------------------------------------- host interop
 
-    /** Blocking copy of {@code host} onto the device, replacing this vector's contents. Does not resize. */
+    /**
+     * Blocking copy of {@code host} onto the device, replacing this vector's contents. Does not resize.
+     */
     public void upload(double[] host) {
         if (host.length != size)
             throw new IllegalArgumentException("host array length " + host.length + " != vector size " + size);
         requireExecutor().uploadDoubles(buffer, host, size);
     }
 
-    /** Blocking copy of this vector's current contents back to the host. */
+    /**
+     * Blocking copy of this vector's current contents back to the host.
+     */
     public double[] download() {
         double[] out = new double[size];
         download(out);
@@ -64,7 +68,9 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
         requireExecutor().downloadDoubles(buffer, host, size);
     }
 
-    /** Package-visible accessor so sibling Gpu*Vector types (e.g. index vectors) can be passed into kernel launches. */
+    /**
+     * Package-visible accessor so sibling Gpu*Vector types (e.g. index vectors) can be passed into kernel launches.
+     */
     cl_mem buffer() {
         return buffer;
     }
@@ -93,12 +99,12 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public void scatterAxpy(double alpha, DoubleVector source, IntegerVector idx) {
+    public void scatterAxpy(double alpha, DoubleVector source, IntegerVector unknowIdx) {
         GpuDoubleVector vec = requireSameBackend(source);
-        if (!(idx instanceof GpuIntegerVector gpuIdx))
-            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + idx.getClass());
+        if (!(unknowIdx instanceof GpuIntegerVector gpuIdx))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + unknowIdx.getClass());
 
-        requireExecutor().launchScatterAxpy(buffer, alpha, vec.buffer, gpuIdx.buffer(), idx.size());
+        requireExecutor().launchScatterAxpy(buffer, alpha, vec.buffer, gpuIdx.buffer(), unknowIdx.size());
     }
 
     @Override
@@ -115,6 +121,14 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     public void add(Vector x) {
         GpuDoubleVector vec = requireSameBackend(x);
         requireExecutor().launchAddVector(buffer, vec.buffer, size);
+    }
+
+    private GpuDoubleVector requireSameBackend(Vector x) {
+        if (!(x instanceof GpuDoubleVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+        if (vec.executor != this.executor)
+            throw new UnsupportedOperationException("GpuDoubleVector operands must share the same GpuExecutor");
+        return vec;
     }
 
     @Override
@@ -158,15 +172,9 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
         requireExecutor().fillDoubleBuffer(buffer, 0.0, size);
     }
 
-    private GpuDoubleVector requireSameBackend(Vector x) {
-        if (!(x instanceof GpuDoubleVector vec))
-            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
-        if (vec.executor != this.executor)
-            throw new UnsupportedOperationException("GpuDoubleVector operands must share the same GpuExecutor");
-        return vec;
-    }
-
-    /** Releases the underlying device buffer. The vector is unusable afterwards. */
+    /**
+     * Releases the underlying device buffer. The vector is unusable afterwards.
+     */
     public void release() {
         if (executor != null)
             executor.release(buffer);

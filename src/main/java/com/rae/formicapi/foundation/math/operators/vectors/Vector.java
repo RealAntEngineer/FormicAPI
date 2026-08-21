@@ -25,7 +25,6 @@ public interface Vector {
     void resize(int size);
 
 
-
     /**
      * this = x
      */
@@ -33,6 +32,7 @@ public interface Vector {
 
     //create a new vector object with the same values
     Vector copy();
+
     /**
      * Sets all elements to zero.
      */

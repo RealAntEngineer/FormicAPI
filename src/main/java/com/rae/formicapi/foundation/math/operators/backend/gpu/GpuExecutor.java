@@ -40,32 +40,34 @@ import static org.jocl.CL.*;
  */
 public final class GpuExecutor implements AutoCloseable {
 //TODO generate with claude, treat with caution
-    /** Preferred local work-group size for elementwise/reduction kernels; capped to the device's actual max. */
+    /**
+     * Preferred local work-group size for elementwise/reduction kernels; capped to the device's actual max.
+     */
     private static final int PREFERRED_LOCAL_SIZE = 256;
 
     private static final String KERNEL_SOURCE = """
             #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-
+            
             __kernel void axpy(__global double* d, const double a, __global const double* x) {
                 int i = get_global_id(0);
                 d[i] += a * x[i];
             }
-
+            
             __kernel void add_scalar(__global double* d, const double a) {
                 int i = get_global_id(0);
                 d[i] += a;
             }
-
+            
             __kernel void add_vector(__global double* d, __global const double* x) {
                 int i = get_global_id(0);
                 d[i] += x[i];
             }
-
+            
             __kernel void scale(__global double* d, const double a) {
                 int i = get_global_id(0);
                 d[i] *= a;
             }
-
+            
             // NOTE: no atomics here - this mirrors CpuDoubleVector.scatterAxpy's
             // parallel path, which also does a plain `d[idx.get(i)] += ...` across
             // worker threads with no synchronization. Same caller contract applies:
@@ -77,7 +79,7 @@ public final class GpuExecutor implements AutoCloseable {
                 int target = idx[i];
                 d[target] += alpha * s[i];
             }
-
+            
             // Tree reduction within each work-group; writes one partial sum per
             // group into `partials`. Host sums the (small) partials array, same
             // shape as CpuExecutor.parallelReduceDouble summing one double per
@@ -87,46 +89,46 @@ public final class GpuExecutor implements AutoCloseable {
                 int gid = get_global_id(0);
                 int lid = get_local_id(0);
                 int lsize = get_local_size(0);
-
+            
                 scratch[lid] = (gid < n) ? a[gid] * b[gid] : 0.0;
                 barrier(CLK_LOCAL_MEM_FENCE);
-
+            
                 for (int offset = lsize / 2; offset > 0; offset >>= 1) {
                     if (lid < offset)
                         scratch[lid] += scratch[lid + offset];
                     barrier(CLK_LOCAL_MEM_FENCE);
                 }
-
+            
                 if (lid == 0)
                     partials[get_group_id(0)] = scratch[0];
             }
-
+            
             __kernel void skipped_dot_partial(__global const double* a, __global const double* b,
                                                __global const int* unknownIdx,
                                                __local double* scratch, __global double* partials, const int n) {
                 int gid = get_global_id(0);
                 int lid = get_local_id(0);
                 int lsize = get_local_size(0);
-
+            
                 scratch[lid] = (gid < n) ? a[unknownIdx[gid]] * b[gid] : 0.0;
                 barrier(CLK_LOCAL_MEM_FENCE);
-
+            
                 for (int offset = lsize / 2; offset > 0; offset >>= 1) {
                     if (lid < offset)
                         scratch[lid] += scratch[lid + offset];
                     barrier(CLK_LOCAL_MEM_FENCE);
                 }
-
+            
                 if (lid == 0)
                     partials[get_group_id(0)] = scratch[0];
             }
             """;
 
-    private final cl_platform_id platform;
-    private final cl_device_id   device;
-    private final cl_context     context;
+    private final cl_platform_id   platform;
+    private final cl_device_id     device;
+    private final cl_context       context;
     private final cl_command_queue queue;
-    private final cl_program     program;
+    private final cl_program       program;
 
     private final cl_kernel kAxpy;
     private final cl_kernel kAddScalar;
@@ -136,10 +138,12 @@ public final class GpuExecutor implements AutoCloseable {
     private final cl_kernel kDotPartial;
     private final cl_kernel kSkippedDotPartial;
 
-    private final int localSize;
+    private final    int     localSize;
     private volatile boolean closed = false;
 
-    /** Opens a context on the first fp64-capable GPU device found; falls back to any fp64-capable device. */
+    /**
+     * Opens a context on the first fp64-capable GPU device found; falls back to any fp64-capable device.
+     */
     public GpuExecutor() {
         this(selectDefaultDevice());
     }
@@ -206,6 +210,33 @@ public final class GpuExecutor implements AutoCloseable {
         return fallback;
     }
 
+    private static cl_platform_id queryPlatform(cl_device_id device) {
+        cl_platform_id[] out = new cl_platform_id[1];
+        clGetDeviceInfo(device, CL_DEVICE_PLATFORM, Sizeof.cl_platform_id, Pointer.to(out), null);
+        return out[0];
+    }
+
+    private String buildLog() {
+        long[] logSize = new long[1];
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, null, logSize);
+        byte[] log = new byte[(int) logSize[0]];
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log.length, Pointer.to(log), null);
+        return new String(log);
+    }
+
+    private static int largestPowerOfTwoLEQ(int n) {
+        int p = 1;
+        while (p * 2 <= n)
+            p *= 2;
+        return Math.max(p, 1);
+    }
+
+    private static int queryMaxWorkGroupSize(cl_device_id device) {
+        long[] out = new long[1];
+        clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, Sizeof.size_t, Pointer.to(out), null);
+        return (int) out[0];
+    }
+
     private static cl_device_id[] devicesOf(cl_platform_id platform, long deviceType) {
         int[] numDevices = new int[1];
         try {
@@ -233,59 +264,21 @@ public final class GpuExecutor implements AutoCloseable {
         return new String(buffer).trim();
     }
 
-    private static cl_platform_id queryPlatform(cl_device_id device) {
-        cl_platform_id[] out = new cl_platform_id[1];
-        clGetDeviceInfo(device, CL_DEVICE_PLATFORM, Sizeof.cl_platform_id, Pointer.to(out), null);
-        return out[0];
-    }
-
-    private static int queryMaxWorkGroupSize(cl_device_id device) {
-        long[] out = new long[1];
-        clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, Sizeof.size_t, Pointer.to(out), null);
-        return (int) out[0];
-    }
-
-    private static int largestPowerOfTwoLEQ(int n) {
-        int p = 1;
-        while (p * 2 <= n)
-            p *= 2;
-        return Math.max(p, 1);
-    }
-
-    private String buildLog() {
-        long[] logSize = new long[1];
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, null, logSize);
-        byte[] log = new byte[(int) logSize[0]];
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log.length, Pointer.to(log), null);
-        return new String(log);
-    }
-
     // ---------------------------------------------------------------- buffer lifecycle
-
-    public cl_mem allocateDoubleBuffer(int length) {
-        return clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_double, null, null);
-    }
 
     public cl_mem allocateIntBuffer(int length) {
         return clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_int, null, null);
     }
 
-    /** Boolean vectors are stored as one {@code cl_char} per element - OpenCL has no packed device-side bool type. */
+    /**
+     * Boolean vectors are stored as one {@code cl_char} per element - OpenCL has no packed device-side bool type.
+     */
     public cl_mem allocateByteBuffer(int length) {
         return clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_char, null, null);
     }
 
-    public void release(cl_mem buffer) {
-        if (buffer != null)
-            clReleaseMemObject(buffer);
-    }
-
     public synchronized void uploadDoubles(cl_mem buffer, double[] host, int length) {
         clEnqueueWriteBuffer(queue, buffer, CL_TRUE, 0, (long) length * Sizeof.cl_double, Pointer.to(host), 0, null, null);
-    }
-
-    public synchronized void downloadDoubles(cl_mem buffer, double[] host, int length) {
-        clEnqueueReadBuffer(queue, buffer, CL_TRUE, 0, (long) length * Sizeof.cl_double, Pointer.to(host), 0, null, null);
     }
 
     public synchronized void uploadInts(cl_mem buffer, int[] host, int length) {
@@ -304,10 +297,6 @@ public final class GpuExecutor implements AutoCloseable {
         clEnqueueReadBuffer(queue, buffer, CL_TRUE, 0, (long) length * Sizeof.cl_char, Pointer.to(host), 0, null, null);
     }
 
-    // Single-element offset transfers, backing Gpu*Vector.get/set. A device
-    // round-trip per call - fine for setup/debugging, not for hot loops
-    // (bulk upload/download above is the fast path for that).
-
     public synchronized void uploadDoubleAt(cl_mem buffer, int elementOffset, double value) {
         clEnqueueWriteBuffer(queue, buffer, CL_TRUE, (long) elementOffset * Sizeof.cl_double,
                 Sizeof.cl_double, Pointer.to(new double[]{value}), 0, null, null);
@@ -324,6 +313,10 @@ public final class GpuExecutor implements AutoCloseable {
         clEnqueueWriteBuffer(queue, buffer, CL_TRUE, (long) elementOffset * Sizeof.cl_int,
                 Sizeof.cl_int, Pointer.to(new int[]{value}), 0, null, null);
     }
+
+    // Single-element offset transfers, backing Gpu*Vector.get/set. A device
+    // round-trip per call - fine for setup/debugging, not for hot loops
+    // (bulk upload/download above is the fast path for that).
 
     public synchronized int downloadIntAt(cl_mem buffer, int elementOffset) {
         int[] out = new int[1];
@@ -372,8 +365,6 @@ public final class GpuExecutor implements AutoCloseable {
         clEnqueueFillBuffer(queue, buffer, Pointer.to(new byte[]{value}), Sizeof.cl_char, 0, (long) length * Sizeof.cl_char, 0, null, null);
     }
 
-    // ---------------------------------------------------------------- kernel launches
-
     public synchronized void launchAxpy(cl_mem d, double a, cl_mem x, int size) {
         if (size <= 0) return;
         clSetKernelArg(kAxpy, 0, Sizeof.cl_mem, Pointer.to(d));
@@ -382,12 +373,18 @@ public final class GpuExecutor implements AutoCloseable {
         enqueueRange(kAxpy, size);
     }
 
+    private void enqueueRange(cl_kernel kernel, int size) {
+        clEnqueueNDRangeKernel(queue, kernel, 1, null, new long[]{size}, null, 0, null, null);
+    }
+
     public synchronized void launchAddScalar(cl_mem d, double a, int size) {
         if (size <= 0) return;
         clSetKernelArg(kAddScalar, 0, Sizeof.cl_mem, Pointer.to(d));
         clSetKernelArg(kAddScalar, 1, Sizeof.cl_double, Pointer.to(new double[]{a}));
         enqueueRange(kAddScalar, size);
     }
+
+    // ---------------------------------------------------------------- kernel launches
 
     public synchronized void launchAddVector(cl_mem d, cl_mem x, int size) {
         if (size <= 0) return;
@@ -403,7 +400,9 @@ public final class GpuExecutor implements AutoCloseable {
         enqueueRange(kScale, size);
     }
 
-    /** See the {@code scatter_axpy} kernel doc: caller must not pass duplicate targets in {@code idx}. */
+    /**
+     * See the {@code scatter_axpy} kernel doc: caller must not pass duplicate targets in {@code idx}.
+     */
     public synchronized void launchScatterAxpy(cl_mem d, double alpha, cl_mem s, cl_mem idx, int size) {
         if (size <= 0) return;
         clSetKernelArg(kScatterAxpy, 0, Sizeof.cl_mem, Pointer.to(d));
@@ -421,20 +420,6 @@ public final class GpuExecutor implements AutoCloseable {
         });
     }
 
-    public synchronized double launchSkippedDot(cl_mem a, cl_mem b, cl_mem unknownIdx, int size) {
-        if (size <= 0) return 0.0;
-        return reduceDouble(kSkippedDotPartial, size, (kernel, argBase) -> {
-            clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(a));
-            clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(b));
-            clSetKernelArg(kernel, 2, Sizeof.cl_mem, Pointer.to(unknownIdx));
-        });
-    }
-
-    @FunctionalInterface
-    private interface DataArgBinder {
-        void bind(cl_kernel kernel, int argBase);
-    }
-
     /**
      * Shared plumbing for the two reduction kernels: both take a fixed set of
      * data args at the front (bound by {@code binder}), then
@@ -443,12 +428,12 @@ public final class GpuExecutor implements AutoCloseable {
      * common to both.
      */
     private double reduceDouble(cl_kernel kernel, int size, DataArgBinder binder) {
-        int numGroups = (size + localSize - 1) / localSize;
+        int numGroups        = (size + localSize - 1) / localSize;
         int paddedGlobalSize = numGroups * localSize;
 
         binder.bind(kernel, 0);
 
-        int nextArg = countDataArgs(kernel);
+        int    nextArg  = countDataArgs(kernel);
         cl_mem partials = allocateDoubleBuffer(numGroups);
         try {
             clSetKernelArg(kernel, nextArg, (long) localSize * Sizeof.cl_double, null);
@@ -470,16 +455,38 @@ public final class GpuExecutor implements AutoCloseable {
         }
     }
 
-    /** {@code dot_partial} has 2 data args (a, b); {@code skipped_dot_partial} has 3 (a, b, unknownIdx). */
+    /**
+     * {@code dot_partial} has 2 data args (a, b); {@code skipped_dot_partial} has 3 (a, b, unknownIdx).
+     */
     private int countDataArgs(cl_kernel kernel) {
         return kernel == kSkippedDotPartial ? 3 : 2;
     }
 
-    private void enqueueRange(cl_kernel kernel, int size) {
-        clEnqueueNDRangeKernel(queue, kernel, 1, null, new long[]{size}, null, 0, null, null);
+    public cl_mem allocateDoubleBuffer(int length) {
+        return clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_double, null, null);
     }
 
-    /** Blocks until every previously enqueued operation on this context's queue has completed. */
+    public synchronized void downloadDoubles(cl_mem buffer, double[] host, int length) {
+        clEnqueueReadBuffer(queue, buffer, CL_TRUE, 0, (long) length * Sizeof.cl_double, Pointer.to(host), 0, null, null);
+    }
+
+    public void release(cl_mem buffer) {
+        if (buffer != null)
+            clReleaseMemObject(buffer);
+    }
+
+    public synchronized double launchSkippedDot(cl_mem a, cl_mem b, cl_mem unknownIdx, int size) {
+        if (size <= 0) return 0.0;
+        return reduceDouble(kSkippedDotPartial, size, (kernel, argBase) -> {
+            clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(a));
+            clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(b));
+            clSetKernelArg(kernel, 2, Sizeof.cl_mem, Pointer.to(unknownIdx));
+        });
+    }
+
+    /**
+     * Blocks until every previously enqueued operation on this context's queue has completed.
+     */
     public void finish() {
         clFinish(queue);
     }
@@ -499,5 +506,10 @@ public final class GpuExecutor implements AutoCloseable {
         clReleaseProgram(program);
         clReleaseCommandQueue(queue);
         clReleaseContext(context);
+    }
+
+    @FunctionalInterface
+    private interface DataArgBinder {
+        void bind(cl_kernel kernel, int argBase);
     }
 }

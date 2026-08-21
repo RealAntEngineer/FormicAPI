@@ -16,8 +16,13 @@ import org.jocl.cl_mem;
 public final class GpuBooleanVector extends GpuExecutable implements BooleanVector {
 
     private cl_mem buffer;
-    private int size;
-    private int capacity;
+    private int    size;
+    private int    capacity;
+
+    public GpuBooleanVector(GpuExecutor executor, boolean[] hostData) {
+        this(executor, hostData.length);
+        upload(hostData);
+    }
 
     public GpuBooleanVector(GpuExecutor executor, int size) {
         setExecutor(executor);
@@ -27,21 +32,10 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
         executor.fillByteBuffer(buffer, (byte) 0, size);
     }
 
-    public GpuBooleanVector(GpuExecutor executor, boolean[] hostData) {
-        this(executor, hostData.length);
-        upload(hostData);
-    }
-
     public void upload(boolean[] host) {
         if (host.length != size)
             throw new IllegalArgumentException("host array length " + host.length + " != vector size " + size);
         requireExecutor().uploadBytes(buffer, toBytes(host), size);
-    }
-
-    public boolean[] download() {
-        byte[] raw = new byte[size];
-        requireExecutor().downloadBytes(buffer, raw, size);
-        return toBooleans(raw);
     }
 
     private static byte[] toBytes(boolean[] src) {
@@ -49,6 +43,12 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
         for (int i = 0; i < src.length; i++)
             out[i] = (byte) (src[i] ? 1 : 0);
         return out;
+    }
+
+    public boolean[] download() {
+        byte[] raw = new byte[size];
+        requireExecutor().downloadBytes(buffer, raw, size);
+        return toBooleans(raw);
     }
 
     private static boolean[] toBooleans(byte[] src) {

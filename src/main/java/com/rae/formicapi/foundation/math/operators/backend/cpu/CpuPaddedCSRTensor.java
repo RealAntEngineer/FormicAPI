@@ -20,7 +20,7 @@ import java.util.Arrays;
  * {@link CpuExecutor} once the row count crosses the executor's parallel
  * threshold.
  */
-public class CpuPaddedCSRTensor extends CpuExecutable{
+public class CpuPaddedCSRTensor extends CpuExecutable {
 
     private final int termsPerEquation;
     private final int order;
@@ -126,7 +126,7 @@ public class CpuPaddedCSRTensor extends CpuExecutable{
     public void apply(Vector x, Vector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
-            double[] xArr = xCpu.array();
+            double[] xArr      = xCpu.array();
             double[] resultArr = resCpu.array();
 
             if (equations < executor.getParallelThreshold()) {
@@ -142,9 +142,9 @@ public class CpuPaddedCSRTensor extends CpuExecutable{
 
     private void applyRange(int start, int end, double[] xArr, double[] resultArr) {
 
-        final double[] values = this.values;
-        final int[][] variableIndices = this.variableIndices;
-        final int order = this.order;
+        final double[] values          = this.values;
+        final int[][]  variableIndices = this.variableIndices;
+        final int      order           = this.order;
 
         for (int row = start; row < end; row++) {
 
@@ -181,8 +181,8 @@ public class CpuPaddedCSRTensor extends CpuExecutable{
                 direction instanceof CpuDoubleVector dCpu &&
                 result instanceof CpuDoubleVector resCpu) {
 
-            double[] xArr = xCpu.array();
-            double[] dArr = dCpu.array();
+            double[] xArr      = xCpu.array();
+            double[] dArr      = dCpu.array();
             double[] resultArr = resCpu.array();
 
             if (equations < executor.getParallelThreshold()) {
@@ -198,9 +198,9 @@ public class CpuPaddedCSRTensor extends CpuExecutable{
 
     private void applyJacobianRange(int start, int end, double[] xArr, double[] dArr, double[] resultArr) {
 
-        final double[] values = this.values;
-        final int[][] variableIndices = this.variableIndices;
-        final int order = this.order;
+        final double[] values          = this.values;
+        final int[][]  variableIndices = this.variableIndices;
+        final int      order           = this.order;
 
         for (int row = start; row < end; row++) {
 

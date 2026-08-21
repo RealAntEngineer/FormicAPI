@@ -12,4 +12,8 @@ public interface GeneralOperator {
      * @throws IllegalArgumentException if the vector dimensions are incompatible
      */
     void apply(DoubleVector x, DoubleVector result);
+
+    int inputSize();
+
+    int outputSize();
 }

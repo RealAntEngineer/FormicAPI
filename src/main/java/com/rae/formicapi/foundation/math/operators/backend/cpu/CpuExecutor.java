@@ -16,23 +16,23 @@ public final class CpuExecutor implements AutoCloseable {
      * measure a real value for the target hardware, then either pass it to
      * the constructor or set it with {@link #setParallelThreshold(int)}.
      */
-    public static final int DEFAULT_PARALLEL_THRESHOLD = 4096;
-    private static final int   STRIDE = 16;
+    public static final     int               DEFAULT_PARALLEL_THRESHOLD = 4096;
+    private static final    int               STRIDE                     = 16;
     // Candidate sizes to sweep when calibrating, smallest to largest.
-    private static final int[] DEFAULT_CANDIDATE_SIZES = {
+    private static final    int[]             DEFAULT_CANDIDATE_SIZES    = {
             256, 512, 1_024, 2_048, 4_096, 8_192, 16_384,
             32_768, 65_536, 131_072, 262_144, 524_288, 1_048_576
     };
-    private static final int WARMUP_TRIALS = 3;
-    private static final int TIMED_TRIALS  = 7;
+    private static final    int               WARMUP_TRIALS              = 3;
+    private static final    int               TIMED_TRIALS               = 7;
     // Prevents the JIT from optimizing away the benchmarked work as dead code.
-    private static volatile double blackhole;
-    private final int               threads;
-    private final CpuWorkerThread[] workers;
-    private final AtomicInteger generation = new AtomicInteger();
-    private final        int[] completedGeneration;
-    private final double[]                doubleResults;
-    private final float[]                 floatResults;
+    private static volatile double            blackhole;
+    private final           int               threads;
+    private final           CpuWorkerThread[] workers;
+    private final           AtomicInteger     generation                 = new AtomicInteger();
+    private final           int[]             completedGeneration;
+    private final           double[]          doubleResults;
+    private final           float[]           floatResults;
 
     // Per-thread scratch buffers for parallelForAccumulate, sized lazily and
     // reused across calls (resized only when the output length changes).
@@ -43,19 +43,19 @@ public final class CpuExecutor implements AutoCloseable {
     // contention at all, atomic or otherwise. The tradeoff is the fixed
     // O(outputSize) clear + reduce cost per call, which is wasteful when
     // outputSize is much larger than the number of actual writes per call.
-    private final              double[][] accumBuffersD;
-    private final              float[][] accumBuffersF;
+    private final double[][] accumBuffersD;
+    private final float[][]  accumBuffersF;
 
     //TODO make a pool of tasks... this is not very extenable
     private volatile @Nullable IntRangeTask    rangeTask;
     private volatile @Nullable DoubleRangeTask reduceTaskDouble;
-    private volatile @Nullable FloatRangeTask reduceTaskFloat;
+    private volatile @Nullable FloatRangeTask  reduceTaskFloat;
     private volatile @Nullable AccumulateTask  accumulateTask;
-    private volatile int             currentSize;
+    private volatile           int             currentSize;
     private volatile @Nullable Mode            mode;
-    private       int        accumOutputSize = -1;
-    private volatile int     parallelThreshold;
-    private volatile boolean shutdown = false;
+    private                    int             accumOutputSize = -1;
+    private volatile           int             parallelThreshold;
+    private volatile           boolean         shutdown        = false;
 
     //TODO decide who as the ownership of the threshold bwn the executable and the executor. Right now both have it but only used in the executable
     public CpuExecutor(int threads) {
@@ -171,29 +171,15 @@ public final class CpuExecutor implements AutoCloseable {
         return samples[samples.length / 2];
     }
 
-    public int getThreadCount() {
-        return threads;
-    }
+    public void parallelFor(int size, IntRangeTask task) {
+        if (size <= 0)
+            return;
 
-    /**
-     * Work sizes at or above this should be dispatched in parallel; below it, run serially.
-     */
-    public int getParallelThreshold() {
-        return parallelThreshold;
-    }
+        rangeTask = task;
+        currentSize = size;
+        mode = Mode.FOR;
 
-    public void setParallelThreshold(int parallelThreshold) {
-        if (parallelThreshold < 0)
-            throw new IllegalArgumentException();
-        this.parallelThreshold = parallelThreshold;
-    }
-
-    public boolean shouldUseParallel(int size){
-        return size >= parallelThreshold;
-    }
-    @Override
-    public void close() {
-        shutdown();
+        waitForWorkers();
     }
 
     /**
@@ -218,6 +204,52 @@ public final class CpuExecutor implements AutoCloseable {
     public void shutdown() {
         shutdown = true;
         generation.incrementAndGet();
+    }
+
+    private void waitForWorkers() {
+        int job = generation.incrementAndGet();
+
+        while (true) {
+            boolean done = true;
+
+            for (int i = 0; i < threads; i++) {
+                if (completedGeneration[i * STRIDE] != job) {
+                    done = false;
+                    break;
+                }
+            }
+
+            if (done)
+                return;
+
+            Thread.onSpinWait();
+        }
+    }
+
+    public int getThreadCount() {
+        return threads;
+    }
+
+    /**
+     * Work sizes at or above this should be dispatched in parallel; below it, run serially.
+     */
+    public int getParallelThreshold() {
+        return parallelThreshold;
+    }
+
+    public void setParallelThreshold(int parallelThreshold) {
+        if (parallelThreshold < 0)
+            throw new IllegalArgumentException();
+        this.parallelThreshold = parallelThreshold;
+    }
+
+    public boolean shouldUseParallel(int size) {
+        return size >= parallelThreshold;
+    }
+
+    @Override
+    public void close() {
+        shutdown();
     }
 
     private void workerLoop(int id) {
@@ -245,8 +277,10 @@ public final class CpuExecutor implements AutoCloseable {
                     if (start < end && rangeTask != null)
                         rangeTask.run(start, end);
                 }
-                case REDUCE_D -> doubleResults[id] = (start < end && reduceTaskDouble != null) ? reduceTaskDouble.run(start, end) : 0.0;
-                case REDUCE_F -> floatResults[id] = (start < end && reduceTaskFloat != null) ? reduceTaskFloat.run(start, end) : 0.0f;
+                case REDUCE_D ->
+                        doubleResults[id] = (start < end && reduceTaskDouble != null) ? reduceTaskDouble.run(start, end) : 0.0;
+                case REDUCE_F ->
+                        floatResults[id] = (start < end && reduceTaskFloat != null) ? reduceTaskFloat.run(start, end) : 0.0f;
 
                 case ACCUMULATE -> {//TODO what is the difference bwn accumulate and reduce ? -> it's over an entire array.
                     // No Arrays.fill here: buffers start zero (fresh double[]
@@ -257,12 +291,14 @@ public final class CpuExecutor implements AutoCloseable {
                     if (start < end && accumulateTask != null)
                         accumulateTask.run(start, end, accumBuffersD[id]);
                 }
-                case null -> {}
+                case null -> {
+                }
             }
 
             completedGeneration[id * STRIDE] = seen;
         }
     }
+
     //TODO can cause huge issues if the worker is already executing something before it's beginning to set the tasks.
     public double parallelReduceDouble(int size, DoubleRangeTask task) {
         if (size <= 0)
@@ -296,26 +332,6 @@ public final class CpuExecutor implements AutoCloseable {
             result += value;
 
         return result;
-    }
-
-    private void waitForWorkers() {
-        int job = generation.incrementAndGet();
-
-        while (true) {
-            boolean done = true;
-
-            for (int i = 0; i < threads; i++) {
-                if (completedGeneration[i * STRIDE] != job) {
-                    done = false;
-                    break;
-                }
-            }
-
-            if (done)
-                return;
-
-            Thread.onSpinWait();
-        }
     }
 
     /**
@@ -378,17 +394,6 @@ public final class CpuExecutor implements AutoCloseable {
                 accumBuffersD[i] = new double[outputSize];
             accumOutputSize = outputSize;
         }
-    }
-
-    public void parallelFor(int size, IntRangeTask task) {
-        if (size <= 0)
-            return;
-
-        rangeTask = task;
-        currentSize = size;
-        mode = Mode.FOR;
-
-        waitForWorkers();
     }
 
     private enum Mode {FOR, REDUCE_D, REDUCE_F, ACCUMULATE}

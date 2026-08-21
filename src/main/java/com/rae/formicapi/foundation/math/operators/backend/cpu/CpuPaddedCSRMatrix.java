@@ -2,20 +2,18 @@ package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
-import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
 public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
 
-    private int rows;
-    private int cols;
-    private final int nnzPerRow;
-
+    private final int      nnzPerRow;
+    private       int      rows;
+    private       int      cols;
     /**
      * CSR values (mutable)
      */
-    private double[] values;
+    private       double[] values;
 
     /**
      * CSR column indices
@@ -76,6 +74,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         rows = newRows;
         cols = newRows;
     }
+
     /**
      * Adds a value to an existing entry in the CSR structure.
      *
@@ -191,9 +190,9 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
 
     @Override
     public void apply(DoubleVector x, DoubleVector result) {
-        if (executor  == null) throw new RuntimeException("Executor wasn't setup");//TODO maybe default to serial ?
+        if (executor == null) throw new RuntimeException("Executor wasn't setup");//TODO maybe default to serial ?
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
-            double[] xArr = xCpu.array();
+            double[] xArr      = xCpu.array();
             double[] resultArr = resCpu.array();
 
             if (rows < executor.getParallelThreshold()) {
@@ -241,7 +240,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
     public void transposeApply(DoubleVector x, DoubleVector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
-            double[] xArr = xCpu.array();
+            double[] xArr      = xCpu.array();
             double[] resultArr = resCpu.array();
 
             Arrays.fill(resultArr, 0.0);
@@ -252,8 +251,8 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
             }
 
             final double[] vals = values;
-            final int[] cols = colIndex;
-            final int nnz = nnzPerRow;
+            final int[]    cols = colIndex;
+            final int      nnz  = nnzPerRow;
 
             // Scatter-add: two different row ranges can write the same
             // output column, so a plain parallelFor would race on
@@ -262,8 +261,8 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
             // once every row is done.
             executor.parallelForAccumulate(rows, resultArr, (start, end, local) -> {
                 for (int r = start; r < end; r++) {
-                    int base = r * nnz;
-                    double xr = xArr[r];
+                    int    base = r * nnz;
+                    double xr   = xArr[r];
                     for (int i = 0; i < nnz; i++)
                         local[cols[base + i]] += vals[base + i] * xr;
                 }
@@ -275,8 +274,8 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
 
     private void transposeApplyRange(int start, int end, double[] xArr, double[] resultArr) {
         for (int r = start; r < end; r++) {
-            int base = r * nnzPerRow;
-            double xr = xArr[r];
+            int    base = r * nnzPerRow;
+            double xr   = xArr[r];
             for (int i = 0; i < nnzPerRow; i++) {
                 resultArr[colIndex[base + i]] += values[base + i] * xr;
             }

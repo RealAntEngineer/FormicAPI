@@ -26,7 +26,7 @@ public final class WorkingBuffer<T extends Vector> {
 
     public WorkingBuffer(int number, Supplier<T> defaultVec) {
         this.vectors = new Vector[number];
-        Arrays.fill(vectors,defaultVec.get());
+        Arrays.fill(vectors, defaultVec.get());
     }
 
 

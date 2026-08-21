@@ -32,12 +32,12 @@ public abstract class GpuExecutable {
 
     protected @Nullable GpuExecutor executor;
 
-    public void setExecutor(@Nullable GpuExecutor executor) {
-        this.executor = executor;
-    }
-
     public @Nullable GpuExecutor getExecutor() {
         return executor;
+    }
+
+    public void setExecutor(@Nullable GpuExecutor executor) {
+        this.executor = executor;
     }
 
     protected GpuExecutor requireExecutor() {

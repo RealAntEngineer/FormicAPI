@@ -18,8 +18,13 @@ import org.jocl.cl_mem;
 public final class GpuIntegerVector extends GpuExecutable implements IntegerVector {
 
     private cl_mem buffer;
-    private int size;
-    private int capacity;
+    private int    size;
+    private int    capacity;
+
+    public GpuIntegerVector(GpuExecutor executor, int[] hostData) {
+        this(executor, hostData.length);
+        upload(hostData);
+    }
 
     public GpuIntegerVector(GpuExecutor executor, int size) {
         setExecutor(executor);
@@ -29,11 +34,6 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
         // int buffers don't have a fillDoubleBuffer-style helper here since
         // there's currently no consumer that needs zero-initialized index
         // buffers; callers populate via setRow-equivalent upload() before use.
-    }
-
-    public GpuIntegerVector(GpuExecutor executor, int[] hostData) {
-        this(executor, hostData.length);
-        upload(hostData);
     }
 
     public void upload(int[] host) {
@@ -95,13 +95,17 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
         requireExecutor().uploadInts(buffer, zeros, size);
     }
 
-    /** Single-element write - a device round-trip. Fine for setup/debugging; use {@link #upload(int[])} for bulk data. */
+    /**
+     * Single-element write - a device round-trip. Fine for setup/debugging; use {@link #upload(int[])} for bulk data.
+     */
     @Override
     public void set(int value, int idx) {
         requireExecutor().uploadIntAt(buffer, idx, value);
     }
 
-    /** Single-element read - a device round-trip. Fine for setup/debugging; use {@link #download()} for bulk data. */
+    /**
+     * Single-element read - a device round-trip. Fine for setup/debugging; use {@link #download()} for bulk data.
+     */
     @Override
     public int get(int idx) {
         return requireExecutor().downloadIntAt(buffer, idx);
