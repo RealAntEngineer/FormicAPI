@@ -134,9 +134,7 @@ public class MatrixMultiplyBenchmarkTest {
 
         int rows = BLOCKS * 4096;
 
-        PaddedCSRMatrix matrix =
-                new PaddedCSRMatrix(rows, rows, 7);
-
+        PaddedCSRMatrix matrix = new PaddedCSRMatrix(rows, rows, 7);
 
         for (int b = 0; b < BLOCKS; b++) {
 
@@ -153,35 +151,26 @@ public class MatrixMultiplyBenchmarkTest {
                 double[] values = new double[7];
                 int[] cols = new int[7];
 
-
                 values[0] = random.nextDouble();
                 cols[0] = row;
-
 
                 int x = idx & 15;
                 int z = (idx >> 4) & 15;
                 int y = idx >> 8;
 
-
                 // -X
                 if (x > 0) {
                     cols[1] = row - 1;
                 } else {
-                    cols[1] = xmBlock != -1
-                            ? xmBlock + idx + 15
-                            : row;
+                    cols[1] = xmBlock != -1 ? xmBlock + idx + 15 : row;
                 }
-
 
                 // +X
                 if (x < 15) {
                     cols[2] = row + 1;
                 } else {
-                    cols[2] = xpBlock != -1
-                            ? xpBlock + idx - 15
-                            : row;
+                    cols[2] = xpBlock != -1 ? xpBlock + idx - 15 : row;
                 }
-
 
                 // -Y
                 if (y > 0) {
@@ -190,14 +179,12 @@ public class MatrixMultiplyBenchmarkTest {
                     cols[3] = row; // no neighbour
                 }
 
-
                 // +Y
                 if (y < 15) {
                     cols[4] = row + 256;
                 } else {
                     cols[4] = row;
                 }
-
 
                 // -Z
                 if (z > 0) {
@@ -206,7 +193,6 @@ public class MatrixMultiplyBenchmarkTest {
                     cols[5] = row;
                 }
 
-
                 // +Z
                 if (z < 15) {
                     cols[6] = row + 16;
@@ -214,18 +200,11 @@ public class MatrixMultiplyBenchmarkTest {
                     cols[6] = row;
                 }
 
-
                 for (int i = 1; i < 7; i++) {
                     values[i] = random.nextDouble();
                 }
 
-
-                matrix.setRow(
-                        row,
-                        values,
-                        cols,
-                        7
-                );
+                matrix.setRow(row, values, cols, 7);
             }
         }
 

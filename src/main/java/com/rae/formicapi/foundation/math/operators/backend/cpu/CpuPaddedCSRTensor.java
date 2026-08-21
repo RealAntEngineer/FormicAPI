@@ -20,9 +20,7 @@ import java.util.Arrays;
  * {@link CpuExecutor} once the row count crosses the executor's parallel
  * threshold.
  */
-public class CpuPaddedCSRTensor {
-
-    CpuExecutor executor;
+public class CpuPaddedCSRTensor extends CpuExecutable{
 
     private final int termsPerEquation;
     private final int order;
@@ -265,9 +263,5 @@ public class CpuPaddedCSRTensor {
             variableIndices = newIndices;
         }
         equations = newEquations;
-    }
-
-    public void setExecutor(CpuExecutor cpuExecutor) {
-        executor = cpuExecutor;
     }
 }

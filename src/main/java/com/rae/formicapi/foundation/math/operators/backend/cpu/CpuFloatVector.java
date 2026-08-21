@@ -1,22 +1,22 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.FloatVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
-public final class CpuDoubleVector extends CpuExecutable implements DoubleVector {
+public final class CpuFloatVector extends CpuExecutable implements FloatVector {
 
-    private double[] data;
+    private float[] data;
     private int      size;
 
-    public CpuDoubleVector(int size) {
-        this.data = new double[size];
+    public CpuFloatVector(int size) {
+        this.data = new float[size];
         this.size = size;
     }
 
-    public CpuDoubleVector(double[] data) {
+    public CpuFloatVector(float[] data) {
         this.data = data;
         this.size = data.length;
     }
@@ -34,54 +34,54 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
     }
 
     @Override
-    public double dot(DoubleVector other) {
-        CpuDoubleVector o = (CpuDoubleVector) other;
-        final double[]  a = data;
-        final double[] b = o.data;
+    public float dot(FloatVector other) {
+        CpuFloatVector o = (CpuFloatVector) other;
+        final float[] a = data;
+        final float[] b = o.data;
 
         if (executor!=null && executor.shouldUseParallel(size())) {
-            return executor.parallelReduceDouble(size, (start, end) -> {
-                double sum = 0.0;
+            return executor.parallelReduceFloat(size, (start, end) -> {
+                float sum = 0.0f;
                 for (int i = start; i < end; i++)
                     sum += a[i] * b[i];
                 return sum;
             });
         }
 
-        double sum = 0.0;
+        float sum = 0.0f;
         for (int i = 0; i < size; i++)
             sum += a[i] * b[i];
         return sum;
     }
 
     @Override
-    public double skippedDot(DoubleVector other, IntegerVector unknowIdx) {
-        CpuDoubleVector o = (CpuDoubleVector) other;
-        final double[]  a = data;
-        final double[] b = o.data;
+    public float skippedDot(FloatVector other, IntegerVector unknowIdx) {
+        CpuFloatVector o = (CpuFloatVector) other;
+        final float[] a = data;
+        final float[] b = o.data;
 
         if (executor!=null && executor.shouldUseParallel(size())) {
-            return executor.parallelReduceDouble(unknowIdx.size(), (start, end) -> {
-                double sum = 0.0;
+            return executor.parallelReduceFloat(unknowIdx.size(), (start, end) -> {
+                float sum = 0.0f;
                 for (int i = start; i < end; i++)
                     sum += a[unknowIdx.get(i)] * b[i];
                 return sum;
             });
         }
 
-        double sum = 0.0;
+        float sum = 0.0f;
         for (int i = 0; i < size; i++)
             sum += a[unknowIdx.get(i)] * b[i];
         return sum;
     }
 
     @Override
-    public void axpy(double a, DoubleVector x) {
-        if (!(x instanceof CpuDoubleVector vec))
+    public void axpy(float a, FloatVector x) {
+        if (!(x instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
-        final double[] d = data;
-        final double[] xd = vec.data;
+        final float[] d = data;
+        final float[] xd = vec.data;
 
         if (executor!=null && executor.shouldUseParallel(size())) {
             executor.parallelFor(size, (start, end) -> {
@@ -96,12 +96,12 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
     }
 
     @Override
-    public void scatterAxpy(double alpha, DoubleVector source, IntegerVector idx) {
-        if (!(source instanceof CpuDoubleVector vec))
+    public void scatterAxpy(float alpha, FloatVector source, IntegerVector idx) {
+        if (!(source instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + source.getClass());
 
-        final double[] d = data;
-        final double[] sd = vec.data;
+        final float[] d = data;
+        final float[] sd = vec.data;
         final int n = idx.size();
 
         if (executor!=null && executor.shouldUseParallel(size())) {
@@ -117,8 +117,8 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
     }
 
     @Override
-    public void scale(double a) {
-        final double[] d = data;
+    public void scale(float a) {
+        final float[] d = data;
 
         if (executor!=null && executor.shouldUseParallel(size())) {
             executor.parallelFor(size, (start, end) -> {
@@ -133,8 +133,8 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
     }
 
     @Override
-    public void add(double a) {
-        final double[] d = data;
+    public void add(float a) {
+        final float[] d = data;
         if (executor!=null && executor.shouldUseParallel(size())) {
             executor.parallelFor(size, (start, end) -> {
                 for (int i = start; i < end; i++)
@@ -148,12 +148,12 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
     }
 
     @Override
-    public void add(Vector x) {
-        if (!(x instanceof CpuDoubleVector vec))
+    public void add(FloatVector x) {
+        if (!(x instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
-        final double[] d = data;
-        final double[] xd = vec.data;
+        final float[] d = data;
+        final float[] xd = vec.data;
 
         if (executor!=null && executor.shouldUseParallel(size())) {
             executor.parallelFor(size, (start, end) -> {
@@ -169,7 +169,7 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
 
     @Override
     public void copy(Vector x) {
-        if (!(x instanceof CpuDoubleVector vec))
+        if (!(x instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
         /*if (x.size() < this.size)
@@ -183,7 +183,7 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
 
     @Override
     public Vector copy() {
-        Vector vector =  new CpuDoubleVector(Arrays.copyOf(data, data.length));
+        Vector vector =  new CpuFloatVector(Arrays.copyOf(data, data.length));
         //System.out.println("Size " + size);
         vector.resize(size);
         return vector;
@@ -193,10 +193,10 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
     public void clear() {
         // Same reasoning as copy(): Arrays.fill is already an optimized
         // intrinsic and is memory-bandwidth bound, not compute bound.
-        Arrays.fill(data, 0.0);
+        Arrays.fill(data, 0.0f);
     }
 
-    public double[] array() {
+    public float[] array() {
         return data;
     }
 }

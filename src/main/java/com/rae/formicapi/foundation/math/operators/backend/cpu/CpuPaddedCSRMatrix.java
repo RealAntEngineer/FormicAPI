@@ -6,9 +6,8 @@ import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
-public class CpuPaddedCSRMatrix implements MutableMatrix {
+public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
 
-    CpuExecutor executor;
     private int rows;
     private int cols;
     private final int nnzPerRow;
@@ -328,9 +327,5 @@ public class CpuPaddedCSRMatrix implements MutableMatrix {
         System.arraycopy(colIndex, base, out, 0, nnzPerRow);
 
         return out;
-    }
-
-    public void setExecutor(CpuExecutor cpuExecutor) {
-        executor = cpuExecutor;
     }
 }

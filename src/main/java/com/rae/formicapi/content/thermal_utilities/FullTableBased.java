@@ -16,7 +16,6 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -43,7 +42,7 @@ public class FullTableBased {
         return isentropicPressureChange(initial.pressure(), initial.specificEntropy(), initial.pressure() / expansionFactor);
     }
 
-    private static @NotNull SpecificRealGasState isentropicPressureChange(float P1, float sTarget, float finalPressure) {
+    private static SpecificRealGasState isentropicPressureChange(float P1, float sTarget, float finalPressure) {
 
         // Initial guess from table interpolation
         float h = getH(finalPressure, sTarget);
@@ -66,7 +65,7 @@ public class FullTableBased {
 
             // Safety check
             if (Math.abs(df) < 1e-8f) {
-                FormicAPI.LOGGER.info("early break in isentropic computation cause by derivative too small");
+                //FormicAPI.LOGGER.info("early break in isentropic computation cause by derivative too small");
                 break; // derivative too small → avoid explosion
             }
 
@@ -213,7 +212,7 @@ public class FullTableBased {
         public ClearTablesPacket() {
         }
 
-        public ClearTablesPacket(@NotNull FriendlyByteBuf buffer) {
+        public ClearTablesPacket(FriendlyByteBuf buffer) {
         }
 
         public void write(FriendlyByteBuf buffer) {
@@ -242,13 +241,13 @@ public class FullTableBased {
         private final @Nullable TableType                                               type;
 
         // Construct from server data
-        public SynchTablesPacket(@NotNull CompoundTag nbt, @NotNull TableType type) {
+        public SynchTablesPacket(CompoundTag nbt, TableType type) {
             this.nbt = nbt;
             this.type = type;
         }
 
         // Construct from network buffer
-        public SynchTablesPacket(@NotNull FriendlyByteBuf buffer) {
+        public SynchTablesPacket(FriendlyByteBuf buffer) {
             this.nbt = buffer.readNbt();
             this.type = buffer.readEnum(TableType.class);
         }
@@ -261,7 +260,7 @@ public class FullTableBased {
 
         @Override
         public void handle(LocalPlayer player) {
-
+            assert nbt != null;
             switch (Objects.requireNonNull(type)) {
                 case HP_T -> WATER_HP_T.mergeFromNBT(nbt);
                 case HP_S -> WATER_HP_S.mergeFromNBT(nbt);

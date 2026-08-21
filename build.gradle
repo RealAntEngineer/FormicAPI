@@ -171,14 +171,22 @@ dependencies {
 
 
     //unit test tool
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junit_version}"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junit_version}"
+
+    jmh "org.openjdk.jmh:jmh-core:${jmh_version}"
+    jmh "org.openjdk.jmh:jmh-generator-annprocess:${jmh_version}"
+
+    // this is the line that solves the missing /META-INF/BenchmarkList error
+    jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:${jmh_version}"
     //x chart to plot things
     jarJar(implementation("org.knowm.xchart:xchart:3.2.2")){
         version {
             prefer '3.2.2'
         }
     }
+
+    jarJar(implementation "org.jocl:jocl:${jocl_version}")
 
 }
 

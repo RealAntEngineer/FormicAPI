@@ -23,9 +23,7 @@ import java.util.Arrays;
  * {@code PaddedCSR2Tensor}: a term-major layout would be preferable for a
  * GPU backend, but is fine here since threads/tasks are split by row range).
  */
-public class CpuPaddedCSR2Tensor {
-
-    CpuExecutor executor;
+public class CpuPaddedCSR2Tensor extends CpuExecutable {
 
     private int equations;
     private final int termsPerEquation;
@@ -281,9 +279,5 @@ public class CpuPaddedCSR2Tensor {
         System.arraycopy(var2Index, base, out, 0, termsPerEquation);
 
         return out;
-    }
-
-    public void setExecutor(CpuExecutor cpuExecutor) {
-        executor = cpuExecutor;
     }
 }

@@ -25,7 +25,7 @@ public class Event {
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
-        LOGGER.info("getting the server registry access");
+        LOGGER.info("Getting the server registry access");
         registryAccess = event.getServer().registryAccess();
         FloatMapDataLoader.reloadRegistry();
     }
@@ -35,14 +35,22 @@ public class Event {
         FullTableBased.onPlayerJoin(event);
     }
 
+
     public static <T> Registry<T> getSideAwareRegistry(ResourceKey<Registry<T>> registryKey) {
         if (registryAccess != null) {
             return registryAccess.registryOrThrow(registryKey);
         } else {
-            LOGGER.debug("getting the registry access from the client");
-            return Objects.requireNonNull(Minecraft.getInstance().getConnection())
-                    .registryAccess().registry(registryKey)
-                    .orElseThrow();
+            LOGGER.debug("Getting the registry access from the client");
+            var connection = Minecraft.getInstance().getConnection();
+            if (connection == null) {
+                LOGGER.error("Minecraft client connection unavailable - registry not yet synced");
+                throw new IllegalStateException("Cannot access registry " + registryKey.location() +
+                        " before client connection is established. This typically means you're trying to " +
+                        "access a datapack registry too early during initialization.");
+            }
+            return connection.registryAccess()
+                    .registry(registryKey)
+                    .orElseThrow(() -> new IllegalStateException("Registry " + registryKey.location() + " not found"));
         }
     }
 
