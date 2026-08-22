@@ -2,7 +2,7 @@ package com.rae.formicapi.foundation.math.solvers;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import org.jetbrains.annotations.Nullable;
@@ -14,7 +14,7 @@ import org.jetbrains.annotations.Nullable;
  *     C:x:x + A*x - b = 0
  * </pre>
  *
- * where {@code C} is represented by a {@link PaddedCSR2Tensor} and
+ * where {@code C} is represented by a {@link PaddedCSR3Tensor} and
  * {@code A} is a linear matrix.
  *
  * <p>The nonlinear system is solved using Newton iterations. Each Newton step
@@ -44,7 +44,7 @@ import org.jetbrains.annotations.Nullable;
  * directions, corrections) goes through {@link DoubleVector}, so this runs on
  * whichever backend {@code x}/{@code b}/the working buffers belong to — same
  * pattern as {@link LeastSquare} and {@link ConjugateGradient}. This requires
- * {@link PaddedCSR2Tensor} to expose {@code DoubleVector}-based overloads of
+ * {@link PaddedCSR3Tensor} to expose {@code DoubleVector}-based overloads of
  * its matrix-free products, mirroring {@link Matrix#apply(DoubleVector, DoubleVector)}:
  *
  * <pre>
@@ -106,16 +106,16 @@ public class NewtonKrylov {
     // will solve repeatedly.
     // ---------------------------------------------------------------------
 
-    public static void solve(PaddedCSR2Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
+    public static void solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
                              double newtonTol, double linearTol) {
         solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, (Stats) null);
     }
 
     /**
-     * Same as {@link #solve(PaddedCSR2Tensor, Matrix, double[], double[], int, int, double, double)}
+     * Same as {@link #solve(PaddedCSR3Tensor, Matrix, double[], double[], int, int, double, double)}
      * but recording per-iteration diagnostics into {@code stats} if non-null.
      */
-    public static void solve(PaddedCSR2Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
+    public static void solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
                              double newtonTol, double linearTol, @Nullable Stats stats) {
         // CpuDoubleVector wraps the array by reference (no copy), and this solver
         // never calls resize() on x or b, so x is mutated in place exactly like
@@ -129,13 +129,13 @@ public class NewtonKrylov {
      * the DoubleVector core solve, so buffers are still reused with zero
      * per-call allocation.
      */
-    public static double[] solve(PaddedCSR2Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
+    public static double[] solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
                                  double newtonTol, double linearTol, double[] Ax, double[] F, double[] dx, double[] r, double[] rHat0,
                                  double[] p, double[] v, double[] s, double[] t) {
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, Ax, F, dx, r, rHat0, p, v, s, t, null);
     }
 
-    public static double[] solve(PaddedCSR2Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
+    public static double[] solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b, int maxNewtonIter, int maxLinearIter,
                                  double newtonTol, double linearTol, double[] Ax, double[] F, double[] dx, double[] r, double[] rHat0,
                                  double[] p, double[] v, double[] s, double[] t, @Nullable Stats stats) {
         solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b), maxNewtonIter, maxLinearIter, newtonTol, linearTol,
@@ -152,7 +152,7 @@ public class NewtonKrylov {
      * Solve, allocating a working buffer internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static DoubleVector solve(PaddedCSR2Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
+    public static DoubleVector solve(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
                                      double newtonTol, double linearTol) {
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, (Stats) null);
     }
@@ -161,7 +161,7 @@ public class NewtonKrylov {
      * Same as above but recording per-iteration diagnostics into {@code stats} if non-null.
      * Allocates a working buffer internally — prefer the pre-allocated overload for hot paths.
      */
-    public static DoubleVector solve(PaddedCSR2Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
+    public static DoubleVector solve(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
                                      double newtonTol, double linearTol, @Nullable Stats stats) {
         int n = C.equations();
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol,
@@ -173,7 +173,7 @@ public class NewtonKrylov {
      * {@code n = b.size()}: {@code Ax}, {@code F}, {@code dx}, {@code r},
      * {@code rHat0}, {@code p}, {@code v}, {@code s}, {@code t} (in that order).
      */
-    public static DoubleVector solve(PaddedCSR2Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
+    public static DoubleVector solve(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
                                      double newtonTol, double linearTol, WorkingBuffer<DoubleVector> buffer, @Nullable Stats stats) {
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol,
                 buffer.get(AX), buffer.get(RES), buffer.get(DX), buffer.get(R), buffer.get(RHAT0),
@@ -231,7 +231,7 @@ public class NewtonKrylov {
      * @param t working buffer for Jacobian-vector products
      * @return {@code x} (same instance passed as input)
      */
-    public static DoubleVector solve(PaddedCSR2Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
+    public static DoubleVector solve(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b, int maxNewtonIter, int maxLinearIter,
                                      double newtonTol, double linearTol, DoubleVector Ax, DoubleVector F, DoubleVector dx,
                                      DoubleVector r, DoubleVector rHat0, DoubleVector p, DoubleVector v, DoubleVector s, DoubleVector t,
                                      @Nullable Stats stats) {
@@ -327,7 +327,7 @@ public class NewtonKrylov {
      * @param s       BiCGSTAB stabilizer buffer
      * @param t       temporary buffer for Jacobian-vector products
      */
-    private static int solveNewtonStep(PaddedCSR2Tensor C, Matrix A, DoubleVector x, DoubleVector dx, DoubleVector F, int maxIter,
+    private static int solveNewtonStep(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector dx, DoubleVector F, int maxIter,
                                        double tol, DoubleVector r, DoubleVector rHat0, DoubleVector p, DoubleVector v, DoubleVector s,
                                        DoubleVector t) {
 

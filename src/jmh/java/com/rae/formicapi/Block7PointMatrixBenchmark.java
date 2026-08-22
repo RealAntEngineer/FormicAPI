@@ -7,14 +7,6 @@ import org.openjdk.jmh.infra.Blackhole;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * JMH conversion of {@code BlockCSRMatrixBenchmarkTest}.
- *
- * <p>Each block is a fixed 16x16x16 = 4096-row unit; {@code blocks} is the
- * number of such units chained in a line (block {@code b} neighbours
- * {@code b-1} and {@code b+1} only — matches the original test's linear
- * layout).
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -52,16 +44,6 @@ public class Block7PointMatrixBenchmark {
         matrix.multiply(x, result);
         bh.consume(result);
     }
-
-    // NOTE: the original test also exercised multiplyFast, transposeMultiplyFast,
-    // and transposeMultiply, but had them commented out. Uncomment/add analogous
-    // @Benchmark methods here once those code paths are ready to measure:
-    //
-    // @Benchmark
-    // public void transposeMultiply(Blackhole bh) {
-    //     matrix.transposeMultiply(x, result);
-    //     bh.consume(result);
-    // }
 
     private static void initialize(Block7PointMatrix matrix, int blocks, Random random) {
 

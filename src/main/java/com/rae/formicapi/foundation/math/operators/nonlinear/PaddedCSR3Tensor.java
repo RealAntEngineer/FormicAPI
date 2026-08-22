@@ -7,7 +7,7 @@ import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import java.util.Arrays;
 
 /**
- * Fixed-structure sparse quadratic tensor.
+ * Fixed-structure sparse 3rd order tensor.
  *
  * <p>Represents a quadratic nonlinear operator:
  *
@@ -30,7 +30,7 @@ import java.util.Arrays;
  *
  * <p>The sparsity pattern is fixed after construction.
  */
-public class PaddedCSR2Tensor implements NonlinearOperator {
+public class PaddedCSR3Tensor implements NonlinearOperator {
 
     private final int termsPerEquation;
     private       int equations;
@@ -56,7 +56,7 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
      * @param equations        number of output equations
      * @param termsPerEquation fixed number of quadratic terms per equation
      */
-    public PaddedCSR2Tensor(int equations, int termsPerEquation) {
+    public PaddedCSR3Tensor(int equations, int termsPerEquation) {
         this.equations = equations;
         this.termsPerEquation = termsPerEquation;
 
@@ -173,9 +173,7 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
 
             for (int idx = base; idx < end; idx++) {
 
-                sum += values[idx]
-                        * x[var1Index[idx]]
-                        * x[var2Index[idx]];
+                sum += values[idx] * x[var1Index[idx]] * x[var2Index[idx]];
             }
 
             result[row] = sum;

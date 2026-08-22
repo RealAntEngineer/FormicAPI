@@ -1,7 +1,7 @@
 package com.rae.formicapi.math_tests.solvers;
 
 import com.rae.formicapi.LiveChartWindow;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
@@ -47,7 +47,7 @@ public class Convection2Test {
                                          double tHot, double tAmbient,
                                          int plateRow, int plateColStart, int plateColEnd,
                                          double pressurePenalty, double invDt,
-                                         PaddedCSR2Tensor C, PaddedCSRMatrix A, DofRole[] role, double[] bcValue) {
+                                         PaddedCSR3Tensor C, PaddedCSRMatrix A, DofRole[] role, double[] bcValue) {
 
         //double hx = 1.0 / (nx - 1);
         //double hy = 1.0 / (ny - 1);
@@ -298,8 +298,8 @@ public class Convection2Test {
         System.out.printf("Max heap: %.2f GB%n",
                 rt.maxMemory() / 1024.0 / 1024.0 / 1024.0);
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(n, 4);
-        PaddedCSRMatrix A = new PaddedCSRMatrix(n, n, 8);
+        PaddedCSR3Tensor C = new PaddedCSR3Tensor(n, 4);
+        PaddedCSRMatrix  A = new PaddedCSRMatrix(n, n, 8);
 
         double[] x = new double[n];
         double[] b = new double[n];

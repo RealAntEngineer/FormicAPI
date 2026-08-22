@@ -1,21 +1,17 @@
 package com.rae.formicapi;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
-import org.openjdk.jmh.runner.Runner;
-import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.Options;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
- * JMH benchmark for {@link PaddedCSR2Tensor#apply} (F(x) = C:x:x) and
- * {@link PaddedCSR2Tensor#multiplyJacobian} (J(x)*direction).
+ * JMH benchmark for {@link PaddedCSR3Tensor#apply} (F(x) = C:x:x) and
+ * {@link PaddedCSR3Tensor#multiplyJacobian} (J(x)*direction).
  *
  * <p>Both are the per-Newton-iteration / per-BiCGSTAB-iteration hot paths in
  * {@link com.rae.formicapi.foundation.math.solvers.NewtonKrylov}, so this
@@ -46,8 +42,8 @@ public class PaddedCSR2TensorBenchmark {
     @Param({"RANDOM", "SEQUENTIAL"})
     public String indexPattern;
 
-    private PaddedCSR2Tensor tensor;
-    private DoubleVector x;
+    private PaddedCSR3Tensor tensor;
+    private DoubleVector     x;
     private DoubleVector direction;
     private DoubleVector result;
 
@@ -55,7 +51,7 @@ public class PaddedCSR2TensorBenchmark {
     public void setup() {
         Random rnd = new Random(42);
 
-        tensor = new PaddedCSR2Tensor(equations, termsPerEquation);
+        tensor = new PaddedCSR3Tensor(equations, termsPerEquation);
 
         double[] rowValues = new double[termsPerEquation];
         int[] rowVar1 = new int[termsPerEquation];

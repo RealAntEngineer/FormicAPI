@@ -10,7 +10,7 @@ import java.util.Arrays;
  * <p>Fixed-structure sparse N-order tensor:
  *
  * <pre>
- * F_i(x) = sum(c * x[j1] * x[j2] * ... * x[jN])
+ * F_i(x) = sum(c * x[j1] * x[j2] * ... * x[jN-1])
  * </pre>
  *
  * <p>This mirrors {@link CpuPaddedCSRMatrix} and {@link CpuPaddedCSR2Tensor}:
@@ -40,8 +40,8 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
 
     public CpuPaddedCSRTensor(int order, int equations, int termsPerEquation) {
 
-        if (order < 1)
-            throw new IllegalArgumentException("Order must be positive");
+        if (order < 2)
+            throw new IllegalArgumentException("Order must be > 1");
 
         this.equations = equations;
         this.termsPerEquation = termsPerEquation;
@@ -51,7 +51,7 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
 
         this.values = new double[size];
 
-        this.variableIndices = new int[size][order];
+        this.variableIndices = new int[size][order-1];
     }
 
     /**
@@ -73,7 +73,7 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
         if (newValues.length < count) throw new IllegalArgumentException("Values shorter than count");
 
         for (int i = 0; i < count; i++) {
-            if (varIndices[i].length != order)
+            if (varIndices[i].length != order-1)
                 throw new IllegalArgumentException("Wrong tensor order");
         }
 
@@ -83,7 +83,7 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
 
             values[base + i] = newValues[i];
 
-            System.arraycopy(varIndices[i], 0, variableIndices[base + i], 0, order);
+            System.arraycopy(varIndices[i], 0, variableIndices[base + i], 0, order-1);
         }
 
         // disable unused entries
@@ -101,7 +101,7 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
         if (value == 0.0)
             return;
 
-        if (vars.length != order)
+        if (vars.length != order-1)
             throw new IllegalArgumentException("Wrong tensor order");
 
         int base = equation * termsPerEquation;
@@ -156,7 +156,7 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
                 int    idx = base + i;
                 double p   = values[idx];
 
-                for (int d = 0; d < order; d++)
+                for (int d = 0; d < order-1; d++)
                     p *= xArr[variableIndices[idx][d]];
 
                 sum += p;
@@ -211,11 +211,11 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
 
                 int idx = base + i;
 
-                for (int m = 0; m < order; m++) {
+                for (int m = 0; m < order-1; m++) {
 
                     double term = values[idx];
 
-                    for (int r = 0; r < order; r++) {
+                    for (int r = 0; r < order-1; r++) {
 
                         int v = variableIndices[idx][r];
 
@@ -255,10 +255,10 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
 
             values = Arrays.copyOf(values, required);
 
-            int[][] newIndices = new int[required][order];
+            int[][] newIndices = new int[required][order-1];
 
             for (int i = 0; i < variableIndices.length; i++)
-                System.arraycopy(variableIndices[i], 0, newIndices[i], 0, order);
+                System.arraycopy(variableIndices[i], 0, newIndices[i], 0, order-1);
 
             variableIndices = newIndices;
         }

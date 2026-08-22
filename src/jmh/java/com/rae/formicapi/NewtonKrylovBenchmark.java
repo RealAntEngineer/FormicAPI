@@ -3,7 +3,7 @@ package com.rae.formicapi;
 import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.DynamicCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.HashSparseMatrix;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -49,8 +49,8 @@ public class NewtonKrylovBenchmark {
     @Param({"5", "15", "30"})
     private int nnzPerRow;
 
-    private PaddedCSR2Tensor C;
-    private double[] b;
+    private PaddedCSR3Tensor C;
+    private double[]         b;
     private double[] x0;
     private DenseMatrix dense;//TODO no, that's not the objective, just used a padded CSR matrix. We already know what is best.
     private HashSparseMatrix hash;
@@ -60,7 +60,7 @@ public class NewtonKrylovBenchmark {
     public void setup() {
         // Diagonal quadratic term x_i^2, identical across all three backends —
         // isolates the benchmark to A's multiply implementation.
-        PaddedCSR2Tensor tensor = new PaddedCSR2Tensor(n, 1);
+        PaddedCSR3Tensor tensor = new PaddedCSR3Tensor(n, 1);
         for (int i = 0; i < n; i++)
             tensor.setRow(i, new double[]{1.0}, new int[]{i}, new int[]{i}, 1);
         C = tensor;

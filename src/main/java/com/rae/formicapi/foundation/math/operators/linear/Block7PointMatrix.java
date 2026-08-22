@@ -38,7 +38,7 @@ import java.util.Arrays;
  *     <li>iterative linear solvers (CG, GMRES, etc.)</li>
  * </ul>
  */
-@SuppressWarnings("unused")
+//@SuppressWarnings("unused")
 @Deprecated(forRemoval = true)//worse than regular CSRMatrix so it's useless.
 public class Block7PointMatrix implements MutableMatrix {
 

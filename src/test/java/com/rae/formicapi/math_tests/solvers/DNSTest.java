@@ -1,6 +1,6 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR2Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ class DNSTest {
 
         int cells = nx * ny;
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(cells * 2, 9);
+        PaddedCSR3Tensor C = new PaddedCSR3Tensor(cells * 2, 9);
 
         PaddedCSRMatrix A = new PaddedCSRMatrix(cells * 2, cells * 2, 5);
 
@@ -172,8 +172,8 @@ class DNSTest {
         int cells = nx * ny;
         int n = cells * 3;
 
-        PaddedCSR2Tensor C = new PaddedCSR2Tensor(n, 4);
-        PaddedCSRMatrix A = new PaddedCSRMatrix(n, n, 7);
+        PaddedCSR3Tensor C = new PaddedCSR3Tensor(n, 4);
+        PaddedCSRMatrix  A = new PaddedCSRMatrix(n, n, 7);
 
         double[] x = new double[n];
         double[] b = new double[n];
@@ -380,7 +380,7 @@ class DNSTest {
     }
 
     static void buildNavierStokesOperator(int nx, int ny, double nu, double pressurePenalty,
-                                          double invDt, PaddedCSR2Tensor C, PaddedCSRMatrix A) {
+                                          double invDt, PaddedCSR3Tensor C, PaddedCSRMatrix A) {
         // invDt = 1/dt for implicit time stepping (added to the u,v diagonal
         // as a mass term), or 0 for a pure steady-state solve.
 
