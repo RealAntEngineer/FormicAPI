@@ -20,13 +20,13 @@ import java.util.Arrays;
  */
 public class PaddedCSRTensor implements NonlinearOperator {
 
-    private final int termsPerEquation;
-    private final int order;
-    private       int equations;
+    private final int      termsPerEquation;
+    private final int      order;
+    private       int      equations;
     /**
      * Tensor coefficients.
      */
-    private double[] values;
+    private       double[] values;
 
     /**
      * Variable indices.
@@ -169,33 +169,15 @@ public class PaddedCSRTensor implements NonlinearOperator {
         throw new IllegalStateException("Tensor entry does not exist");
     }
 
-    /**
-     * Evaluates:
-     *
-     * <pre>
-     * result = F(x)
-     * </pre>
-     */
-    public void multiply(double[] x, double[] result) {
-
-        for (int row = 0; row < equations; row++) {
-
-            double sum  = 0.0;
-            int    base = row * termsPerEquation;
-
-            for (int i = 0; i < termsPerEquation; i++) {
-
-                int    idx = base + i;
-                double p   = values[idx];
-
-                for (int d = 0; d < order; d++)
-                    p *= x[variableIndices[idx][d]];
-
-                sum += p;
-            }
-
-            result[row] = sum;
+    public void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result) {
+        if (x instanceof CpuDoubleVector xCpu && direction instanceof CpuDoubleVector dirCpu && result instanceof CpuDoubleVector resCpu) {
+            multiplyJacobian(xCpu.array(), dirCpu.array(), resCpu.array());
+            return;
         }
+        throw new UnsupportedOperationException(
+                "PaddedCSRTensor.multiplyJacobian(...) only supports CpuDoubleVector operands; got x="
+                        + x.getClass().getSimpleName() + ", direction=" + direction.getClass().getSimpleName()
+                        + ", result=" + result.getClass().getSimpleName());
     }
 
     /**
@@ -236,12 +218,6 @@ public class PaddedCSRTensor implements NonlinearOperator {
         }
     }
 
-    public void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result){
-        if (x instanceof CpuDoubleVector xCpu && direction instanceof CpuDoubleVector dirCpu && result instanceof CpuDoubleVector resCpu) {
-            multiplyJacobian(xCpu.array(), dirCpu.array(),  resCpu.array());
-        }
-    }
-
     public int equations() {
         return equations;
     }
@@ -276,6 +252,40 @@ public class PaddedCSRTensor implements NonlinearOperator {
     public void apply(DoubleVector x, DoubleVector result) {
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             multiply(xCpu.array(), resCpu.array());
+            return;
+        }
+
+        throw new UnsupportedOperationException(
+                "PaddedCSRTensor.apply(...) only supports CpuDoubleVector operands; got x="
+                        + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName());
+    }
+
+    /**
+     * Evaluates:
+     *
+     * <pre>
+     * result = F(x)
+     * </pre>
+     */
+    public void multiply(double[] x, double[] result) {
+
+        for (int row = 0; row < equations; row++) {
+
+            double sum  = 0.0;
+            int    base = row * termsPerEquation;
+
+            for (int i = 0; i < termsPerEquation; i++) {
+
+                int    idx = base + i;
+                double p   = values[idx];
+
+                for (int d = 0; d < order; d++)
+                    p *= x[variableIndices[idx][d]];
+
+                sum += p;
+            }
+
+            result[row] = sum;
         }
     }
 

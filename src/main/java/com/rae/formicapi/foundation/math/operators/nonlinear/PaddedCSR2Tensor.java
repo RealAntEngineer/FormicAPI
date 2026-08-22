@@ -32,15 +32,12 @@ import java.util.Arrays;
  */
 public class PaddedCSR2Tensor implements NonlinearOperator {
 
-    private       int equations;
-
     private final int termsPerEquation;
-
+    private       int equations;
     /**
      * Quadratic coefficients.
      */
     private double[] values;
-
 
     //pack both indexes into a long for faster access ?
     /**
@@ -56,7 +53,7 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
     /**
      * Creates an empty quadratic tensor.
      *
-     * @param equations number of output equations
+     * @param equations        number of output equations
      * @param termsPerEquation fixed number of quadratic terms per equation
      */
     public PaddedCSR2Tensor(int equations, int termsPerEquation) {
@@ -81,25 +78,19 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
      * ({@code term × equation}) to allow adjacent threads to access contiguous
      * memory locations.
      *
-     * @param equation equation index
+     * @param equation  equation index
      * @param newValues coefficients
      * @param var1Index first variable indices
      * @param var2Index second variable indices
-     * @param count number of active terms
+     * @param count     number of active terms
      */
-    public void setRow(int equation, double[] newValues, int[] var1Index,int[] var2Index, int count) {
+    public void setRow(int equation, double[] newValues, int[] var1Index, int[] var2Index, int count) {
 
         if (count > termsPerEquation)
-            throw new IllegalArgumentException(
-                    "Too many terms: " + count
-            );
+            throw new IllegalArgumentException("Too many terms: " + count);
 
-        if (var1Index.length < count ||
-                var2Index.length < count ||
-                newValues.length < count)
-            throw new IllegalArgumentException(
-                    "Input arrays shorter than count"
-            );
+        if (var1Index.length < count || var2Index.length < count || newValues.length < count)
+            throw new IllegalArgumentException("Input arrays shorter than count");
 
 
         int base = equation * termsPerEquation;//
@@ -122,6 +113,7 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
     }
 
     //There should be a better way of doing it, a loop is bad for something that should be time constant
+
     /**
      * Adds a coefficient to an existing quadratic term.
      *
@@ -132,30 +124,30 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
         if (value == 0.0)
             return;
 
-
         int base = equation * termsPerEquation;
-
         for (int i = 0; i < termsPerEquation; i++) {
-
             int idx = base + i;
 
-            if (var1Index[idx] == var1 &&
-                    var2Index[idx] == var2) {
-
+            if (var1Index[idx] == var1 && var2Index[idx] == var2) {
                 values[idx] += value;
                 return;
             }
         }
 
-
-        throw new IllegalStateException(
-                "Tensor entry does not exist: (" +
-                        equation + "," +
-                        var1 + "," +
-                        var2 + ")"
-        );
+        throw new IllegalStateException("Tensor entry does not exist: (" + equation + "," + var1 + "," + var2 + ")");
     }
 
+    @Override
+    public void apply(DoubleVector x, DoubleVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
+            multiply(xCpu.array(), resCpu.array());
+            return;
+        }
+
+        throw new UnsupportedOperationException(
+                "PaddedCSR2Tensor.apply(...) only supports CpuDoubleVector operands; got x="
+                        + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName());
+    }
 
     /**
      * Evaluates:
@@ -168,16 +160,16 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
      */
     public void multiply(double[] x, double[] result) {
 
-        final double[] values = this.values;
-        final int[] var1Index = this.var1Index;
-        final int[] var2Index = this.var2Index;
+        final double[] values    = this.values;
+        final int[]    var1Index = this.var1Index;
+        final int[]    var2Index = this.var2Index;
 
         for (int row = 0; row < equations; row++) {
 
             double sum = 0.0;
 
             int base = row * termsPerEquation;
-            int end = base + termsPerEquation;
+            int end  = base + termsPerEquation;
 
             for (int idx = base; idx < end; idx++) {
 
@@ -190,13 +182,6 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
         }
     }
 
-    @Override
-    public void apply(DoubleVector x, DoubleVector result) {
-        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
-            multiply(xCpu.array(), resCpu.array());
-        }
-    }
-
     //since it represent every possible compination of x_i*x_j. it's size(x) as input and equations as output. It should be able to be non squared.
     @Override
     public int inputSize() {
@@ -206,6 +191,18 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
     @Override
     public int outputSize() {
         return equations;
+    }
+
+    public void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result) {
+        if (x instanceof CpuDoubleVector xCpu && direction instanceof CpuDoubleVector dirCpu && result instanceof CpuDoubleVector resCpu) {
+            multiplyJacobian(xCpu.array(), dirCpu.array(), resCpu.array());
+            return;
+        }
+
+        throw new UnsupportedOperationException(
+                "PaddedCSR2Tensor.multiplyJacobian(...) only supports CpuDoubleVector operands; got x="
+                        + x.getClass().getSimpleName() + ", direction=" + direction.getClass().getSimpleName()
+                        + ", result=" + result.getClass().getSimpleName());
     }
 
     /**
@@ -224,19 +221,19 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
      *
      * <p>This avoids constructing the Jacobian matrix explicitly.
      *
-     * @param x point where the Jacobian is evaluated
+     * @param x         point where the Jacobian is evaluated
      * @param direction vector multiplied by the Jacobian
-     * @param result output vector; length must be at least {@code equations}
+     * @param result    output vector; length must be at least {@code equations}
      */
     public void multiplyJacobian(double[] x, double[] direction, double[] result) {
 
         // Local references so the JIT doesn't re-fetch instance fields on
         // every iteration of the inner loop.
-        final double[] values = this.values;
-        final int[] var1Index = this.var1Index;
-        final int[] var2Index = this.var2Index;
-        double sum, c;
-        int j, k;
+        final double[] values    = this.values;
+        final int[]    var1Index = this.var1Index;
+        final int[]    var2Index = this.var2Index;
+        double         sum, c;
+        int            j, k;
 
         for (int row = 0; row < equations; row++) {
 
@@ -262,12 +259,6 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
         }
     }
 
-    public void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result){
-        if (x instanceof CpuDoubleVector xCpu && direction instanceof CpuDoubleVector dirCpu && result instanceof CpuDoubleVector resCpu) {
-            multiplyJacobian(xCpu.array(), dirCpu.array(),  resCpu.array());
-        }
-    }
-
     public int equations() {
         return equations;
     }
@@ -289,6 +280,4 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
 
         equations = newEquations;
     }
-
-
 }

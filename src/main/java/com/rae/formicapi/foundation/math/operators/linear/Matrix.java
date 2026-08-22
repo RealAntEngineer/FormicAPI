@@ -27,7 +27,13 @@ public interface Matrix extends GeneralOperator {
     default void apply(DoubleVector x, DoubleVector result) {
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             multiply(xCpu.array(), resCpu.array());
+            return;
         }
+
+        throw new UnsupportedOperationException(
+                "Matrix.apply(...) default implementation only supports CpuDoubleVector operands; got x="
+                        + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName()
+                        + ". A backend-specific Matrix implementation should override apply() directly instead of relying on this default.");
     }
 
     /**
@@ -52,7 +58,13 @@ public interface Matrix extends GeneralOperator {
     default void transposeApply(DoubleVector x, DoubleVector result) {
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             transposeMultiply(xCpu.array(), resCpu.array());
+            return;
         }
+
+        throw new UnsupportedOperationException(
+                "Matrix.transposeApply(...) default implementation only supports CpuDoubleVector operands; got x="
+                        + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName()
+                        + ". A backend-specific Matrix implementation should override transposeApply() directly instead of relying on this default.");
     }
 
     /**
