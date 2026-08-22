@@ -3,6 +3,9 @@ package com.rae.formicapi.foundation.math.operators.backend.cpu;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class CpuExecutor implements AutoCloseable {
@@ -34,28 +37,46 @@ public final class CpuExecutor implements AutoCloseable {
     private final           double[]          doubleResults;
     private final           float[]           floatResults;
 
-    // Per-thread scratch buffers for parallelForAccumulate, sized lazily and
-    // reused across calls (resized only when the output length changes).
-    // Cleared fully at the start of every accumulate call - O(outputSize)
-    // per thread, unconditionally, regardless of how many entries actually
-    // get written. Each thread only ever touches its own buffer during the
+    // Per-thread scratch buffers for AccumulateJob, sized lazily and reused
+    // across calls (resized only when the output length changes). Cleared
+    // fully at the start of every accumulate call - O(outputSize) per
+    // thread, unconditionally, regardless of how many entries actually get
+    // written. Each thread only ever touches its own buffer during the
     // parallel phase - no shared memory writes, so no cross-thread
     // contention at all, atomic or otherwise. The tradeoff is the fixed
     // O(outputSize) clear + reduce cost per call, which is wasteful when
     // outputSize is much larger than the number of actual writes per call.
     private final double[][] accumBuffersD;
-    private final float[][]  accumBuffersF;
 
-    //TODO make a pool of tasks... this is not very extenable
-    private volatile @Nullable IntRangeTask    rangeTask;
-    private volatile @Nullable DoubleRangeTask reduceTaskDouble;
-    private volatile @Nullable FloatRangeTask  reduceTaskFloat;
-    private volatile @Nullable AccumulateTask  accumulateTask;
-    private volatile           int             currentSize;
-    private volatile @Nullable Mode            mode;
-    private                    int             accumOutputSize = -1;
-    private volatile           int             parallelThreshold;
-    private volatile           boolean         shutdown        = false;
+    /**
+     * Every {@code parallelFor}/{@code parallelReduceDouble}/{@code parallelReduceFloat}/
+     * {@code parallelForAccumulate} call wraps its work in a {@link Job} and
+     * enqueues it here instead of writing into shared fields directly. A
+     * {@code Job} is the single unit that: (a) gets queued and awaited by
+     * the calling thread, (b) is what each worker thread runs its
+     * {@code [start,end)} slice against, and (c) knows how to combine the
+     * per-worker results into a final value. Earlier versions kept those as
+     * three separate things - a {@code Mode} enum, one raw task field per
+     * mode (:{@code rangeTask}/{@code reduceTaskDouble}/{@code reduceTaskFloat}/
+     * {@code accumulateTask}), and a generic queue wrapper around a
+     * {@code Supplier} - which was really just one concept split three ways.
+     *
+     * <p>{@link #dispatcherThread} is the only thread that ever writes
+     * {@link #currentJob}, draining this queue strictly in submission order,
+     * so any number of caller threads can share one {@code CpuExecutor}
+     * safely; they just queue up.
+     */
+    private final BlockingQueue<Job<?>> jobQueue = new LinkedBlockingQueue<>();
+    private final Thread                dispatcherThread;
+
+    /**
+     * Owned exclusively by dispatcherThread. Workers only ever read it, guarded by the generation counter's happens-before edge.
+     */
+    private volatile @Nullable Job<?> currentJob;
+
+    private          int     accumOutputSize = -1;
+    private volatile int     parallelThreshold;
+    private volatile boolean shutdown        = false;
 
     //TODO decide who as the ownership of the threshold bwn the executable and the executor. Right now both have it but only used in the executable
     public CpuExecutor(int threads) {
@@ -75,13 +96,39 @@ public final class CpuExecutor implements AutoCloseable {
         this.doubleResults = new double[threads];
         this.floatResults = new float[threads];
         this.accumBuffersD = new double[threads][];
-        this.accumBuffersF = new float[threads][];
 
         for (int i = 0; i < threads; i++) {
             workers[i] = new CpuWorkerThread(this, i);
             workers[i].setDaemon(true);
             workers[i].start();
         }
+
+        this.dispatcherThread = new Thread(this::dispatcherLoop, "CpuExecutor-Dispatcher");
+        dispatcherThread.setDaemon(true);
+        dispatcherThread.start();
+    }
+
+    /**
+     * Runs on {@link #dispatcherThread} for the executor's whole lifetime, draining {@link #jobQueue} strictly in order.
+     */
+    private void dispatcherLoop() {
+        while (true) {
+            Job<?> job;
+            try {
+                job = jobQueue.take();
+            } catch (InterruptedException e) {
+                if (shutdown)
+                    break;
+                Thread.currentThread().interrupt();
+                continue;
+            }
+            job.execute();
+        }
+
+        // Unblock anyone still queued rather than leaving them hung forever.
+        Job<?> leftover;
+        while ((leftover = jobQueue.poll()) != null)
+            leftover.fail(new IllegalStateException("CpuExecutor was shut down"));
     }
 
     /**
@@ -175,11 +222,7 @@ public final class CpuExecutor implements AutoCloseable {
         if (size <= 0)
             return;
 
-        rangeTask = task;
-        currentSize = size;
-        mode = Mode.FOR;
-
-        waitForWorkers();
+        submitAndAwait(new ForJob(size, task));
     }
 
     /**
@@ -204,6 +247,79 @@ public final class CpuExecutor implements AutoCloseable {
     public void shutdown() {
         shutdown = true;
         generation.incrementAndGet();
+        dispatcherThread.interrupt();
+    }
+
+    /**
+     * Enqueues {@code job} and blocks the calling thread until
+     * {@link #dispatcherThread} has run it.
+     *
+     * <p>The {@code shutdown} check here is best-effort, not airtight: a
+     * call that passes it right as another thread calls {@link #shutdown()}
+     * could still enqueue after {@link #dispatcherLoop} has already moved
+     * into its drain-and-fail phase, in which case that job would sit
+     * unprocessed. Shutdown is meant to happen once, after all callers are
+     * done with this executor - not concurrently with in-flight calls - so
+     * this hasn't been hardened further.
+     */
+    private <T> T submitAndAwait(Job<T> job) {
+        if (shutdown)
+            throw new IllegalStateException("CpuExecutor is shut down");
+
+        jobQueue.add(job);
+        return job.await();
+    }
+
+    public double parallelReduceDouble(int size, DoubleRangeTask task) {
+        if (size <= 0)
+            return 0.0;
+
+        return submitAndAwait(new ReduceDoubleJob(size, task));
+    }
+
+    public float parallelReduceFloat(int size, FloatRangeTask task) {
+        if (size <= 0)
+            return 0.0f;
+
+        return submitAndAwait(new ReduceFloatJob(size, task));
+    }
+
+    /**
+     * Runs {@code task} over {@code [0, size)} in parallel, where each worker
+     * accumulates into its own private buffer of length {@code output.length}
+     * instead of writing directly into shared memory. This is the pattern
+     * needed for scatter-add workloads (e.g. transpose-multiply of a sparse
+     * matrix) where two different row ranges can legitimately touch the same
+     * output index and a plain {@link #parallelFor} would race.
+     *
+     * <p>Each thread's buffer starts and ends every call at all-zero, and
+     * gets summed into {@code output} once every worker has finished -
+     * O(output.length) per call regardless of how many entries a given call
+     * actually writes. There's no separate clear pass: buffers are reset to
+     * zero as a side effect of being folded into {@code output} (both the
+     * clear and the reduce would otherwise be O(output.length), so doing
+     * them as one pass instead of two roughly halves this operation's fixed
+     * overhead). {@code output} itself is added to, not overwritten -
+     * callers that want a fresh result should clear it first (as
+     * {@code transposeApply} does).
+     *
+     * <p>Deliberately not atomics-based: each thread only ever touches its
+     * own private buffer during the parallel phase, so there's no shared
+     * memory contention to pay for - not even the "no logical collision but
+     * still contends" cost an atomic CAS approach pays when two threads
+     * write to different indices that happen to share a 64-byte cache line.
+     * The tradeoff is a fixed O(output.length) cost per call no matter how
+     * sparse the actual writes are - and that cost is itself dispatched
+     * through a nested {@link ForJob} rather than run on the calling thread
+     * alone. It's the same order of magnitude as the actual per-thread
+     * compute work, so leaving it serial would cap the overall speedup by
+     * Amdahl's law regardless of how well the compute phase scales.
+     */
+    public void parallelForAccumulate(int size, double[] output, AccumulateTask task) {
+        if (size <= 0)
+            return;
+
+        submitAndAwait(new AccumulateJob(size, output, task));
     }
 
     private void waitForWorkers() {
@@ -268,124 +384,16 @@ public final class CpuExecutor implements AutoCloseable {
             if (shutdown)
                 return;
 
-            int chunk = (currentSize + threads - 1) / threads;
-            int start = id * chunk;
-            int end   = Math.min(currentSize, start + chunk);
-
-            switch (mode) {
-                case FOR -> {
-                    if (start < end && rangeTask != null)
-                        rangeTask.run(start, end);
-                }
-                case REDUCE_D ->
-                        doubleResults[id] = (start < end && reduceTaskDouble != null) ? reduceTaskDouble.run(start, end) : 0.0;
-                case REDUCE_F ->
-                        floatResults[id] = (start < end && reduceTaskFloat != null) ? reduceTaskFloat.run(start, end) : 0.0f;
-
-                case ACCUMULATE -> {//TODO what is the difference bwn accumulate and reduce ? -> it's over an entire array.
-                    // No Arrays.fill here: buffers start zero (fresh double[]
-                    // arrays default to 0.0) and get zeroed again during the
-                    // reduce pass below, so a separate O(cols) clear here
-                    // would just be paying for the same reset twice.
-                    //TODO where is the reduce pass ? In the matrix ?
-                    if (start < end && accumulateTask != null)
-                        accumulateTask.run(start, end, accumBuffersD[id]);
-                }
-                case null -> {
-                }
+            Job<?> job = currentJob;
+            if (job != null) {
+                int chunk = (job.size + threads - 1) / threads;
+                int start = id * chunk;
+                int end   = Math.min(job.size, start + chunk);
+                job.runRange(id, start, end);
             }
 
             completedGeneration[id * STRIDE] = seen;
         }
-    }
-
-    //TODO can cause huge issues if the worker is already executing something before it's beginning to set the tasks.
-    public double parallelReduceDouble(int size, DoubleRangeTask task) {
-        if (size <= 0)
-            return 0.0;
-
-        reduceTaskDouble = task;
-        currentSize = size;
-        mode = Mode.REDUCE_D;
-
-        waitForWorkers();
-
-        double result = 0;
-        for (double value : doubleResults)
-            result += value;
-
-        return result;
-    }
-
-    public float parallelReduceFloat(int size, FloatRangeTask task) {
-        if (size <= 0)
-            return 0.0f;
-
-        reduceTaskFloat = task;
-        currentSize = size;
-        mode = Mode.REDUCE_F;
-
-        waitForWorkers();
-
-        float result = 0;
-        for (float value : floatResults)
-            result += value;
-
-        return result;
-    }
-
-    /**
-     * Runs {@code task} over {@code [0, size)} in parallel, where each worker
-     * accumulates into its own private buffer of length {@code output.length}
-     * instead of writing directly into shared memory. This is the pattern
-     * needed for scatter-add workloads (e.g. transpose-multiply of a sparse
-     * matrix) where two different row ranges can legitimately touch the same
-     * output index and a plain {@link #parallelFor} would race.
-     *
-     * <p>Each thread's buffer starts and ends every call at all-zero, and
-     * gets summed into {@code output} once every worker has finished -
-     * O(output.length) per call regardless of how many entries a given call
-     * actually writes. There's no separate clear pass: buffers are reset to
-     * zero as a side effect of being folded into {@code output} (both the
-     * clear and the reduce would otherwise be O(output.length), so doing
-     * them as one pass instead of two roughly halves this operation's fixed
-     * overhead). {@code output} itself is added to, not overwritten -
-     * callers that want a fresh result should clear it first (as
-     * {@code transposeApply} does).
-     *
-     * <p>Deliberately not atomics-based: each thread only ever touches its
-     * own private buffer during the parallel phase, so there's no shared
-     * memory contention to pay for - not even the "no logical collision but
-     * still contends" cost an atomic CAS approach pays when two threads
-     * write to different indices that happen to share a 64-byte cache line.
-     * The tradeoff is a fixed O(output.length) cost per call no matter how
-     * sparse the actual writes are - and that cost is itself dispatched
-     * through {@link #parallelFor} (a second barrier) rather than run on the
-     * calling thread alone. It's the same order of magnitude as the actual
-     * per-thread compute work, so leaving it serial would cap the overall
-     * speedup by Amdahl's law regardless of how well the compute phase
-     * scales.
-     */
-    public void parallelForAccumulate(int size, double[] output, AccumulateTask task) {
-        if (size <= 0)
-            return;
-
-        ensureAccumBuffers(output.length);
-
-        accumulateTask = task;
-        currentSize = size;
-        mode = Mode.ACCUMULATE;
-
-        waitForWorkers();
-
-        parallelFor(output.length, (start, end) -> {
-            for (double[] local : accumBuffersD) {
-                for (int i = start; i < end; i++) {
-                    output[i] += local[i];
-                    local[i] = 0.0;
-                }
-            }
-        });
     }
 
     private void ensureAccumBuffers(int outputSize) {
@@ -395,8 +403,6 @@ public final class CpuExecutor implements AutoCloseable {
             accumOutputSize = outputSize;
         }
     }
-
-    private enum Mode {FOR, REDUCE_D, REDUCE_F, ACCUMULATE}
 
     @FunctionalInterface
     public interface IntRangeTask {
@@ -440,6 +446,200 @@ public final class CpuExecutor implements AutoCloseable {
         @Override
         public void run() {
             owner.workerLoop(id);
+        }
+    }
+
+    /**
+     * One dispatchable unit of work. Non-static inner class - each job needs
+     * its owning executor's worker count, result-slot arrays, and
+     * {@link #waitForWorkers()}, and a job only ever makes sense in the
+     * context of the {@code CpuExecutor} it was created for.
+     *
+     * <p>A job is three things at once, deliberately no longer split apart:
+     * <ul>
+     *     <li>what gets queued in {@link #jobQueue} and awaited by the caller ({@link #await()})</li>
+     *     <li>what each worker thread runs for its {@code [start,end)} slice ({@link #runRange})</li>
+     *     <li>what turns the per-worker results into this call's final value ({@link #combine})</li>
+     * </ul>
+     */
+    private abstract class Job<T> {
+
+        final int size;
+
+        private final     CountDownLatch   latch = new CountDownLatch(1);
+        private @Nullable T                result;
+        private @Nullable RuntimeException error;
+
+        Job(int size) {
+            this.size = size;
+        }
+
+        /**
+         * Runs on a worker thread: this job's contribution for the slice {@code [start, end)} of {@code [0, size)}.
+         */
+        abstract void runRange(int id, int start, int end);
+
+        /**
+         * Drives this job through the worker barrier and stores its outcome,
+         * unblocking whichever thread called {@link #await()}. Called either
+         * by {@link #dispatcherLoop} for jobs pulled off {@link #jobQueue},
+         * or directly (bypassing the queue) by another job's {@link #combine()}
+         * for a nested round - see {@link AccumulateJob#combine()}. Both
+         * cases only ever happen on {@code dispatcherThread}.
+         */
+        final void execute() {
+            try {
+                beforeDispatch();
+                currentJob = this;
+                waitForWorkers();
+                result = combine();
+            } catch (RuntimeException e) {
+                error = e;
+            } finally {
+                latch.countDown();
+            }
+        }
+
+        /**
+         * Optional per-job setup that must happen on {@link #dispatcherThread}
+         * before workers start (e.g. {@link AccumulateJob} sizing its scratch
+         * buffers) - anything here needs to be done exactly once, not once
+         * per worker, and before {@link #waitForWorkers()} lets workers see
+         * this job as {@link #currentJob}.
+         */
+        void beforeDispatch() {
+        }
+
+        /**
+         * Runs once on {@link #dispatcherThread}, after every worker has finished its slice, to produce this job's result.
+         */
+        abstract T combine();
+
+        final void fail(RuntimeException e) {
+            error = e;
+            latch.countDown();
+        }
+
+        final T await() {
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while waiting for a CpuExecutor job", e);
+            }
+            if (error != null)
+                throw error;
+            return result;
+        }
+    }
+
+    private final class ForJob extends Job<Void> {
+        private final IntRangeTask task;
+
+        ForJob(int size, IntRangeTask task) {
+            super(size);
+            this.task = task;
+        }
+
+        @Override
+        void runRange(int id, int start, int end) {
+            if (start < end)
+                task.run(start, end);
+        }
+
+        @Override
+        Void combine() {
+            return null;
+        }
+    }
+
+    private final class ReduceDoubleJob extends Job<Double> {
+        private final DoubleRangeTask task;
+
+        ReduceDoubleJob(int size, DoubleRangeTask task) {
+            super(size);
+            this.task = task;
+        }
+
+        @Override
+        void runRange(int id, int start, int end) {
+            doubleResults[id] = (start < end) ? task.run(start, end) : 0.0;
+        }
+
+        @Override
+        Double combine() {
+            double sum = 0.0;
+            for (double v : doubleResults)
+                sum += v;
+            return sum;
+        }
+    }
+
+    private final class ReduceFloatJob extends Job<Float> {
+        private final FloatRangeTask task;
+
+        ReduceFloatJob(int size, FloatRangeTask task) {
+            super(size);
+            this.task = task;
+        }
+
+        @Override
+        void runRange(int id, int start, int end) {
+            floatResults[id] = (start < end) ? task.run(start, end) : 0.0f;
+        }
+
+        @Override
+        Float combine() {
+            float sum = 0.0f;
+            for (float v : floatResults)
+                sum += v;
+            return sum;
+        }
+    }
+
+    private final class AccumulateJob extends Job<Void> {
+        private final AccumulateTask task;
+        private final double[]       output;
+
+        AccumulateJob(int size, double[] output, AccumulateTask task) {
+            super(size);
+            this.output = output;
+            this.task = task;
+        }
+
+        @Override
+        void runRange(int id, int start, int end) {
+            if (start < end)
+                task.run(start, end, accumBuffersD[id]);
+        }
+
+        @Override
+        Void combine() {
+            // Second barrier round to fold every thread's private buffer
+            // into output. Driven directly via execute(), not through
+            // submitAndAwait/jobQueue: we're already running on
+            // dispatcherThread inside this job's own execute() call, and
+            // going through the queue would enqueue onto the same queue
+            // this job is currently being drained from - dispatcherThread
+            // would then be waiting on a latch only itself could count down.
+            new ForJob(output.length, (start, end) -> {
+                for (double[] local : accumBuffersD) {
+                    for (int i = start; i < end; i++) {
+                        output[i] += local[i];
+                        local[i] = 0.0;
+                    }
+                }
+            }).execute();
+
+            return null;
+        }
+
+        @Override
+        void beforeDispatch() {
+            // Must happen before workers see this job (they index straight
+            // into accumBuffersD[id]) and must happen exactly once per call,
+            // not once per worker - hence here, not in runRange.
+            ensureAccumBuffers(output.length);
         }
     }
 }

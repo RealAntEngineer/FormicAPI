@@ -278,4 +278,14 @@ public class PaddedCSRTensor implements NonlinearOperator {
             multiply(xCpu.array(), resCpu.array());
         }
     }
+
+    @Override
+    public int inputSize() {
+        return equations;
+    }
+
+    @Override
+    public int outputSize() {
+        return equations;
+    }
 }

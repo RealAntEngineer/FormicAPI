@@ -196,6 +196,18 @@ public class PaddedCSR2Tensor implements NonlinearOperator {
             multiply(xCpu.array(), resCpu.array());
         }
     }
+
+    //since it represent every possible compination of x_i*x_j. it's size(x) as input and equations as output. It should be able to be non squared.
+    @Override
+    public int inputSize() {
+        return equations;
+    }
+
+    @Override
+    public int outputSize() {
+        return equations;
+    }
+
     /**
      * Evaluates the Jacobian-vector product:
      *
