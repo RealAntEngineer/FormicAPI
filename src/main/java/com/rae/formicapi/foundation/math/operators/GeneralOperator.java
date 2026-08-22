@@ -13,6 +13,8 @@ public interface GeneralOperator {
      */
     void apply(DoubleVector x, DoubleVector result);
 
+    void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result);
+
     int inputSize();
 
     int outputSize();

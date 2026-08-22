@@ -37,6 +37,14 @@ public interface Matrix extends GeneralOperator {
     }
 
     /**
+     * When the operator is linear the Jacobian can be directly expressed by apply.
+     */
+    @Override
+    default void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result){
+        apply(direction, result);//TODO is it x or direction ?
+    }
+
+    /**
      * Multiplies this matrix by vector {@code x}, storing Ax in {@code result}.
      *
      * @param x      input vector of length {@link #cols()}

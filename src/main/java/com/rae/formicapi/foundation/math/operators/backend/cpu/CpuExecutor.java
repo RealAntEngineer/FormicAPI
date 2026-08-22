@@ -3,9 +3,8 @@ package com.rae.formicapi.foundation.math.operators.backend.cpu;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class CpuExecutor implements AutoCloseable {
@@ -48,7 +47,7 @@ public final class CpuExecutor implements AutoCloseable {
     // outputSize is much larger than the number of actual writes per call.
     private final double[][] accumBuffersD;
 
-    /**
+    /*
      * Every {@code parallelFor}/{@code parallelReduceDouble}/{@code parallelReduceFloat}/
      * {@code parallelForAccumulate} call wraps its work in a {@link Job} and
      * enqueues it here instead of writing into shared fields directly. A
@@ -65,9 +64,19 @@ public final class CpuExecutor implements AutoCloseable {
      * {@link #currentJob}, draining this queue strictly in submission order,
      * so any number of caller threads can share one {@code CpuExecutor}
      * safely; they just queue up.
+     *
+     * <p>{@link ConcurrentLinkedQueue}, not a blocking queue: both the
+     * dequeue side ({@link #dispatcherLoop}) and each job's completion
+     * signal ({@link Job#await()}) spin instead of parking, matching the
+     * worker barrier's existing {@link Thread#onSpinWait()} approach. A
+     * blocking queue + {@code CountDownLatch} pairing was tried first and
+     * measured noticeably less consistent timings - every dispatch was
+     * paying for two OS-scheduled thread wakeups (dispatcher off
+     * {@code take()}, caller off {@code await()}) that don't exist in the
+     * spin-based version.
      */
-    private final BlockingQueue<Job<?>> jobQueue = new LinkedBlockingQueue<>();
-    private final Thread                dispatcherThread;
+    private final Queue<Job<?>> jobQueue = new ConcurrentLinkedQueue<>();
+    private final Thread        dispatcherThread;
 
     /**
      * Owned exclusively by dispatcherThread. Workers only ever read it, guarded by the generation counter's happens-before edge.
@@ -112,20 +121,18 @@ public final class CpuExecutor implements AutoCloseable {
      * Runs on {@link #dispatcherThread} for the executor's whole lifetime, draining {@link #jobQueue} strictly in order.
      */
     private void dispatcherLoop() {
-        while (true) {
-            Job<?> job;
-            try {
-                job = jobQueue.take();
-            } catch (InterruptedException e) {
-                if (shutdown)
-                    break;
-                Thread.currentThread().interrupt();
+        while (!shutdown) {
+            Job<?> job = jobQueue.poll();
+
+            if (job == null) {
+                Thread.onSpinWait();
                 continue;
             }
+
             job.execute();
         }
 
-        // Unblock anyone still queued rather than leaving them hung forever.
+        // Unblock anyone still queued rather than leaving them spinning forever.
         Job<?> leftover;
         while ((leftover = jobQueue.poll()) != null)
             leftover.fail(new IllegalStateException("CpuExecutor was shut down"));
@@ -247,7 +254,6 @@ public final class CpuExecutor implements AutoCloseable {
     public void shutdown() {
         shutdown = true;
         generation.incrementAndGet();
-        dispatcherThread.interrupt();
     }
 
     /**
@@ -466,9 +472,9 @@ public final class CpuExecutor implements AutoCloseable {
 
         final int size;
 
-        private final     CountDownLatch   latch = new CountDownLatch(1);
-        private @Nullable T                result;
-        private @Nullable RuntimeException error;
+        private volatile boolean          done = false;
+        private          T                result;
+        private          RuntimeException error;
 
         Job(int size) {
             this.size = size;
@@ -481,11 +487,12 @@ public final class CpuExecutor implements AutoCloseable {
 
         /**
          * Drives this job through the worker barrier and stores its outcome,
-         * unblocking whichever thread called {@link #await()}. Called either
-         * by {@link #dispatcherLoop} for jobs pulled off {@link #jobQueue},
-         * or directly (bypassing the queue) by another job's {@link #combine()}
-         * for a nested round - see {@link AccumulateJob#combine()}. Both
-         * cases only ever happen on {@code dispatcherThread}.
+         * unblocking whichever thread is spinning in {@link #await()}.
+         * Called either by {@link #dispatcherLoop} for jobs pulled off
+         * {@link #jobQueue}, or directly (bypassing the queue) by another
+         * job's {@link #combine()} for a nested round - see
+         * {@link AccumulateJob#combine()}. Both cases only ever happen on
+         * {@code dispatcherThread}.
          */
         final void execute() {
             try {
@@ -496,7 +503,7 @@ public final class CpuExecutor implements AutoCloseable {
             } catch (RuntimeException e) {
                 error = e;
             } finally {
-                latch.countDown();
+                done = true; // publishes result/error - must be the last write
             }
         }
 
@@ -517,16 +524,13 @@ public final class CpuExecutor implements AutoCloseable {
 
         final void fail(RuntimeException e) {
             error = e;
-            latch.countDown();
+            done = true;
         }
 
         final T await() {
-            try {
-                latch.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted while waiting for a CpuExecutor job", e);
-            }
+            while (!done)
+                Thread.onSpinWait();
+
             if (error != null)
                 throw error;
             return result;

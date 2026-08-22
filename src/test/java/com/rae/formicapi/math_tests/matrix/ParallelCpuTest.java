@@ -41,7 +41,7 @@ public class ParallelCpuTest {
 
 
         generateMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
-        CpuExecutor     executor = new CpuExecutor(8);
+
         CpuDoubleVector x        = new CpuDoubleVector(rows);
 
         for (int i = 0; i < rows; i++)
@@ -65,12 +65,14 @@ public class ParallelCpuTest {
         // Parallel
 
         //System.out.println("detected "+Runtime.getRuntime().availableProcessors()+ " available processors");
+        CpuExecutor     executor = new CpuExecutor(4);
         matrix.setExecutor(executor);
         start = System.nanoTime();
         for (int i = 0; i < 1000; i++) {
             matrix.apply(x, parallel);
         }
         time = (System.nanoTime() - start);
+        executor.shutdown();
 
         System.out.println("parallel took " + time / 1000);
         System.out.println("effective ns/row :" + ((float) time / rows / 1000));
@@ -106,8 +108,7 @@ public class ParallelCpuTest {
 
         generateMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
 
-        CpuExecutor executor = new CpuExecutor(4);
-        matrix.setExecutor(executor);
+
 
         CpuDoubleVector x = new CpuDoubleVector(rows);
 
@@ -115,8 +116,7 @@ public class ParallelCpuTest {
             x.array()[i] = random.nextDouble();
 
         CpuDoubleVector serialResult   = new CpuDoubleVector(rows);
-        CpuDoubleVector parallelResult = new CpuDoubleVector(rows);
-        parallelResult.setExecutor(executor);
+
 
         // Serial
         long start = System.nanoTime();
@@ -129,12 +129,17 @@ public class ParallelCpuTest {
         System.out.println("effective ns/row :" + ((float) time / rows / 1000));
 
         // Parallel
+        CpuExecutor executor = new CpuExecutor(4);
+        matrix.setExecutor(executor);
+        CpuDoubleVector parallelResult = new CpuDoubleVector(rows);
+        parallelResult.setExecutor(executor);
+
         start = System.nanoTime();
         for (int i = 0; i < 1000; i++) {
             matrix.transposeApply(x, parallelResult);
         }
         time = System.nanoTime() - start;
-
+        executor.shutdown();
         System.out.println("parallel took " + time / 1000);
         System.out.println("effective ns/row :" + ((float) time / rows / 1000));
 
@@ -189,9 +194,9 @@ public class ParallelCpuTest {
 
         generateMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
 
-        CpuExecutor executor = new CpuExecutor(4);
+
         try {
-            matrix.setExecutor(executor);
+
 
             double[] bArr = new double[rows];
             for (int i = 0; i < rows; i++)
@@ -201,12 +206,14 @@ public class ParallelCpuTest {
             // with the other through the same backing array.
             CpuDoubleVector bParallel = new CpuDoubleVector(bArr.clone());
             CpuDoubleVector bSerial   = new CpuDoubleVector(bArr.clone());
+            CpuExecutor executor = new CpuExecutor(4);
             bParallel.setExecutor(executor);
 
             int maxIter = 500;
             double tol = 1e-2;
 
             CpuDoubleVector xParallel = new CpuDoubleVector(rows);
+            matrix.setExecutor(executor);
             xParallel.setExecutor(executor);
 
             WorkingBuffer[] parallelBuffer = createBuffers(rows, rows, executor);
@@ -216,9 +223,11 @@ public class ParallelCpuTest {
                     parallelBuffer[0], parallelBuffer[1]);
 
             long end = System.nanoTime();
-
+            executor.shutdown();
             System.out.println("parallel took "+ (end  - start)/rows + "ns/row");
             System.out.println("parallel took "+ (end  - start)/rows/iterationsParallel + "ns/row");
+
+
             CpuDoubleVector xSerial       = new CpuDoubleVector(rows);
             WorkingBuffer[] serialBuffers = createBuffers(rows, rows, null);
             start = System.nanoTime();
@@ -241,18 +250,18 @@ public class ParallelCpuTest {
 
             // And check it's actually solving the system, not just agreeing on
             // a wrong answer: ||Ax - b|| should be small relative to ||b||.
-            CpuDoubleVector residual = new CpuDoubleVector(rows);
+           /* CpuDoubleVector residual = new CpuDoubleVector(rows);
             residual.setExecutor(executor);
             matrix.apply(xParallel, residual);
             residual.scale(-1.0);
             residual.add(bParallel);
 
-            double relativeResidual = residual.norm() / bParallel.norm();
+            double relativeResidual = residual.norm() / bParallel.norm();*/
             /*assertTrue(relativeResidual < 1e-4,
                     "Relative residual too large: " + relativeResidual);*/
 
         } finally {
-            executor.shutdown();
+
         }
     }
 
