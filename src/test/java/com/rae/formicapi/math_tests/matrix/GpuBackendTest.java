@@ -1,9 +1,6 @@
 package com.rae.formicapi.math_tests.matrix;
 
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuBooleanVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuIntegerVector;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.*;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -309,5 +306,465 @@ class GpuBackendTest {
             expected += a[idx[i]] * b[i];
 
         assertEquals(expected, va.skippedDot(vb, vIdx), EPSILON);
+    }
+
+    // ---------------------------------------------------------------- GpuPaddedCSRMatrix
+
+    @Test
+    void matrixConstructionAndMetadata() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 4, 2);
+        matrix.setExecutor(executor);
+
+        assertEquals(3, matrix.rows());
+        assertEquals(4, matrix.cols());
+        assertEquals(2, matrix.nnzPerRow());
+        assertEquals(6, matrix.getValues().length);
+        assertEquals(6, matrix.getColIndex().length);
+    }
+
+    @Test
+    void matrixSetRowAndGetMatchExpected() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 5, 3);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{2.0, 4.0},
+                new int[]{1, 3},
+                2
+        );
+
+        matrix.setRow(
+                1,
+                new double[]{5.0, -1.0, 7.0},
+                new int[]{0, 2, 4},
+                3
+        );
+
+        assertEquals(2.0, matrix.get(0, 1), EPSILON);
+        assertEquals(4.0, matrix.get(0, 3), EPSILON);
+        assertEquals(0.0, matrix.get(0, 0), EPSILON);
+
+        assertEquals(5.0, matrix.get(1, 0), EPSILON);
+        assertEquals(-1.0, matrix.get(1, 2), EPSILON);
+        assertEquals(7.0, matrix.get(1, 4), EPSILON);
+        assertEquals(0.0, matrix.get(1, 1), EPSILON);
+    }
+
+    @Test
+    void matrixSetRowZeroPadsUnusedEntries() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 5, 3);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{2.0},
+                new int[]{4},
+                1
+        );
+
+        assertArrayEquals(
+                new double[]{2.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                matrix.getValues(),
+                EPSILON
+        );
+
+        // The padded column indices are implementation details and should not
+        // contribute because their corresponding values are zero.
+        assertEquals(0.0, matrix.get(0, 0), EPSILON);
+        assertEquals(0.0, matrix.get(0, 1), EPSILON);
+        assertEquals(0.0, matrix.get(0, 2), EPSILON);
+        assertEquals(0.0, matrix.get(0, 3), EPSILON);
+        assertEquals(2.0, matrix.get(0, 4), EPSILON);
+    }
+
+    @Test
+    void matrixAddAndSetMatchExpected() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 3, 2);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{2.0, 3.0},
+                new int[]{0, 2},
+                2
+        );
+
+        matrix.set(0, 0, 10.0);
+        assertEquals(10.0, matrix.get(0, 0), EPSILON);
+
+        matrix.add(0, 0, 5.0);
+        assertEquals(15.0, matrix.get(0, 0), EPSILON);
+
+        matrix.add(0, 2, -1.0);
+        assertEquals(2.0, matrix.get(0, 2), EPSILON);
+    }
+
+    @Test
+    void matrixApplyMatchesExpected() {
+        /*
+         *     [ 2  0  3  0 ]
+         * A = [ 0 -1  0  4 ]
+         *     [ 5  0  0  6 ]
+         */
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 4, 2);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{2.0, 3.0},
+                new int[]{0, 2},
+                2
+        );
+
+        matrix.setRow(
+                1,
+                new double[]{-1.0, 4.0},
+                new int[]{1, 3},
+                2
+        );
+
+        matrix.setRow(
+                2,
+                new double[]{5.0, 6.0},
+                new int[]{0, 3},
+                2
+        );
+
+        GpuDoubleVector x = new GpuDoubleVector(
+                executor,
+                new double[]{1.0, 2.0, 3.0, 4.0}
+        );
+
+        GpuDoubleVector result = new GpuDoubleVector(executor, 0);
+
+        matrix.apply(x, result);
+
+        assertEquals(3, result.size());
+        assertArrayEquals(
+                new double[]{
+                        2.0 * 1.0 + 3.0 * 3.0,
+                        -1.0 * 2.0 + 4.0 * 4.0,
+                        5.0 * 1.0 + 6.0 * 4.0
+                },
+                result.download(),
+                EPSILON
+        );
+    }
+
+    @Test
+    void matrixTransposeApplyMatchesExpected() {
+        /*
+         *     [ 2  0  3  0 ]
+         * A = [ 0 -1  0  4 ]
+         *     [ 5  0  0  6 ]
+         *
+         * A^T y =
+         * [ 2*y0 + 5*y2,
+         *  -y1,
+         *  3*y0,
+         *  4*y1 + 6*y2 ]
+         */
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 4, 2);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{2.0, 3.0},
+                new int[]{0, 2},
+                2
+        );
+
+        matrix.setRow(
+                1,
+                new double[]{-1.0, 4.0},
+                new int[]{1, 3},
+                2
+        );
+
+        matrix.setRow(
+                2,
+                new double[]{5.0, 6.0},
+                new int[]{0, 3},
+                2
+        );
+
+        GpuDoubleVector x = new GpuDoubleVector(
+                executor,
+                new double[]{10.0, 20.0, 30.0}
+        );
+
+        GpuDoubleVector result = new GpuDoubleVector(executor, 0);
+
+        matrix.transposeApply(x, result);
+
+        assertEquals(4, result.size());
+        assertArrayEquals(
+                new double[]{
+                        2.0 * 10.0 + 5.0 * 30.0,
+                        -1.0 * 20.0,
+                        3.0 * 10.0,
+                        4.0 * 20.0 + 6.0 * 30.0
+                },
+                result.download(),
+                EPSILON
+        );
+    }
+
+    @Test
+    void matrixApplyHandlesPaddedRows() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 4, 4);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{2.0, 3.0},
+                new int[]{0, 2},
+                2
+        );
+
+        matrix.setRow(
+                1,
+                new double[]{4.0},
+                new int[]{3},
+                1
+        );
+
+        GpuDoubleVector x = new GpuDoubleVector(
+                executor,
+                new double[]{1.0, 2.0, 3.0, 4.0}
+        );
+
+        GpuDoubleVector result = new GpuDoubleVector(executor, 0);
+
+        matrix.apply(x, result);
+
+        assertArrayEquals(
+                new double[]{
+                        2.0 * 1.0 + 3.0 * 3.0,
+                        4.0 * 4.0
+                },
+                result.download(),
+                EPSILON
+        );
+    }
+
+    @Test
+    void matrixResizePreservesExistingRows() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 4, 2);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{2.0, 3.0},
+                new int[]{0, 2},
+                2
+        );
+
+        matrix.setRow(
+                1,
+                new double[]{4.0},
+                new int[]{3},
+                1
+        );
+
+        matrix.resize(4);
+
+        assertEquals(4, matrix.rows());
+        assertEquals(4, matrix.cols());
+        assertEquals(2, matrix.nnzPerRow());
+
+        assertEquals(2.0, matrix.get(0, 0), EPSILON);
+        assertEquals(3.0, matrix.get(0, 2), EPSILON);
+        assertEquals(4.0, matrix.get(1, 3), EPSILON);
+
+        assertEquals(0.0, matrix.get(2, 0), EPSILON);
+        assertEquals(0.0, matrix.get(3, 0), EPSILON);
+    }
+
+    @Test
+    void matrixResizeShrinkTruncatesRows() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(4, 3, 2);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{1.0},
+                new int[]{0},
+                1
+        );
+
+        matrix.setRow(
+                1,
+                new double[]{2.0},
+                new int[]{1},
+                1
+        );
+
+        matrix.setRow(
+                2,
+                new double[]{3.0},
+                new int[]{2},
+                1
+        );
+
+        matrix.setRow(
+                3,
+                new double[]{4.0},
+                new int[]{0},
+                1
+        );
+
+        matrix.resize(2);
+
+        assertEquals(2, matrix.rows());
+        assertEquals(1.0, matrix.get(0, 0), EPSILON);
+        assertEquals(2.0, matrix.get(1, 1), EPSILON);
+
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> matrix.get(2, 0)
+        );
+    }
+
+    @Test
+    void matrixRejectsInvalidDimensions() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GpuPaddedCSRMatrix(-1, 3, 2)
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GpuPaddedCSRMatrix(3, -1, 2)
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GpuPaddedCSRMatrix(3, 3, 0)
+        );
+    }
+
+    @Test
+    void matrixRejectsInvalidRowsAndSetRowCounts() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 3, 2);
+        matrix.setExecutor(executor);
+
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> matrix.get(-1, 0)
+        );
+
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> matrix.get(2, 0)
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> matrix.setRow(
+                        0,
+                        new double[]{1.0},
+                        new int[]{0},
+                        3
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> matrix.setRow(
+                        0,
+                        new double[]{},
+                        new int[]{0},
+                        1
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> matrix.setRow(
+                        0,
+                        new double[]{1.0},
+                        new int[]{},
+                        1
+                )
+        );
+    }
+
+    @Test
+    void matrixApplyRejectsWrongVectorSize() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 3, 2);
+        matrix.setExecutor(executor);
+
+        GpuDoubleVector x = new GpuDoubleVector(
+                executor,
+                new double[]{1.0, 2.0}
+        );
+
+        GpuDoubleVector result = new GpuDoubleVector(executor, 0);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> matrix.apply(x, result)
+        );
+    }
+
+    @Test
+    void matrixTransposeApplyRejectsWrongVectorSize() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 3, 2);
+        matrix.setExecutor(executor);
+
+        GpuDoubleVector x = new GpuDoubleVector(
+                executor,
+                new double[]{1.0, 2.0, 3.0}
+        );
+
+        GpuDoubleVector result = new GpuDoubleVector(executor, 0);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> matrix.transposeApply(x, result)
+        );
+    }
+
+    @Test
+    void matrixGetReturnsZeroForMissingEntry() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 4, 2);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{5.0},
+                new int[]{2},
+                1
+        );
+
+        assertEquals(5.0, matrix.get(0, 2), EPSILON);
+        assertEquals(0.0, matrix.get(0, 0), EPSILON);
+        assertEquals(0.0, matrix.get(0, 1), EPSILON);
+        assertEquals(0.0, matrix.get(0, 3), EPSILON);
+    }
+
+    @Test
+    void matrixSetAndAddMissingEntryThrow() {
+        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 4, 2);
+        matrix.setExecutor(executor);
+
+        matrix.setRow(
+                0,
+                new double[]{5.0},
+                new int[]{2},
+                1
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> matrix.set(0, 1, 10.0)
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> matrix.add(0, 1, 10.0)
+        );
     }
 }

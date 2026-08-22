@@ -40,7 +40,7 @@ import static org.jocl.CL.*;
  * float.
  */
 public final class GpuExecutor implements AutoCloseable {
-//TODO generate with claude, treat with caution
+//TODO generated with claude, treat with caution
     /**
      * Preferred local work-group size for elementwise/reduction kernels; capped to the device's actual max.
      */
@@ -425,33 +425,35 @@ public final class GpuExecutor implements AutoCloseable {
         return clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_char, null, null);
     }
 
+    //TODO enrich the tests with offsets
     public synchronized void uploadDoubles(cl_mem buffer, double[] host, int length) {
-        uploadDoubles(buffer, 0, host, length);
+        uploadDoubles(buffer, 0, host, 0, length);
     }
 
-    public synchronized void uploadDoubles(cl_mem buffer, int elementOffset, double[] host, int length) {
+    public synchronized void uploadDoubles(cl_mem buffer, int elementOffset, double[] host, int hostOffset, int length) {
         clEnqueueWriteBuffer(queue, buffer, CL_TRUE, (long) elementOffset * Sizeof.cl_double,
-                (long) length * Sizeof.cl_double, Pointer.to(host), 0, null, null);
+                (long) length * Sizeof.cl_double, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_double), 0, null, null);
     }
 
     public synchronized void uploadInts(cl_mem buffer, int[] host, int length) {
-        uploadInts(buffer, 0, host, length);
+        uploadInts(buffer, 0, host, 0, length);
     }
 
-    public synchronized void uploadInts(cl_mem buffer, int elementOffset, int[] host, int length) {
+    public synchronized void uploadInts(cl_mem buffer, int elementOffset, int[] host, int hostOffset,int length) {
         clEnqueueWriteBuffer(queue, buffer, CL_TRUE, (long) elementOffset * Sizeof.cl_int,
-                (long) length * Sizeof.cl_int, Pointer.to(host), 0, null, null);
+                (long) length * Sizeof.cl_int, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_int), 0, null, null);
     }
 
     public synchronized void downloadInts(cl_mem buffer, int[] host, int length) {
-        downloadInts(buffer, 0, host, length);
+        downloadInts(buffer, 0, host,0, length);
     }
 
-    public synchronized void downloadInts(cl_mem buffer, int elementOffset, int[] host, int length) {
+    public synchronized void downloadInts(cl_mem buffer, int elementOffset, int[] host, int hostOffset, int length) {
         clEnqueueReadBuffer(queue, buffer, CL_TRUE, (long) elementOffset * Sizeof.cl_int,
-                (long) length * Sizeof.cl_int, Pointer.to(host), 0, null, null);
+                (long) length * Sizeof.cl_int, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_int), 0, null, null);
     }
 
+    //TODO add the offset logic to bytes
     public synchronized void uploadBytes(cl_mem buffer, byte[] host, int length) {
         clEnqueueWriteBuffer(queue, buffer, CL_TRUE, 0, (long) length * Sizeof.cl_char, Pointer.to(host), 0, null, null);
     }

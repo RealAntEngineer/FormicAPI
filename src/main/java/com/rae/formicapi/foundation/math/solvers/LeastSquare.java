@@ -94,7 +94,7 @@ public class LeastSquare {
         for (int iter = 0; iter < maxIter; iter++) {
             // u = A*v - alpha*u
             A.apply(v, temp);
-            u.scale(-alpha);//TODO verify that this works
+            u.scale(-alpha);
             u.add(temp);
 
 

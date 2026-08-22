@@ -40,6 +40,7 @@ public interface DoubleVector extends Vector {
 
     void scale(double a);
 
+    //TODO add a substract op ?
     void add(double a);
 
     void add(Vector x);
