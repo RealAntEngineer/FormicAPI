@@ -1,6 +1,9 @@
 package com.rae.formicapi.foundation.math.operators.vectors;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -37,9 +40,13 @@ public final class WorkingBuffer<T extends Vector> {
      * @return reusable vector
      */
     public T get(int index) {
-        return (T) vectors[index];
+        return Objects.requireNonNull((T) vectors[index]);
     }
 
+
+    public int vectorNumber(){
+        return vectors.length;
+    }
 
     /**
      * Ensures all vectors have the requested size.

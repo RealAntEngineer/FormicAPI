@@ -1,5 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jocl.cl_mem;
@@ -7,10 +8,10 @@ import org.jocl.cl_mem;
 /**
  * GPU backend for {@link IntegerVector}. Mainly exists to hold the index
  * buffers ({@code unknowIdx} in {@link DoubleVector#skippedDot}, {@code idx}
- * in {@link DoubleVector#scatterAxpy}) on-device so kernels can read them
+ * in {@link DoubleVector#skippedAxpy}) on-device so kernels can read them
  * directly rather than paying a host round-trip per call.
  *
- * <p>{@link #get(int)} / {@link #set(boolean, int)}-style single-element
+ * <p>{@link #get(int)} / -style single-element
  * access is implemented via a blocking 1-element transfer - correct, but a
  * device round-trip per call. Fine for setup/debugging; for bulk index data
  * prefer {@link #upload(int[])} / {@link #download()}.
@@ -24,6 +25,7 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
     public GpuIntegerVector(GpuExecutor executor, int[] hostData) {
         this(executor, hostData.length);
         upload(hostData);
+        requireExecutor().finish();
     }
 
     public GpuIntegerVector(GpuExecutor executor, int size) {
@@ -40,6 +42,7 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
         if (host.length != size)
             throw new IllegalArgumentException("host array length " + host.length + " != vector size " + size);
         requireExecutor().uploadInts(buffer, host, size);
+        requireExecutor().finish();
     }
 
     public int[] download() {
@@ -80,12 +83,14 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
 
         resize(vec.size);
         requireExecutor().copyIntBuffer(vec.buffer, buffer, vec.size);
+        requireExecutor().finish();
     }
 
     @Override
     public IntegerVector copy() {
         GpuIntegerVector out = new GpuIntegerVector(requireExecutor(), size);
         requireExecutor().copyIntBuffer(buffer, out.buffer, size);
+        requireExecutor().finish();
         return out;
     }
 
@@ -93,6 +98,7 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
     public void clear() {
         int[] zeros = new int[size];
         requireExecutor().uploadInts(buffer, zeros, size);
+        requireExecutor().finish();
     }
 
     /**

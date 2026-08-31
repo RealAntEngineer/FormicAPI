@@ -13,7 +13,7 @@ import java.util.Arrays;
  * F_i(x) = sum(c * x[j1] * x[j2] * ... * x[jN-1])
  * </pre>
  *
- * <p>This mirrors {@link CpuPaddedCSRMatrix} and {@link CpuPaddedCSR2Tensor}:
+ * <p>This mirrors {@link CpuPaddedCSRMatrix} and {@link CpuPaddedCSR3Tensor}:
  * storage/structure mutation ({@link #setRow}, {@link #add}, {@link #resize})
  * is identical to the plain tensor, but evaluation goes through
  * {@link Vector}s and is parallelized across equations via a

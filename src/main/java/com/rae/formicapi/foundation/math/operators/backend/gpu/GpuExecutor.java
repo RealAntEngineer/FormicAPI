@@ -345,7 +345,9 @@ public final class GpuExecutor implements AutoCloseable {
             for (cl_device_id candidate : devicesOf(platform, CL_DEVICE_TYPE_GPU)) {
                 if (supportsFp64(candidate))
                     return candidate;
+                System.out.println("GPU not supporting F64");
             }
+            System.out.println("No gpu defaulting to CPU");
             for (cl_device_id candidate : devicesOf(platform, CL_DEVICE_TYPE_ALL)) {
                 if (fallback == null && supportsFp64(candidate))
                     fallback = candidate;

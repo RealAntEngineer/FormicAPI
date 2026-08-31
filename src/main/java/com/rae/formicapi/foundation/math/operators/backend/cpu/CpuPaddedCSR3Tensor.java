@@ -24,7 +24,7 @@ import java.util.Arrays;
  * {@code PaddedCSR2Tensor}: a term-major layout would be preferable for a
  * GPU backend, but is fine here since threads/tasks are split by row range).
  */
-public class CpuPaddedCSR2Tensor extends CpuExecutable {
+public class CpuPaddedCSR3Tensor extends CpuExecutable {
 
     private final int      termsPerEquation;
     private       int      equations;
@@ -49,7 +49,7 @@ public class CpuPaddedCSR2Tensor extends CpuExecutable {
      * @param equations        number of output equations
      * @param termsPerEquation fixed number of quadratic terms per equation
      */
-    public CpuPaddedCSR2Tensor(int equations, int termsPerEquation) {
+    public CpuPaddedCSR3Tensor(int equations, int termsPerEquation) {
         this.equations = equations;
         this.termsPerEquation = termsPerEquation;
 

@@ -32,6 +32,7 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     public GpuDoubleVector(GpuExecutor executor, double[] hostData) {
         this(executor, hostData.length);
         upload(hostData);
+        requireExecutor().finish();
     }
 
     public GpuDoubleVector(GpuExecutor executor, int size) {
@@ -40,6 +41,7 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
         this.size = size;
         this.buffer = executor.allocateDoubleBuffer(Math.max(size, 1));
         executor.fillDoubleBuffer(buffer, 0.0, size);
+        requireExecutor().finish();
     }
 
     // ---------------------------------------------------------------- host interop
@@ -93,36 +95,62 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public void axpy(double a, DoubleVector x) {
-        GpuDoubleVector vec = requireSameBackend(x);
-        requireExecutor().launchAxpy(buffer, a, vec.buffer, size);
+    public double skippedDot(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip) {
+        return 0;
     }
 
     @Override
-    public void scatterAxpy(double alpha, DoubleVector source, IntegerVector unknowIdx) {
-        GpuDoubleVector vec = requireSameBackend(source);
+    public void axpy(double a, DoubleVector x) {
+        GpuDoubleVector vec = requireSameBackend(x);
+        requireExecutor().launchAxpy(buffer, a, vec.buffer, size);
+        requireExecutor().finish();
+    }
+
+    @Override
+    public void skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx, boolean thisSkipped, boolean otherSkipped) {
+        GpuDoubleVector vec = requireSameBackend(other);
         if (!(unknowIdx instanceof GpuIntegerVector gpuIdx))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + unknowIdx.getClass());
 
         requireExecutor().launchScatterAxpy(buffer, alpha, vec.buffer, gpuIdx.buffer(), unknowIdx.size());
+        requireExecutor().finish();
     }
 
     @Override
     public void scale(double a) {
         requireExecutor().launchScale(buffer, a, size);
+        requireExecutor().finish();
     }
 
     @Override
     public void add(double a) {
         requireExecutor().launchAddScalar(buffer, a, size);
+        requireExecutor().finish();
     }
 
     @Override
-    public void add(Vector x) {
+    public void add(DoubleVector x) {
         GpuDoubleVector vec = requireSameBackend(x);
         requireExecutor().launchAddVector(buffer, vec.buffer, size);
+        requireExecutor().finish();
     }
 
+    @Override
+    public void skippedAdd(DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+
+    }
+
+    @Override
+    public void subtract(DoubleVector x) {
+
+    }
+
+    @Override
+    public void skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+
+    }
+
+    //TODO this probably belong to Executable directly ? or maybe annotation ?
     private GpuDoubleVector requireSameBackend(Vector x) {
         if (!(x instanceof GpuDoubleVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
@@ -140,7 +168,7 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     public void resize(int newSize) {
         GpuExecutor ctx = requireExecutor();
 
-        if (newSize >= capacity) {
+        if (newSize > capacity) {
             cl_mem newBuffer = ctx.allocateDoubleBuffer(Math.max(newSize, 1));
             ctx.fillDoubleBuffer(newBuffer, 0.0, newSize);
             if (capacity > 0)
@@ -158,18 +186,21 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
         GpuDoubleVector vec = requireSameBackend(x);
         resize(vec.size);
         requireExecutor().copyDoubleBuffer(vec.buffer, buffer, vec.size);
+        requireExecutor().finish();
     }
 
     @Override
     public Vector copy() {
         GpuDoubleVector out = new GpuDoubleVector(requireExecutor(), size);
         requireExecutor().copyDoubleBuffer(buffer, out.buffer, size);
+        requireExecutor().finish();
         return out;
     }
 
     @Override
     public void clear() {
         requireExecutor().fillDoubleBuffer(buffer, 0.0, size);
+        requireExecutor().finish();
     }
 
     /**

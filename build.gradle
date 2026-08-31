@@ -250,7 +250,7 @@ jmh {
     //locale = 'en_US'
 
     // Optional: reduce jar size by including only your benchmarks
-    includes = ['.*Benchmark.*']
+    includes = ['.GpuPaddedCSRMatrixBenchmark.*']
 }
 
 /*

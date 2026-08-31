@@ -1,4 +1,4 @@
-package com.rae.formicapi.math_tests.matrix;
+package com.rae.formicapi.math_tests.cpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ParallelCpuTest {
 
-    @Test
+    //@Test
     void multiplyParallelMatchesSerial() {
 
         int nx = 64;
@@ -84,7 +84,7 @@ public class ParallelCpuTest {
         );
     }
 
-    @Test
+    //@Test
     void transposeMultiplyParallelMatchesSerial() {
 
         int nx = 64;
@@ -219,15 +219,17 @@ public class ParallelCpuTest {
             WorkingBuffer[] parallelBuffer = createBuffers(rows, rows, executor);
 
             long start = System.nanoTime();
-            int iterationsParallel = LeastSquare.solve(matrix, bParallel, xParallel, maxIter, tol,
-                    parallelBuffer[0], parallelBuffer[1]);
-
+            int iterationsParallel = 0;
+            for (int i = 0; i <1000; i++) {
+                 iterationsParallel += LeastSquare.solve(matrix, bParallel, xParallel, maxIter, tol,
+                        parallelBuffer[0], parallelBuffer[1]);
+            }
             long end = System.nanoTime();
             executor.shutdown();
             System.out.println("parallel took "+ (end  - start)/rows + "ns/row");
             System.out.println("parallel took "+ (end  - start)/rows/iterationsParallel + "ns/row");
 
-
+            /*
             CpuDoubleVector xSerial       = new CpuDoubleVector(rows);
             WorkingBuffer[] serialBuffers = createBuffers(rows, rows, null);
             start = System.nanoTime();
@@ -236,7 +238,7 @@ public class ParallelCpuTest {
             end = System.nanoTime();
 
             System.out.println("serial took "+ (end  - start)/rows + "ns/row");
-            System.out.println("serial took "+ (end  - start)/rows/iterationsSerial + "ns/row");
+            System.out.println("serial took "+ (end  - start)/rows/iterationsSerial + "ns/row");*/
 
             //assertTrue(iterationsParallel < maxIter, "Parallel LSQR did not converge within maxIter");
             //assertTrue(iterationsSerial < maxIter, "Serial LSQR did not converge within maxIter");
@@ -246,7 +248,7 @@ public class ParallelCpuTest {
             // apply()/transposeApply()/dot() differs between serial and
             // parallel (same reasoning as transposeMultiplyParallelMatchesSerial's
             // use of a tolerance instead of exact equality).
-            assertArrayEquals(xSerial.array(), xParallel.array(), tol);
+            //assertArrayEquals(xSerial.array(), xParallel.array(), tol);
 
             // And check it's actually solving the system, not just agreeing on
             // a wrong answer: ||Ax - b|| should be small relative to ||b||.

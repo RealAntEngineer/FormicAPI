@@ -1,4 +1,4 @@
-package com.rae.formicapi.math_tests.matrix;
+package com.rae.formicapi.math_tests.nonlinear;
 
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import org.junit.jupiter.api.Test;

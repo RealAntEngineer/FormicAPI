@@ -17,7 +17,10 @@ public interface DoubleVector extends Vector {
      */
     double dot(DoubleVector other);
 
-    double skippedDot(DoubleVector other, IntegerVector unknowIdx);
+    default double skippedDot(DoubleVector other, IntegerVector unknowIdx){
+        return skippedDot(other, unknowIdx, true, false);
+    }
+    double skippedDot(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
 
     /**
      * Performs:
@@ -31,17 +34,33 @@ public interface DoubleVector extends Vector {
      */
     void axpy(double a, DoubleVector x);
 
+    default void skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx) {
+        skippedAxpy(alpha, other, unknowIdx, true, false);
+    }
+
     /**
      * Scattered axpy: this[unknowIdx.get(i)] += alpha * source.get(i), for i in [0, unknowIdx.size()).
      * The scatter counterpart of skippedDot — same index-remap contract, opposite direction
      * (skippedDot gathers into a reduction, this scatters into positions of `this`).
      */
-    void scatterAxpy(double alpha, DoubleVector source, IntegerVector unknowIdx);
+    void skippedAxpy(double alpha, DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
 
     void scale(double a);
 
-    //TODO add a substract op ?
     void add(double a);
 
-    void add(Vector x);
+    void add(DoubleVector x);
+
+    default void skippedAdd(DoubleVector source, IntegerVector unknowIdx) {
+        skippedAdd(source, unknowIdx, true, false);
+    }
+
+    void skippedAdd(DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+
+    void subtract(DoubleVector x);
+
+    void skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+
+
+    //TODO add fluent chain version ?
 }

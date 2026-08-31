@@ -5,7 +5,11 @@ import com.rae.formicapi.foundation.math.operators.linear.Matrix;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 
+@SuppressWarnings("unused")
 public class GMRES {
+
+
+    //TODO improve the memory allocations here.
 
     private static final int RESIDUAL = 0;
     private static final int TEMP = 1;
@@ -168,7 +172,7 @@ public class GMRES {
 
         int k = iter + 1;
 
-        double[] y = new double[k];
+        double[] y = new double[k];//Should be ok since it's only iter + 1 long.
 
         for (int i = k - 1; i >= 0; i--) {
             double value = g[i];

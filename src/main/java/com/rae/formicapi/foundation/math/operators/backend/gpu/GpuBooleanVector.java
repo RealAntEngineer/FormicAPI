@@ -22,6 +22,7 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
     public GpuBooleanVector(GpuExecutor executor, boolean[] hostData) {
         this(executor, hostData.length);
         upload(hostData);
+        requireExecutor().finish();
     }
 
     public GpuBooleanVector(GpuExecutor executor, int size) {
@@ -30,6 +31,7 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
         this.size = size;
         this.buffer = executor.allocateByteBuffer(Math.max(size, 1));
         executor.fillByteBuffer(buffer, (byte) 0, size);
+        requireExecutor().finish();
     }
 
     public void upload(boolean[] host) {
@@ -77,7 +79,7 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
     public void resize(int newSize) {
         GpuExecutor ctx = requireExecutor();
 
-        if (newSize >= capacity) {
+        if (newSize > capacity) {
             cl_mem newBuffer = ctx.allocateByteBuffer(Math.max(newSize, 1));
             ctx.fillByteBuffer(newBuffer, (byte) 0, newSize);
             if (capacity > 0)
@@ -97,18 +99,21 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
 
         resize(vec.size);
         requireExecutor().copyByteBuffer(vec.buffer, buffer, vec.size);
+        requireExecutor().finish();
     }
 
     @Override
     public Vector copy() {
         GpuBooleanVector out = new GpuBooleanVector(requireExecutor(), size);
         requireExecutor().copyByteBuffer(buffer, out.buffer, size);
+        requireExecutor().finish();
         return out;
     }
 
     @Override
     public void clear() {
         requireExecutor().fillByteBuffer(buffer, (byte) 0, size);
+        requireExecutor().finish();
     }
 
     public void release() {

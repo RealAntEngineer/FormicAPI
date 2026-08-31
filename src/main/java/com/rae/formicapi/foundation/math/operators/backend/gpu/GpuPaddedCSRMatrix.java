@@ -2,6 +2,7 @@ package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import org.jetbrains.annotations.Nullable;
 import org.jocl.cl_mem;
 
 import java.util.Arrays;
@@ -16,8 +17,8 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
     private double[] values;
     private int[] colIndex;
 
-    private cl_mem dValues;
-    private cl_mem dColIndex;
+    private @Nullable cl_mem dValues;
+    private @Nullable cl_mem dColIndex;
 
     public GpuPaddedCSRMatrix(int rows, int cols, int nnzPerRow) {
         if (rows < 0)
@@ -40,14 +41,23 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
     }
 
     @Override
-    public void setExecutor(GpuExecutor executor) {
+    public void setExecutor(@Nullable GpuExecutor executor) {
+        GpuExecutor previous = getExecutor();
         super.setExecutor(executor);
 
-        if (dValues != null)
-            executor.release(dValues);
+        if (previous != null) {
+            if (dValues != null)
+                previous.release(dValues);
 
-        if (dColIndex != null)
-            executor.release(dColIndex);
+            if (dColIndex != null)
+                previous.release(dColIndex);
+
+            dValues = null;
+            dColIndex = null;
+        }
+
+        if (executor == null)
+            return;
 
         dValues = executor.allocateDoubleBuffer(Math.max(values.length, 1));
         dColIndex = executor.allocateIntBuffer(Math.max(colIndex.length, 1));
@@ -76,14 +86,8 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
 
         result.resize(rows);
         //ptr what ?
-        requireExecutor().launchCsrMatvec(
-                dValues,
-                dColIndex,
-                nnzPerRow,
-                gpuX.buffer(),
-                gpuResult.buffer(),
-                rows
-        );
+        requireExecutor().launchCsrMatvec(dValues, dColIndex, nnzPerRow, gpuX.buffer(), gpuResult.buffer(), rows);
+        requireExecutor().finish();
     }
 
     @Override
@@ -107,14 +111,8 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
 
         gpuResult.clear();
 
-        requireExecutor().launchCsrMatvecTranspose(
-                dValues,
-                dColIndex,
-                nnzPerRow,
-                gpuX.buffer(),
-                gpuResult.buffer(),
-                rows
-        );
+        requireExecutor().launchCsrMatvecTranspose(dValues, dColIndex, nnzPerRow, gpuX.buffer(), gpuResult.buffer(), rows);
+        requireExecutor().finish();
     }
 
     @Override
@@ -199,21 +197,9 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
             colIndex[base + i] = row < cols ? row : 0;
         }
 
-        requireExecutor().uploadDoubles(
-                dValues,
-                base,
-                values,
-                base,
-                nnzPerRow
-        );
-
-        requireExecutor().uploadInts(
-                dColIndex,
-                base,
-                colIndex,
-                base,
-                nnzPerRow
-        );
+        requireExecutor().uploadDoubles(dValues, base, values, base, nnzPerRow);
+        requireExecutor().uploadInts(dColIndex, base, colIndex, base, nnzPerRow);
+        requireExecutor().finish();
     }
 
     public void resize(int newRows) {
@@ -226,8 +212,10 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         colIndex = Arrays.copyOf(colIndex, newLength);
 
         rows = newRows;
+        cols = newRows;
 
         requireExecutor();
+        assert executor != null;
 
         cl_mem newValues =
                 executor.allocateDoubleBuffer(Math.max(newLength, 1));

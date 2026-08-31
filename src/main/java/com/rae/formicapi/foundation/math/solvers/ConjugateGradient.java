@@ -69,8 +69,8 @@ public class ConjugateGradient {
      * Solve {@code Ax = b} from an initial guess, allocating working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static double[] solve(Matrix A, double[] x, double[] b, int maxIter, double tol) {
-        DoubleVector xv = new CpuDoubleVector(x);
+    public static double[] solve(Matrix A, double[] x_init, double[] b, int maxIter, double tol) {
+        DoubleVector xv = new CpuDoubleVector(x_init);
         solve(A, xv, new CpuDoubleVector(b), maxIter, tol);
         return ((CpuDoubleVector) xv).array();
     }
@@ -238,7 +238,7 @@ public class ConjugateGradient {
      * The only genuinely indexed operation left is placing the compact,
      * equation-space residual {@code r} into the free positions of the
      * variable-space direction {@code p}; that's exactly what
-     * {@link DoubleVector#scatterAxpy} is for, the scatter counterpart of
+     * {@link DoubleVector#skippedAxpy} is for, the scatter counterpart of
      * {@link DoubleVector#skippedDot}. No vector's backing array is ever touched
      * directly, so this runs on whatever backend {@code x}/{@code b}/the buffers
      * belong to.
@@ -318,14 +318,14 @@ public class ConjugateGradient {
 
         // p = scatter(r) into variable space; stays zero at every fixed index.
         p.clear();
-        p.scatterAxpy(1.0, r, unknownIdx);
+        p.skippedAxpy(1.0, r, unknownIdx, true, false);
 
         double rsold = r.dot(r);
 
         for (int k = 0; k < maxIter; k++) {
             A.apply(p, Ap);
 
-            double dotPAp = p.skippedDot(Ap, unknownIdx);
+            double dotPAp = p.skippedDot(Ap, unknownIdx, true, false);
             if (dotPAp == 0) return k; // already at solution or breakdown
 
             double alpha = rsold / dotPAp;
@@ -342,7 +342,7 @@ public class ConjugateGradient {
             // p[unknownIdx[i]] = r[i] + beta*p[unknownIdx[i]], for all free i;
             // fixed indices stay at beta*0 = 0.
             p.scale(beta);
-            p.scatterAxpy(1.0, r, unknownIdx);
+            p.skippedAxpy(1.0, r, unknownIdx, false, true);
             rsold = rsnew;
         }
         return maxIter;
