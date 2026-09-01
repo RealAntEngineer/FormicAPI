@@ -5,6 +5,8 @@ import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
 import com.rae.formicapi.foundation.math.solvers.BiCGStab;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -136,17 +138,9 @@ class BiCGStabTest {
 
         double[] b = {4, 13};
 
-        double[] r = new double[2];
-        double[] rHat = new double[2];
-        double[] p = new double[3];
-        double[] v = new double[2];
-        double[] s = new double[3];
-        double[] t = new double[2];
-        int[] unknown = new int[2];
+        x = BiCGStab.solveConstrained(A, x, fixed, b, 100, 1e-12);
 
-        BiCGStab.solveConstrained(A, x, fixed, b, 100, 1e-12, false,
-                r, rHat, p, v, s, t, unknown);
-
+        System.out.println(Arrays.toString(x));
 
         assertEquals(1.4, x[0], EPS);
         assertEquals(1.2, x[1], EPS);

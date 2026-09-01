@@ -1,9 +1,11 @@
 package com.rae.formicapi.math_tests.solvers;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
 
@@ -36,20 +38,11 @@ public class NewtonKrylovTest {
 
         double[] x = {0, 0};
 
-        double[] Ax = new double[2];
-        double[] F = new double[2];
-        double[] dx = new double[2];
-        double[] r = new double[2];
-        double[] rHat0 = new double[2];
-        double[] p = new double[2];
-        double[] v = new double[2];
-        double[] s = new double[2];
-        double[] t = new double[2];
-
-        NewtonKrylov.solve(C, A, x, b,
+        NewtonKrylov.solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b),
                 20, 20,
-                1e-12, 1e-12,
-                Ax,F, dx, r, rHat0, p, v, s, t);
+                1e-12, 1e-12,null, null, null,
+                new WorkingBuffer<>(7, () -> new CpuDoubleVector(A.outputSize())),
+                new WorkingBuffer<>(3, () -> new CpuDoubleVector(A.outputSize())));
 
         assertArrayEquals(new double[]{1.0, 2.0}, x, 1e-8);
     }
@@ -144,18 +137,11 @@ public class NewtonKrylovTest {
     private static void solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b) {
 
         int n = b.length;
-
-        NewtonKrylov.solve(C, A, x, b,
+        CpuDoubleVector xVec = new CpuDoubleVector(x);
+        NewtonKrylov.solve(C, A, xVec, new CpuDoubleVector(b),
                 50, 50,
-                1e-12, 1e-12,
-                new double[n],
-                new double[n],
-                new double[n],
-                new double[n],
-                new double[n],
-                new double[n],
-                new double[n],
-                new double[n],
-                new double[n]);
+                1e-12, 1e-12,null, null, null,
+                new WorkingBuffer<>(7, () -> new CpuDoubleVector(n)),
+                new WorkingBuffer<>(3, () -> new CpuDoubleVector(n)));
     }
 }

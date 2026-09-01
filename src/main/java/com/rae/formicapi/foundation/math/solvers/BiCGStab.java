@@ -6,6 +6,7 @@ import com.rae.formicapi.foundation.math.operators.linear.Matrix;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Biconjugate Gradient Stabilized (BiCGSTAB) solver for general (non-symmetric)
@@ -23,25 +24,15 @@ import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 @SuppressWarnings("unused")
 public class BiCGStab {
 
-    // Equation-space buffers.
+    // Constrained equation-space buffers.
     private static final int R  = 0;
     private static final int R0 = 1;
-    private static final int V  = 2;
-    private static final int T     = 3;
-
-    // Variable-space buffers.
-    private static final int P = 4;
-    private static final int S = 5;
-
-    // Constrained equation-space buffers.
-    private static final int CR  = 0;
-    private static final int CR0 = 1;
-    private static final int CV  = 2;
-    private static final int CT  = 3;
+    private static final int V = 2;
+    private static final int T = 3;
 
     // Constrained variable-space buffers.
-    private static final int CP = 0;
-    private static final int CS = 1;
+    private static final int P = 0;
+    private static final int S = 1;
 
 
     /**
@@ -65,126 +56,11 @@ public class BiCGStab {
 
     public static int solve(Matrix A, DoubleVector x, DoubleVector b, int maxIter, double tol) {
         int n = A.rows();
-        return solve(A, x, b, maxIter, tol, new WorkingBuffer<>(6, () -> new CpuDoubleVector(n)));
-    }
+        int m = A.cols();
 
-    /**
-     * Solve {@code Ax = b} using BiCGSTAB, with a warm start and caller-supplied
-     * working buffers.
-     *
-     * <p>{@code x} is used as both the initial guess and the output — pass
-     * {@code x_next} from the previous tick for warm-starting. The array is
-     * overwritten in-place; no solution array is allocated.
-     *
-     * <p>All working arrays are overwritten on every call. Their values between
-     * calls are undefined and must not be read by the caller.
-     *
-     * <p>Requires {@code A} to be square. Unlike {@link ConjugateGradient}, {@code A}
-     * need not be symmetric or positive definite.
-     *
-     * @param A       matrix, must be square ({@code rows == cols})
-     * @param x       initial guess on entry, solution on exit — length {@code n}
-     * @param b       right-hand side — length {@code n}
-     * @param maxIter maximum iterations before returning current best estimate
-     * @param tol     convergence threshold on {@code ||r||₂}
-     * @return {@code k} (same array as input, for chaining)
-     * @throws IllegalArgumentException if matrix is not square or buffer sizes mismatch
-     */
-    public static int solve(Matrix A, DoubleVector x, DoubleVector b, int maxIter, double tol, WorkingBuffer<DoubleVector> buffers) {
-        int n = A.outputSize();
-        int m = A.inputSize();
-
-        if (n != m)
-            throw new IllegalArgumentException(
-                    "Non constrained BiCGSTAB requires a square matrix: rows=" + n + ", cols=" + m);
-        if (x.size() != n)
-            throw new IllegalArgumentException(
-                    "x length (" + x.size() + ") != matrix size (" + n + ")");
-        if (b.size() != n)
-            throw new IllegalArgumentException(
-                    "b length (" + b.size() + ") != matrix size (" + n + ")");
-        if (buffers.vectorNumber() < 6 || buffers.get(R).size() < n || buffers.get(R0).size() < n || buffers.get(P).size() < n
-                || buffers.get(V).size() < n || buffers.get(S).size() < n || buffers.get(T).size() < n)
-            throw new IllegalArgumentException(
-                    "Working buffers r/rHat0/p/v/s/t must have length >= " + n);
-
-        // r = b - A*x ; rHat0 = r (fixed shadow residual, arbitrary choice)
-        A.apply(x, buffers.get(V)); // use v as temp for the initial residual
-
-
-        /*for (int i = 0; i < n; i++) {
-            r[i] = b[i] - v[i];
-            rHat0[i] = r[i];
-            p[i] = 0;
-            v[i] = 0;
-        }*/
-        buffers.get(R).clear();
-        buffers.get(R).add(b);
-        buffers.get(R).subtract(buffers.get(V));
-
-        buffers.get(R0).clear();
-        buffers.get(R0).add(buffers.get(R));
-
-        buffers.get(P).clear();
-        buffers.get(V).clear();
-
-        double rho = 1, alpha = 1, omega = 1;
-
-        if (buffers.get(R).norm() < tol) return 0;
-        int k = 0;
-        for (;k < maxIter; k++) {
-            //
-
-            double rhoNew = buffers.get(R0).dot(buffers.get(R));
-            if (rhoNew == 0) break; // breakdown: rHat0 orthogonal to r
-
-            double beta = (rhoNew / rho) * (alpha / omega);
-            //for (int i = 0; i < n; i++) p[i] = r[i] + beta * (p[i] - omega * v[i]);
-
-            buffers.get(P).axpy(-omega, buffers.get(V));
-            buffers.get(P).scale(beta);//to eliminate the previous P
-            buffers.get(P).add(buffers.get(R));
-
-            A.apply(buffers.get(P), buffers.get(V));
-
-            double rHat0v = buffers.get(R0).dot(buffers.get(V));//dot(rHat0, v, n);
-            if (rHat0v == 0) break; // breakdown
-            alpha = rhoNew / rHat0v;
-
-            //for (int i = 0; i < n; i++) s[i] = r[i] - alpha * v[i];
-            buffers.get(S).clear();
-            buffers.get(S).add(buffers.get(R));
-            buffers.get(S).axpy( -alpha, buffers.get(V));
-
-            double sNorm = buffers.get(S).norm();//Math.sqrt(dot(s, s, n));
-            if (sNorm < tol) {
-                //for (int i = 0; i < n; i++) x[i] += alpha * p[i];
-                x.axpy(alpha, buffers.get(P));
-                return k + 1;
-            }
-
-            A.apply(buffers.get(S), buffers.get(T));
-
-            double tDotT = buffers.get(T).dot(buffers.get(T));//dot(t, t, n);
-            omega = (tDotT == 0) ? 0 : buffers.get(T).dot(buffers.get(S)) / tDotT;// dot(t, s, n) / tDotT;
-            if (omega == 0) break; // breakdown
-
-            //for (int i = 0; i < n; i++) x[i] += alpha * p[i] + omega * s[i];
-            x.axpy(alpha, buffers.get(P));
-            x.axpy(omega, buffers.get(S));
-
-            //for (int i = 0; i < n; i++) r[i] = s[i] - omega * t[i];
-            buffers.get(R).clear();
-            buffers.get(R).add(buffers.get(S));
-            buffers.get(R).axpy(-omega, buffers.get(T));
-
-            if (buffers.get(R).norm() < tol)
-                return k + 1;
-
-            rho = rhoNew;
-        }
-
-        return k;
+        return solve(A, x, b, maxIter, tol, null, null,
+                new WorkingBuffer<>(4, () -> new CpuDoubleVector(n)),
+                new WorkingBuffer<>(2, () -> new CpuDoubleVector(m)));
     }
 
     /**
@@ -197,7 +73,10 @@ public class BiCGStab {
         int n = A.rows();
         DoubleVector xv = new CpuDoubleVector(x);
         DoubleVector bv = new CpuDoubleVector(b);
-        solveConstrained(A, xv, fixedVariables, bv, maxIter, tol, new CpuIntegerVector(n));
+
+        IntegerVector unknownIdx = new CpuIntegerVector(n);
+        Util.fillUnknowIdx(fixedVariables, unknownIdx, A.inputSize(), A.outputSize());
+        solveConstrained(A, xv, bv, maxIter, tol, unknownIdx);
         return ((CpuDoubleVector) xv).array();
     }
 
@@ -205,13 +84,15 @@ public class BiCGStab {
      * Solve a constrained system, allocating its working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static int solveConstrained(Matrix A, DoubleVector x, boolean[] fixedVariables, DoubleVector b,
+    public static int solveConstrained(Matrix A, DoubleVector x, DoubleVector b,
                                        int maxIter, double tol, IntegerVector unknownIdx) {
         int n = A.rows();
         int m = A.cols();
-        return solveConstrained(A, x, fixedVariables, b, maxIter, tol, unknownIdx,
-                new WorkingBuffer<>(2, () -> new CpuDoubleVector(n)),
-                new WorkingBuffer<>(1, () -> new CpuDoubleVector(m)));
+
+
+        return solve(A, x, b, maxIter, tol, unknownIdx,null,
+                new WorkingBuffer<>(4, () -> new CpuDoubleVector(n)),
+                new WorkingBuffer<>(3, () -> new CpuDoubleVector(m)));
     }
 
     /**
@@ -246,14 +127,13 @@ public class BiCGStab {
      *
      * @param A matrix representing the constrained system
      * @param x initial guess on entry, solution on exit; fixed entries remain unchanged
-     * @param fixedVariables boolean mask indicating fixed variables. A {@code true}
-     *        entry means that the corresponding entry of {@code x} is prescribed
-     *        and excluded from the solve
      * @param b right-hand side vector; one entry per equation
      * @param maxIter maximum number of BiCGSTAB iterations
      * @param tol convergence threshold on the residual norm {@code ||r||₂}
      * @param unknownIdx working index vector of size {@code n}; after initialization,
      *        {@code unknownIdx[equationIndex] = variableIndex}
+     * @param scaling equation space scaling for normalising the residual to avoid
+     *
      * @param nBuffer working buffer providing 4 vectors of size {@code n}:
      *        residual {@code r}, shadow residual {@code rHat0}, {@code A*p} {@code v},
      *        and {@code A*s} {@code t}
@@ -267,13 +147,22 @@ public class BiCGStab {
      * @throws IllegalStateException if the number of free variables does not equal
      *         the number of equations
      */
-    public static int solveConstrained(Matrix A, DoubleVector x, boolean[] fixedVariables, DoubleVector b, int maxIter, double tol,
-                                       IntegerVector unknownIdx, WorkingBuffer<DoubleVector> nBuffer, WorkingBuffer<DoubleVector> mBuffer) {
+    public static int solve(Matrix A, DoubleVector x, DoubleVector b, int maxIter, double tol,
+                            @Nullable IntegerVector unknownIdx, @Nullable DoubleVector scaling,
+                            WorkingBuffer<DoubleVector> nBuffer, WorkingBuffer<DoubleVector> mBuffer) {
         int n = A.rows();
         int m = A.cols();
 
+        boolean constrained = unknownIdx != null;
+        boolean scalePrecondition = scaling != null;
+        //TODO this is scaling on input, should test scaling on output
+        // equivalent to solve si * (Aij * xj) = si * bi
 
-        if (n > m)
+
+        if (!constrained && n != m)
+            throw new IllegalArgumentException("BiCGSTAB unconstrained requires a square matrix: " +
+                    "rows=" + n + ", cols=" + m);
+        if (constrained && n > m)
             throw new IllegalArgumentException("BiCGSTAB constrained requires an under constrained matrix: " +
                     "rows=" + n + ", cols=" + m);
 
@@ -283,50 +172,41 @@ public class BiCGStab {
         if (b.size() != n)
             throw new IllegalArgumentException("b size (" + b.size() + ") != matrix rows (" + n + ")");
 
-        if (nBuffer.vectorNumber() < 4 || nBuffer.get(CR).size() < n || nBuffer.get(CR0).size() < n
-                || nBuffer.get(CV).size() < n || nBuffer.get(CT).size() < n)
-            throw new IllegalArgumentException("Equation working buffers r/rHat0/v/t must have length >= " + n);
+        if (nBuffer.vectorNumber() < 4 || nBuffer.get(R).size() < n || nBuffer.get(R0).size() < n
+                || nBuffer.get(V).size() < n || nBuffer.get(T).size() < n)
+            throw new IllegalArgumentException("Equation working buffers r/r0/v/t must have length >= " + n);
 
-        if (mBuffer.vectorNumber() < 2 || mBuffer.get(CP).size() < m || mBuffer.get(CS).size() < m)
+        if (mBuffer.vectorNumber() < 2|| mBuffer.get(P).size() < m || mBuffer.get(S).size() < m)
             throw new IllegalArgumentException("Variable working buffers p/s must have length >= " + m);
 
-        if (unknownIdx.size() < n)
+        if (constrained && unknownIdx.size() < n)
             throw new IllegalArgumentException("unknownIdx size (" + unknownIdx.size() + ") < matrix rows (" + n + ")");
 
-        DoubleVector r = nBuffer.get(CR);
-        DoubleVector rHat0 = nBuffer.get(CR0);
-        DoubleVector v = nBuffer.get(CV);
-        DoubleVector t = nBuffer.get(CT);
+        if (scalePrecondition && scaling.size() < n)
+            throw new IllegalArgumentException("scaling size (" + scaling.size() + ") < matrix rows (" + n + ")");
 
-        DoubleVector p = mBuffer.get(CP);
-        DoubleVector s = mBuffer.get(CS);
+        DoubleVector r = nBuffer.get(R);
+        DoubleVector r0 = nBuffer.get(R0);
+        DoubleVector v = nBuffer.get(V);
+        DoubleVector t = nBuffer.get(T);
 
-        int idx = 0;//todo THIS WILL NOT WORK ON GPU !!!
-        for (int i = 0; i < m; i++) {
-            if (!fixedVariables[i]) {
-                //overload the method to choose bwn fixedVariables[] and unknownIdx. ->
-                // given the memory access of such a methode you need to set on the cpu and send to the gpu in batch.
-
-                //also add patern recognition for the fixedVariables : if the fixedVariables array is a multiple of m it should repeat itself.
-                if (idx >= n)
-                    throw new IllegalStateException("BiCGSTAB requires number of free variables == equations");
-                unknownIdx.set(i, idx);
-                idx++;
-            }
-        }
+        DoubleVector p = mBuffer.get(P);
+        DoubleVector s = mBuffer.get(S);
 
         p.clear();
         s.clear();
 
-        // r = b - A*x ; rHat0 = r (fixed shadow residual, arbitrary choice)
-        A.apply(x, v); // use v as temp for the initial residual
+        // r = b - A*x ; r0 = r (fixed shadow residual, arbitrary choice)
+        A.apply(x, v); // use v as temp for the initial residual and z as conditioned space
 
         r.clear();
         r.add(b);
         r.subtract(v);
 
-        rHat0.clear();
-        rHat0.add(r);
+        if (scalePrecondition) r.scale(scaling);
+
+        r0.clear();
+        r0.add(r);
 
         p.clear();
         s.clear();
@@ -339,45 +219,66 @@ public class BiCGStab {
 
         int k = 0;
         for (; k < maxIter; k++) {
-            double rhoNew = rHat0.dot(r);
-            if (rhoNew == 0) break; // breakdown: rHat0 orthogonal to r
+            double rhoNew = r0.dot(r);
+            if (rhoNew == 0) break; // breakdown: r0 orthogonal to r
 
             double beta = (rhoNew / rho) * (alpha / omega);
 
-            p.skippedAxpy(-omega,v, unknownIdx, true, false);
-            p.scale(beta); // fine for fixed direction since 0 * beta = 0
-            p.skippedAdd(r, unknownIdx, true, false);
-
+            if (constrained) {
+                p.skippedAxpy(-omega, v, unknownIdx, true, false);
+                p.scale(beta); // fine for fixed direction since 0 * beta = 0
+                p.skippedAdd(r, unknownIdx, true, false);
+            } else {
+                p.axpy(-omega, v);
+                p.scale(beta);
+                p.add(r);
+            }
 
             A.apply(p, v);
+            if (scalePrecondition) v.scale(scaling);
 
-            double rHat0v = v.dot(rHat0);
-            if (rHat0v == 0) break; // breakdown
-            alpha = rhoNew / rHat0v;
+            double r0v = r0.dot(v);
+            if (r0v == 0) break; // breakdown
+            alpha = rhoNew / r0v;
 
-            s.skippedAxpy(-alpha, v, unknownIdx, true, false);
-            s.skippedAdd(r, unknownIdx, true, false);
+            s.clear();
+            if (constrained) {
+                s.skippedAxpy(-alpha, v, unknownIdx, true, false);
+                s.skippedAdd(r, unknownIdx, true, false);
+            } else {
+                s.axpy(-alpha, v);
+                s.add(r);
+            }
 
-            double sNorm = Math.sqrt(s.skippedDot(s, unknownIdx, true, false));
-
+            double sNorm = constrained ? Math.sqrt(s.skippedDot(s, unknownIdx, true, true)) : s.norm();
             if (sNorm < tol) {
-                x.skippedAxpy(alpha, p, unknownIdx, true, true);
+                if (constrained) x.skippedAxpy(alpha, p, unknownIdx, true, true);
+                else  x.axpy(alpha, p);
                 return k + 1;
             }
 
             A.apply(s, t);
+            if (scalePrecondition) t.scale(scaling);
 
             double tDotT = t.dot(t);
-            omega = (tDotT == 0) ? 0 : s.skippedDot(t, unknownIdx, true, false) / tDotT;
+            if (tDotT == 0) break;
 
+            omega = (constrained ? s.skippedDot(t, unknownIdx, true, false) : t.dot(s)) / tDotT;
             if (omega == 0) break; // breakdown
 
-            if (r.norm() < tol) break;
+            r.clear();
 
-            x.skippedAxpy(alpha, p, unknownIdx, true, true);
-            x.skippedAxpy(omega, s, unknownIdx, true, true);
+            if (constrained) {
+                x.skippedAxpy(alpha, p, unknownIdx, true, true);
+                x.skippedAxpy(omega, s, unknownIdx, true, true);
+                r.skippedAdd(s, unknownIdx, false, true);
 
-            r.skippedAdd(s, unknownIdx, false, true);
+            } else {
+                x.axpy(alpha, p);
+                x.axpy(omega, s);
+                r.add(s);
+            }
+
             r.axpy(-omega,t);
 
             if (r.norm() < tol)

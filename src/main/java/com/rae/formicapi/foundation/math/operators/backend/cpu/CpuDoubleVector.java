@@ -97,21 +97,21 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
 
         if (executor != null && executor.shouldUseParallel(size())) {
             if (!otherSkip) {
-                return executor.parallelReduceDouble(unknowIdx.size(), (start, end) -> {
+                return executor.parallelReduceDouble(n, (start, end) -> {
                     double sum = 0.0;
                     for (int i = start; i < end; i++)
                         sum += a[unknowIdx.get(i)] * b[i];
                     return sum;
                 });
             } else if (!thisSkip){
-                return executor.parallelReduceDouble(unknowIdx.size(), (start, end) -> {
+                return executor.parallelReduceDouble(n, (start, end) -> {
                     double sum = 0.0;
                     for (int i = start; i < end; i++)
                         sum += a[i] * b[unknowIdx.get(i)];
                     return sum;
                 });
             } else {
-                return executor.parallelReduceDouble(unknowIdx.size(), (start, end) -> {
+                return executor.parallelReduceDouble(n, (start, end) -> {
                     double sum = 0.0;
                     for (int i = start; i < end; i++)
                         sum += a[unknowIdx.get(i)] * b[unknowIdx.get(i)];
@@ -122,13 +122,13 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
 
         double sum = 0.0;
         if (!otherSkip) {
-            for (int i = 0; i < unknowIdx.size(); i++)
+            for (int i = 0; i < n; i++)
                 sum += a[unknowIdx.get(i)] * b[i];
         } else if (!thisSkip) {
-            for (int i = 0; i < unknowIdx.size(); i++)
+            for (int i = 0; i < n; i++)
                 sum += a[i] * b[unknowIdx.get(i)];
         } else {
-            for (int i = 0; i < unknowIdx.size(); i++)
+            for (int i = 0; i < n; i++)
                 sum += a[unknowIdx.get(i)] * b[unknowIdx.get(i)];
         }
         return sum;
@@ -216,6 +216,128 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
     }
 
     @Override
+    public void scale(DoubleVector x) {
+        if (!(x instanceof CpuDoubleVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+
+        final double[] d  = data;
+        final double[] xd = vec.data;
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            executor.parallelFor(size, (start, end) -> {
+                for (int i = start; i < end; i++)
+                    d[i] *= xd[i];
+            });
+            return;
+        }
+
+        for (int i = 0; i < size; i++)
+            d[i] *= xd[i];
+    }
+
+    @Override
+    public void skippedScale(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        if (!(other instanceof CpuDoubleVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + other.getClass());
+
+        final double[] d  = data;
+        final double[] xd = vec.data;
+        final int      n  = unknowIdx.size();
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            if (!otherSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] += xd[i];
+                });
+            } else if (!thisSkip){
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] += xd[unknowIdx.get(i)];
+                });
+            } else {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] += xd[unknowIdx.get(i)];
+                });
+            }
+            return;
+        }
+
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] += xd[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                d[i] += xd[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] += xd[unknowIdx.get(i)];
+        }
+    }
+
+    @Override
+    public void divide(DoubleVector x) {
+        if (!(x instanceof CpuDoubleVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+
+        final double[] d  = data;
+        final double[] xd = vec.data;
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            executor.parallelFor(size, (start, end) -> {
+                for (int i = start; i < end; i++)
+                    d[i] /= xd[i];
+            });
+            return;
+        }
+
+        for (int i = 0; i < size; i++)
+            d[i] /= xd[i];
+    }
+
+    @Override
+    public void skippedDivide(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        if (!(other instanceof CpuDoubleVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + other.getClass());
+
+        final double[] d  = data;
+        final double[] xd = vec.data;
+        final int      n  = unknowIdx.size();
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            if (!otherSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] /= xd[i];
+                });
+            } else if (!thisSkip){
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] /= xd[unknowIdx.get(i)];
+                });
+            } else {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] /= xd[unknowIdx.get(i)];
+                });
+            }
+            return;
+        }
+
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] /= xd[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                d[i] /= xd[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] /= xd[unknowIdx.get(i)];
+        }
+    }
+
+    @Override
     public void add(double a) {
         final double[] d = data;
         if (executor != null && executor.shouldUseParallel(size())) {
@@ -280,13 +402,13 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
         }
 
         if (!otherSkip) {
-            for (int i = 0; i < unknowIdx.size(); i++)
+            for (int i = 0; i < n; i++)
                 d[unknowIdx.get(i)] += xd[i];
         } else if (!thisSkip) {
-            for (int i = 0; i < unknowIdx.size(); i++)
+            for (int i = 0; i < n; i++)
                 d[i] += xd[unknowIdx.get(i)];
         } else {
-            for (int i = 0; i < unknowIdx.size(); i++)
+            for (int i = 0; i < n; i++)
                 d[unknowIdx.get(i)] += xd[unknowIdx.get(i)];
         }
     }
@@ -308,7 +430,7 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
         }
 
         for (int i = 0; i < size; i++)
-            d[i] += xd[i];
+            d[i] -= xd[i];
     }
 
     @Override

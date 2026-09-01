@@ -1,8 +1,10 @@
 package com.rae.formicapi.math_tests.solvers;
 
 import com.rae.formicapi.LiveChartWindow;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
 import org.knowm.xchart.XYChart;
@@ -334,10 +336,6 @@ public class Convection1Test {
         List<Double> nusseltSampled = new ArrayList<>();
         List<Double> maxSpeedSampled = new ArrayList<>();
 
-        double[] Ax = new double[n], F = new double[n], dx = new double[n];
-        double[] r = new double[n], rHat0 = new double[n], pBuf = new double[n];
-        double[] vBuf = new double[n], sBuf = new double[n], tBuf = new double[n];
-
         NewtonKrylov.Stats stats = new NewtonKrylov.Stats();
 
         for (int step = 0; step < nSteps; step++) {
@@ -353,9 +351,10 @@ public class Convection1Test {
 
             stats.reset();
 
-            NewtonKrylov.solve(C, A, x, b, 20, 200,
-                    1e-4 * Math.sqrt((double) nx * ny), 1e-5 * Math.sqrt((double) nx * ny),
-                    Ax, F, dx, r, rHat0, vBuf, pBuf, sBuf, tBuf, stats);
+            NewtonKrylov.solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b), 20, 200,
+                    1e-4 * Math.sqrt((double) nx * ny), 1e-5 * Math.sqrt((double) nx * ny), null, stats, null,
+                    new WorkingBuffer<>(7, () -> new CpuDoubleVector(n)),
+                    new WorkingBuffer<>(3, () -> new CpuDoubleVector(n)));
 
             double t = step * dt;
 

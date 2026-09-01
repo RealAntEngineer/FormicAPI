@@ -1,8 +1,10 @@
 package com.rae.formicapi.math_tests.solvers;
 
 import com.rae.formicapi.LiveChartWindow;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
 import org.knowm.xchart.XYChart;
@@ -360,9 +362,10 @@ public class Convection2Test {
 
             stats.reset();
 
-            NewtonKrylov.solve(C, A, x, b, 20, 200,
-                    1e-6 * nx * ny, 1e-7 * nx * ny,
-                    Ax, F, dx, r, rHat0, vBuf, pBuf, sBuf, tBuf, stats);
+            NewtonKrylov.solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b), 20, 200,
+                    1e-6 * nx * ny, 1e-7 * nx * ny,null, stats, null,
+                    new WorkingBuffer<>(7, () -> new CpuDoubleVector(n)),
+                    new WorkingBuffer<>(3, () -> new CpuDoubleVector(n)));
 
             double t = step * dt;
 

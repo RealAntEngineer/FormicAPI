@@ -43,21 +43,41 @@ public interface DoubleVector extends Vector {
      * The scatter counterpart of skippedDot — same index-remap contract, opposite direction
      * (skippedDot gathers into a reduction, this scatters into positions of `this`).
      */
-    void skippedAxpy(double alpha, DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
+    void skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
 
     void scale(double a);
+
+    void scale(DoubleVector x);
+
+    default void skippedScale(DoubleVector other, IntegerVector unknowIdx) {
+        skippedAdd(other, unknowIdx, true, false);
+    }
+
+    void skippedScale(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+
+    void divide(DoubleVector x);
+
+    default void skippedDivide(DoubleVector other, IntegerVector unknowIdx) {
+        skippedAdd(other, unknowIdx, true, false);
+    }
+
+    void skippedDivide(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 
     void add(double a);
 
     void add(DoubleVector x);
 
-    default void skippedAdd(DoubleVector source, IntegerVector unknowIdx) {
-        skippedAdd(source, unknowIdx, true, false);
+    default void skippedAdd(DoubleVector other, IntegerVector unknowIdx) {
+        skippedAdd(other, unknowIdx, true, false);
     }
 
-    void skippedAdd(DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+    void skippedAdd(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 
     void subtract(DoubleVector x);
+
+    default void skippedSubtract(DoubleVector other, IntegerVector unknowIdx) {
+        skippedAdd(other, unknowIdx, true, false);
+    }
 
     void skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 

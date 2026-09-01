@@ -86,17 +86,12 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public double skippedDot(DoubleVector other, IntegerVector unknowIdx) {
+    public double skippedDot(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip) {
         GpuDoubleVector o = requireSameBackend(other);
         if (!(unknowIdx instanceof GpuIntegerVector idx))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + unknowIdx.getClass());
 
         return requireExecutor().launchSkippedDot(buffer, o.buffer, idx.buffer(), idx.size());
-    }
-
-    @Override
-    public double skippedDot(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip) {
-        return 0;
     }
 
     @Override
@@ -123,6 +118,26 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
+    public void scale(DoubleVector x) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void skippedScale(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void divide(DoubleVector x) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void skippedDivide(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void add(double a) {
         requireExecutor().launchAddScalar(buffer, a, size);
         requireExecutor().finish();
@@ -137,17 +152,17 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
 
     @Override
     public void skippedAdd(DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
-
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void subtract(DoubleVector x) {
-
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
-
+        throw new UnsupportedOperationException();
     }
 
     //TODO this probably belong to Executable directly ? or maybe annotation ?

@@ -222,7 +222,7 @@ public class ConjugateGradient {
      * components. Entries of {@code p} corresponding to fixed variables are kept
      * at zero because fixed variables have no search direction: {@code p[fixedIndex] = 0}.
      *
-     * <p>This allows the regular {@link Matrix#apply(Vector, Vector)}}
+     * <p>This allows the regular {@link Matrix#apply(DoubleVector, DoubleVector)}
      * operation to be used directly. The multiplication of {@code A*p} naturally
      * ignores fixed variables because their direction is zero.
      *

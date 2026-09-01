@@ -1,7 +1,9 @@
 package com.rae.formicapi.math_tests.solvers;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
 
@@ -88,21 +90,10 @@ class DNSTest {
             x[2 * top + 1] = 0;
         }
 
-        double[] Ax = new double[cells * 2];
-        double[] F = new double[cells * 2];
-        double[] dx = new double[cells * 2];
-
-        double[] r = new double[cells * 2];
-        double[] rHat = new double[cells * 2];
-        double[] p = new double[cells * 2];
-        double[] v = new double[cells * 2];
-        double[] s = new double[cells * 2];
-        double[] t = new double[cells * 2];
-
-
-        NewtonKrylov.solve(C, A, x, b,
-                20, 200, 1e-8, 1e-10,
-                Ax, F, dx, r, rHat, p, v, s, t);
+        NewtonKrylov.solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b),
+                20, 200, 1e-8, 1e-10,null, null, null,
+                new WorkingBuffer<>(8, () -> new CpuDoubleVector(A.outputSize())),
+                new WorkingBuffer<>(2, () -> new CpuDoubleVector(A.outputSize())));
 
 
 
@@ -288,8 +279,10 @@ class DNSTest {
 
 
             // x already holds x^n and is reused as the warm start for x^{n+1}-
-            NewtonKrylov.solve(C, A, x, b, 20, 200, 1e-5 * nx * ny, 1e-6 * nx * ny,
-            Ax, F, dx, r, rHatO, vBuf, pBuf, sBuf, tBuf, stats);
+            NewtonKrylov.solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b),
+                    20, 200, 1e-5 * nx * ny, 1e-6 * nx * ny,null, stats, null,
+                    new WorkingBuffer<>(7, () -> new CpuDoubleVector(n)),
+                    new WorkingBuffer<>(3, () -> new CpuDoubleVector(n)));
 
             if (step % printEvery == 0){
                 long newTime = System.nanoTime();
