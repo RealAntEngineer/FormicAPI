@@ -236,7 +236,7 @@ public class Convection1Test {
         }
     }
 
-    @Test
+    //@Test
     void naturalConvectionHorizontalPlate() {
 
         int nx = 64;

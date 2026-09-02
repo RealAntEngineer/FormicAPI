@@ -348,7 +348,7 @@ public class NewtonKrylov {
 
     public static double[] solveConstrained(PaddedCSR3Tensor C, Matrix A, double[] x, boolean[] fixedVariables, double[] b,
                                             int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
-                                            @Nullable double[] scaling) {
+                                             double @Nullable [] scaling) {
         return solveConstrained(C, A, x, fixedVariables, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, scaling, null);
     }
 
@@ -358,7 +358,7 @@ public class NewtonKrylov {
 
     public static double[] solveConstrained(PaddedCSR3Tensor C, Matrix A, double[] x, boolean[] fixedVariables, double[] b,
                                             int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
-                                            @Nullable double[] scaling, @Nullable Stats stats) {
+                                             double @Nullable [] scaling, @Nullable Stats stats) {
         DoubleVector xv       = new CpuDoubleVector(x);
         DoubleVector scalingV = scaling == null ? null : new CpuDoubleVector(scaling);
 
@@ -417,7 +417,7 @@ public class NewtonKrylov {
         public int newtonIterationCount;
 
         /**
-         * Whether the solve converged (residual < newtonTol) before exhausting maxNewtonIter.
+         * Whether the solve converged {@code residual < newtonTol} before exhausting maxNewtonIter.
          */
         public boolean converged;
 

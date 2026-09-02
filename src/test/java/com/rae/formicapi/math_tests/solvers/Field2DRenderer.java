@@ -23,8 +23,8 @@ public class Field2DRenderer {
         int nx = field.length;
         int ny = field[0].length;
 
-        int pixelsPerCell = 20;
-        int supersample   = 2;
+        int pixelsPerCell = 1;
+        int supersample   = 1;
 
         int imageW = nx * pixelsPerCell;
         int imageH = ny * pixelsPerCell;

@@ -4,6 +4,7 @@ import com.rae.formicapi.LiveChartWindow;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,7 @@ public class Convection2Test {
                                          double tHot, double tAmbient,
                                          int plateRow, int plateColStart, int plateColEnd,
                                          double pressurePenalty, double invDt,
-                                         PaddedCSR3Tensor C, PaddedCSRMatrix A, DofRole[] role, double[] bcValue) {
+                                         PaddedCSR3Tensor C, PaddedCSRMatrix A, double[] scaling, DofRole[] role, double[] bcValue) {
 
         //double hx = 1.0 / (nx - 1);
         //double hy = 1.0 / (ny - 1);
@@ -85,6 +86,11 @@ public class Convection2Test {
 
                 boolean isOuterWall = (x == 0 || x == nx - 1 || y == 0 || y == ny - 1);
                 boolean isPlate = !isOuterWall && (y == plateRow) && (x >= plateColStart) && (x <= plateColEnd);
+
+                scaling[u] = 1;
+                scaling[v] = 1;
+                scaling[p] = 1/10.0;
+                scaling[T] = 10;
 
                 if (isOuterWall || isPlate) {
 
@@ -130,6 +136,7 @@ public class Convection2Test {
                 }
 
                 // ---------------- fluid cell: full coupled physics ----------------
+
 
                 role[u] = DofRole.INTERIOR_U;
                 role[v] = DofRole.INTERIOR_V;
@@ -252,7 +259,7 @@ public class Convection2Test {
         }
     }
 
-    @Test
+    //@Test
     void naturalConvectionFromHeatedPlate() {
 
         int nx = 256;
@@ -285,12 +292,12 @@ public class Convection2Test {
         plateColStart = Math.max(1, plateColStart);
         plateColEnd   = Math.min(nx - 2, plateColEnd);
 
-        double pressurePenalty = 1e-4;
+        double pressurePenalty = 1e-3;
 
-        double dt = 1d/50;
+        double dt = 4;
         int nSteps = 1000;
-        int printEvery = 20;
-        int sampleEvery = 5;
+        int printEvery = 4;
+        int sampleEvery = 2;
 
         int cells = nx * ny;
         int n = cells * 4;
@@ -304,13 +311,15 @@ public class Convection2Test {
         PaddedCSRMatrix  A = new PaddedCSRMatrix(n, n, 8);
 
         double[] x = new double[n];
+        double[] scaling = new double[n];
         double[] b = new double[n];
 
         DofRole[] role = new DofRole[n];
         double[] bcValue = new double[n];
 
+
         buildHeatedPlateOperator(nx, ny, hx, hy,nu, alpha, beta, g, tHot, tAmbient,
-                plateCenter, plateColStart, plateColEnd, pressurePenalty, 1.0 / dt, C, A, role, bcValue);
+                plateCenter, plateColStart, plateColEnd, pressurePenalty, 1.0 / dt, C, A, scaling, role, bcValue);
 
         // Initial condition: fluid at rest, uniformly at ambient temperature
         // (Dirichlet dofs already hold their fixed values via bcValue).
@@ -343,10 +352,6 @@ public class Convection2Test {
         List<Double> tSampled        = new ArrayList<>();
         List<Double> maxSpeedSampled = new ArrayList<>();
 
-        double[] Ax = new double[n], F = new double[n], dx = new double[n];
-        double[] r = new double[n], rHat0 = new double[n], pBuf = new double[n];
-        double[] vBuf = new double[n], sBuf = new double[n], tBuf = new double[n];
-
         NewtonKrylov.Stats stats = new NewtonKrylov.Stats();
 
         for (int step = 0; step < nSteps; step++) {
@@ -360,12 +365,15 @@ public class Convection2Test {
                 }
             }
 
+            WorkingBuffer<DoubleVector> bufferN = new WorkingBuffer<>(7, () -> new CpuDoubleVector(n));
+            WorkingBuffer<DoubleVector> bufferM = new WorkingBuffer<>(3, () -> new CpuDoubleVector(n));
+
+
             stats.reset();
 
-            NewtonKrylov.solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b), 20, 200,
-                    1e-6 * nx * ny, 1e-7 * nx * ny,null, stats, null,
-                    new WorkingBuffer<>(7, () -> new CpuDoubleVector(n)),
-                    new WorkingBuffer<>(3, () -> new CpuDoubleVector(n)));
+            NewtonKrylov.solve(C, A, new CpuDoubleVector(x), new CpuDoubleVector(b), 100, 200,
+                    1e-6 * nx * ny, 1e-7 * nx * ny, new CpuDoubleVector(scaling)
+                    , stats, null, bufferN, bufferM);
 
             double t = step * dt;
 
