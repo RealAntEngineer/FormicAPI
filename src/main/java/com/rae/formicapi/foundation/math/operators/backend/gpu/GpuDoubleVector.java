@@ -95,73 +95,83 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public void axpy(double a, DoubleVector x) {
+    public DoubleVector axpy(double a, DoubleVector x) {
         GpuDoubleVector vec = requireSameBackend(x);
         requireExecutor().launchAxpy(buffer, a, vec.buffer, size);
         requireExecutor().finish();
+        return this;
     }
 
     @Override
-    public void skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx, boolean thisSkipped, boolean otherSkipped) {
+    public DoubleVector skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx, boolean thisSkipped, boolean otherSkipped) {
         GpuDoubleVector vec = requireSameBackend(other);
         if (!(unknowIdx instanceof GpuIntegerVector gpuIdx))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + unknowIdx.getClass());
 
         requireExecutor().launchScatterAxpy(buffer, alpha, vec.buffer, gpuIdx.buffer(), unknowIdx.size());
         requireExecutor().finish();
+        return this;
     }
 
     @Override
-    public void scale(double a) {
+    public DoubleVector scale(double a) {
         requireExecutor().launchScale(buffer, a, size);
         requireExecutor().finish();
+        return this;
     }
 
     @Override
-    public void scale(DoubleVector x) {
+    public DoubleVector scale(DoubleVector x) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void skippedScale(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public DoubleVector skippedScale(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void divide(DoubleVector x) {
+    public DoubleVector divide(DoubleVector x) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void skippedDivide(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public DoubleVector skippedDivide(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void add(double a) {
+    public DoubleVector add(double a) {
         requireExecutor().launchAddScalar(buffer, a, size);
         requireExecutor().finish();
+        return this;
     }
 
     @Override
-    public void add(DoubleVector x) {
+    public DoubleVector add(DoubleVector x) {
         GpuDoubleVector vec = requireSameBackend(x);
         requireExecutor().launchAddVector(buffer, vec.buffer, size);
         requireExecutor().finish();
+        return this;
     }
 
     @Override
-    public void skippedAdd(DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public DoubleVector skippedAdd(DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void subtract(DoubleVector x) {
+    public DoubleVector subtract(DoubleVector x) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public DoubleVector skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public DoubleVector gather(DoubleVector source, IntegerVector indices) {
         throw new UnsupportedOperationException();
     }
 
@@ -180,7 +190,7 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public void resize(int newSize) {
+    public DoubleVector resize(int newSize) {
         GpuExecutor ctx = requireExecutor();
 
         if (newSize > capacity) {
@@ -194,14 +204,16 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
         }
 
         size = newSize;
+        return this;
     }
 
     @Override
-    public void copy(Vector x) {
+    public DoubleVector copy(Vector x) {
         GpuDoubleVector vec = requireSameBackend(x);
         resize(vec.size);
         requireExecutor().copyDoubleBuffer(vec.buffer, buffer, vec.size);
         requireExecutor().finish();
+        return this;
     }
 
     @Override
@@ -213,9 +225,10 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public void clear() {
+    public DoubleVector clear() {
         requireExecutor().fillDoubleBuffer(buffer, 0.0, size);
         requireExecutor().finish();
+        return this;
     }
 
     /**

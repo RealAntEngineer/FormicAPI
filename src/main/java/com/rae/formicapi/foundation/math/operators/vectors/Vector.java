@@ -22,19 +22,20 @@ public interface Vector {
      *
      * @param size new vector length
      */
-    void resize(int size);
-
+    Vector resize(int size);
 
     /**
      * this = x
      */
-    void copy(Vector x);
+    Vector copy(Vector x);
 
-    //create a new vector object with the same values
+    /**
+     * create a new vector object with the same values
+     */
     Vector copy();
 
     /**
      * Sets all elements to zero.
      */
-    void clear();
+    Vector clear();
 }

@@ -7,7 +7,6 @@ import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
-import org.junit.jupiter.api.Test;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
 import org.knowm.xchart.style.Styler;
@@ -56,7 +55,7 @@ import static com.google.common.primitives.Doubles.toArray;
  * that the solver produces a stable, oscillating wake, not a
  * publication-quality Strouhal number.
  */
-public class CylinderVortexSheddingCompressibleTest {
+public class CylinderVortexSheddingSACompressibleTest {
 
     private static final double PRESSURE_DIFFUSION = 0.1;
 

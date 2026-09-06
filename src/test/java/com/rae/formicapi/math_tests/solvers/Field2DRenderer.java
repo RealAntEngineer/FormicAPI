@@ -26,7 +26,9 @@ public class Field2DRenderer {
         int pixelsPerCell = 1;
         int supersample   = 1;
 
-        int imageW = nx * pixelsPerCell;
+        int scaleWidth = 80;
+
+        int imageW = nx * pixelsPerCell + scaleWidth;
         int imageH = ny * pixelsPerCell;
 
         int renderW = imageW * supersample;
@@ -48,12 +50,12 @@ public class Field2DRenderer {
 
         for (int y = 0; y < renderH; y++) {
 
-            double fy = ((double) y / renderH) * (ny - 1);
+            double fy = ((double) y / (renderH - 1)) * (ny - 1);
             int    j0 = (int) fy;
             double ty = fy - j0;
 
             for (int x = 0; x < renderW; x++) {
-                double fx = ((double) x / renderW) * (nx - 1);
+                double fx = ((double) x / (renderW - 1)) * (nx - 1);
                 int    i0 = (int) fx;
                 double tx = fx - i0;
 
@@ -88,7 +90,10 @@ public class Field2DRenderer {
                         : RenderingHints.VALUE_INTERPOLATION_BILINEAR
         );
 
-        g.drawImage(render, 0, 0, imageW, imageH, null);
+
+        g.drawImage(render, scaleWidth, 0, imageW, imageH, null);
+        drawScale(g, scaleWidth, imageH, min, max);
+
         g.dispose();
 
         try {
@@ -101,8 +106,52 @@ public class Field2DRenderer {
         }
     }
 
+    public static void drawScale(Graphics2D g, int scaleWidth, int imageH, double min, double max) {
+        int barX = 10;
+        int barWidth = 20;
 
-    private static double bilinear(double[][] f, int x, int y, double tx, double ty) {
+        int barY = 5;
+        int barH = imageH - 10;
+
+
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0 , scaleWidth, imageH);
+
+
+        // Color bar
+        for (int y = 0; y < barH; y++) {
+            double t = 1.0 - (double) y / (barH - 1);
+            g.setColor(heatmap(t));
+            g.fillRect(barX, barY + y, barWidth, 1);
+        }
+
+        g.setColor(Color.BLACK);
+
+        Font font = new Font("SansSerif", Font.PLAIN, 11);
+        g.setFont(font);
+
+        FontMetrics fm = g.getFontMetrics();
+
+        int tickCount = 5;
+
+        for (int i = 0; i < tickCount; i++) {
+
+            double t = (double) i / (tickCount - 1);
+            int y = barY + (int) ((1.0 - t) * (barH - 1));
+
+            // Tick
+            g.drawLine(barX + barWidth, y, barX + barWidth + 5, y);
+
+            // Value
+            double value = min + t * (max - min);
+            String label = String.format("%.3g", value);
+            int textY = y + (fm.getAscent() - fm.getDescent()) / 2;
+
+            g.drawString(label, barX + barWidth + 9, textY);
+        }
+    }
+
+    public static double bilinear(double[][] f, int x, int y, double tx, double ty) {
 
         int nx = f.length;
         int ny = f[0].length;

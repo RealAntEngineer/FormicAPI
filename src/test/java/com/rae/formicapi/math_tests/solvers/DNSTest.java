@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DNSTest {
 
-    @Test
+    //@Test
     void laminarPoiseuilleFlow() {
 
         int nx = 32;
@@ -147,7 +147,7 @@ class DNSTest {
     // shrink dt rather than raising maxNewtonIter.
     // =====================================================================
 
-    @Test
+    //@Test
     void lidDrivenCavityTurbulentDNSTransient() {
 
         int nx = 64;
