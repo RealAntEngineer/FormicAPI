@@ -1,0 +1,1 @@
+This is the module for generated resources, it's added to the main at runtime and build time.
