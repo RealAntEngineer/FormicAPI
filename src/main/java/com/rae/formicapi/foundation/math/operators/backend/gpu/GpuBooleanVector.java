@@ -1,6 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.vectors.BooleanVector;
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jocl.cl_mem;
 
@@ -61,8 +62,9 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
     }
 
     @Override
-    public void set(boolean value, int idx) {
+    public BooleanVector set(boolean value, int idx) {
         requireExecutor().uploadByteAt(buffer, idx, (byte) (value ? 1 : 0));
+        return this;
     }
 
     @Override
@@ -71,12 +73,22 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
     }
 
     @Override
+    public BooleanVector fill(boolean value, int fromInclusive, int toExclusive) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public BooleanVector gather(BooleanVector source, IntegerVector indices) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public int size() {
         return size;
     }
 
     @Override
-    public void resize(int newSize) {
+    public BooleanVector resize(int newSize) {
         GpuExecutor ctx = requireExecutor();
 
         if (newSize > capacity) {
@@ -90,20 +102,22 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
         }
 
         size = newSize;
+        return this;
     }
 
     @Override
-    public void copy(Vector x) {
+    public BooleanVector copy(Vector x) {
         if (!(x instanceof GpuBooleanVector vec) || vec.executor != this.executor)
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
         resize(vec.size);
         requireExecutor().copyByteBuffer(vec.buffer, buffer, vec.size);
         requireExecutor().finish();
+        return this;
     }
 
     @Override
-    public Vector copy() {
+    public BooleanVector copy() {
         GpuBooleanVector out = new GpuBooleanVector(requireExecutor(), size);
         requireExecutor().copyByteBuffer(buffer, out.buffer, size);
         requireExecutor().finish();
@@ -111,9 +125,10 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
     }
 
     @Override
-    public void clear() {
+    public BooleanVector clear() {
         requireExecutor().fillByteBuffer(buffer, (byte) 0, size);
         requireExecutor().finish();
+        return this;
     }
 
     public void release() {

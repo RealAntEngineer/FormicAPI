@@ -48,14 +48,15 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
     }
 
     @Override
-    public void resize(int size) {
+    public FloatVector resize(int size) {
         if (size >= data.length)
             data = Arrays.copyOf(data, size);
         this.size = size;
+        return this;
     }
 
     @Override
-    public void copy(Vector x) {
+    public FloatVector copy(Vector x) {
         if (!(x instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -66,6 +67,7 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
         // across threads doesn't win anything, so this stays serial.
         resize(vec.size);
         System.arraycopy(vec.data, 0, data, 0, vec.size);
+        return this;
     }
 
     @Override
@@ -77,10 +79,11 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
     }
 
     @Override
-    public void clear() {
+    public FloatVector clear() {
         // Same reasoning as copy(): Arrays.fill is already an optimized
         // intrinsic and is memory-bandwidth bound, not compute bound.
         Arrays.fill(data, 0.0f);
+        return this;
     }
 
     @Override

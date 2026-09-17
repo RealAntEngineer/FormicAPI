@@ -26,7 +26,6 @@ public final class ParticleSystem {
 
     private final BooleanVector alive;
 
-    private int capacity;
     private int count;   // active slots occupy [0, count)
 
     public ParticleSystem(int dim, Supplier<DoubleVector> doubleFactory, Supplier<BooleanVector> boolFactory) {
@@ -54,16 +53,17 @@ public final class ParticleSystem {
     public void clearForces() { for (DoubleVector f : force) f.clear(); }
 
     public void ensureCapacity(int needed) {
-        if (needed <= capacity) return;
-        capacity = Math.max(needed, Math.max(capacity * 2, 16));
+        if (needed <= currentSize()) return;
         for (int d = 0; d < dim; d++) {
-            position[d].resize(capacity);
-            velocity[d].resize(capacity);
-            force[d].resize(capacity);
+            position[d].resize(needed);
+            velocity[d].resize(needed);
+            force[d].resize(needed);
         }
-        mass.resize(capacity);
-        alive.resize(capacity);
+        mass.resize(needed);
+        alive.resize(needed);
     }
+
+    private int currentSize() { return mass.size(); } // any field works; they're kept in lockstep
 
     /** Appends one particle, returns its index. Caller fills its fields after. */
     public int spawn() {
@@ -129,5 +129,13 @@ public final class ParticleSystem {
         alive.gather(alive, perm);   // now uniform with the double fields, no special-case
 
         count = newCount;
+
+        for (int d = 0; d < dim; d++) {
+            position[d].resize(count);
+            velocity[d].resize(count);
+            force[d].resize(count);
+        }
+        mass.resize(count);
+        alive.resize(count);
     }
 }

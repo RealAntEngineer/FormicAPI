@@ -26,14 +26,15 @@ public final class CpuIntegerVector extends CpuExecutable implements IntegerVect
     }
 
     @Override
-    public void resize(int size) {
+    public IntegerVector resize(int size) {
         if (size >= data.length)
             data = Arrays.copyOf(data, size);
         this.size = size;
+        return this;
     }
 
     @Override
-    public void copy(Vector x) {
+    public IntegerVector copy(Vector x) {
         if (!(x instanceof CpuIntegerVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -44,6 +45,7 @@ public final class CpuIntegerVector extends CpuExecutable implements IntegerVect
         // across threads doesn't win anything, so this stays serial.
         resize(vec.size);
         System.arraycopy(vec.data, 0, data, 0, vec.size);
+        return this;
     }
 
     @Override
@@ -55,23 +57,28 @@ public final class CpuIntegerVector extends CpuExecutable implements IntegerVect
     }
 
     @Override
-    public void clear() {
+    public IntegerVector clear() {
         // Same reasoning as copy(): Arrays.fill is already an optimized
         // intrinsic and is memory-bandwidth bound, not compute bound.
         Arrays.fill(data, 0);
+        return this;
     }
 
+    //@Override
     public int[] array() {
         return data;
     }
 
     @Override
-    public void set(int value, int idx) {
+    public IntegerVector set(int value, int idx) {
         data[idx] = value;
+        return this;
     }
 
     @Override
     public int get(int idx) {
         return data[idx];
     }
+
+
 }

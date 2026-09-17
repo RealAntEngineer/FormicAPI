@@ -82,8 +82,8 @@ public final class RK2Advector {
             applyForces(particles, h, scratch, dim, n);
 
             for (int d = 0; d < dim; d++) {
-                DoubleVector posStart = scratch.get(d).resize(n);
-                DoubleVector k1 = scratch.get(dim + d).resize(n);
+                DoubleVector posStart = (DoubleVector) scratch.get(d).resize(n);
+                DoubleVector k1 = (DoubleVector) scratch.get(dim + d).resize(n);
 
                 posStart.copy(particles.position(d));
                 k1.copy(particles.velocity(d));
@@ -112,7 +112,7 @@ public final class RK2Advector {
     private static void applyForces(ParticleSystem particles, double h,
                                      WorkingBuffer<DoubleVector> scratch, int dim, int n) {
         for (int d = 0; d < dim; d++) {
-            DoubleVector accel = scratch.get(2 * dim + d).resize(n);
+            DoubleVector accel = (DoubleVector) scratch.get(2 * dim + d).resize(n);
             accel.copy(particles.force(d));
             accel.divide(particles.mass());
             particles.velocity(d).axpy(h, accel);

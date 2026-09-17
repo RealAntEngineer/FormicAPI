@@ -11,6 +11,13 @@ import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.BiCGStab;
+// ASSUMPTION: adjust to wherever these actually live in your tree -- same
+// three renderers BentPlateVorteLaminarTest uses (Field2DRenderer,
+// StreamlineRenderer, VectorFieldRenderer). Not shown in the excerpt I
+// have, so this package name is a guess.
+import com.rae.formicapi.math_tests.solvers.Field2DRenderer;
+import com.rae.formicapi.math_tests.solvers.StreamlineRenderer;
+import com.rae.formicapi.math_tests.solvers.VectorFieldRenderer;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -59,7 +66,7 @@ import java.util.Random;
 public class BuoyantWakePicTest {
 
     // ---- domain: coarse cells, large timestep -------------------------
-    static final int nx = 24, ny = 16;
+    static final int nx = 240, ny = 160;
     static final double dx = 1.0, dy = 1.0;
     static final double Lx = nx * dx, Ly = ny * dy;
     static final double dt = 1.0;
@@ -71,6 +78,14 @@ public class BuoyantWakePicTest {
     static final int subSteps = 4;
     static final int perCell = 4;
 
+    // ---- obstacle geometry: single source of truth, in cells ----------
+    // (i0,i1] x [j0,j1] inclusive on both ends, ground-mounted.
+    // Domain and obstacle both scaled 10x from the original toy (24x16
+    // domain, 3x5 obstacle) -- same relative geometry, 100x more cells.
+    static final int obstacleI0 = 80, obstacleI1 = 100;   // 30 cells wide
+    static final int obstacleJ0 = 0, obstacleJ1 = 40;     // 50 cells tall
+    static final double hotPatchCenterX = (obstacleI0 + obstacleI1) / 2.0 * dx + 30.0; // just downwind of the wake
+
     // u-faces: (nx+1) x ny at x=i*dx, y=(j+0.5)*dy  -- flattened i*ny+j
     // v-faces: nx x (ny+1) at x=(i+0.5)*dx, y=j*dy  -- flattened i*(ny+1)+j
     static int uN() { return (nx + 1) * ny; }
@@ -79,7 +94,7 @@ public class BuoyantWakePicTest {
     static int vIdx(int i, int j) { return i * (ny + 1) + j; }
 
     static boolean solidCell(int i, int j) {
-        return i >= 8 && i <= 10 && j <= 4;   // 3 m wide, 5 m tall ground-mounted block
+        return i >= obstacleI0 && i <= obstacleI1 && j >= obstacleJ0 && j <= obstacleJ1;
     }
 
     static double inflowU(double y) {
@@ -88,8 +103,12 @@ public class BuoyantWakePicTest {
 
     /** Fixed temperature field, stand-in for another simulation's output. */
     static double temperatureAt(double x, double y) {
-        double ddx = x - 15.0;
-        return T0 + 20.0 * Math.exp(-(ddx * ddx) / (2 * 2.5 * 2.5)) * Math.exp(-y / 1.5);
+        double ddx = x - hotPatchCenterX;
+        return T0 + 20.0 * Math.exp(-(ddx * ddx) / (2 * 25.0 * 25.0)) * Math.exp(-y / 15.0);
+    }
+
+    static double temperatureCellCenter(int i, int j) {
+        return temperatureAt((i + 0.5) * dx, (j + 0.5) * dy);
     }
 
     // ------------------------------------------------------------------
@@ -106,8 +125,8 @@ public class BuoyantWakePicTest {
     }
 
     private static CornerWeights bilinearWeights(double[] px, double[] py, int n,
-                                                  int Nx, int Ny, double offx, double offy,
-                                                  java.util.function.IntBinaryOperator flatten) {
+                                                 int Nx, int Ny, double offx, double offy,
+                                                 java.util.function.IntBinaryOperator flatten) {
         CornerWeights cw = new CornerWeights();
         int[] c00 = new int[n], c10 = new int[n], c01 = new int[n], c11 = new int[n];
         double[] w00 = new double[n], w10 = new double[n], w01 = new double[n], w11 = new double[n];
@@ -268,7 +287,15 @@ public class BuoyantWakePicTest {
 
         applyBoundaryConditions(u, v, inflowUIdx, inflowUVals, inflowZeros,
                 outflowUIdx, outflowSrcUIdx, outflowZeros,
-                wallVIdx, wallVZeros, obstUIdx, obstUZeros, obstVIdx, obstVZeros);
+                wallVIdx, wallVZeros, obstUIdx, obstUZeros, obstVIdx, obstVZeros, false);
+
+        // Fixed temperature field never changes -- render it once, not per step.
+        double[][] temperatureField = new double[nx][ny];
+        for (int i = 0; i < nx; i++)
+            for (int j = 0; j < ny; j++)
+                temperatureField[i][j] = temperatureCellCenter(i, j);
+        Field2DRenderer.saveHeatmap(temperatureField, "buoyant_wake_pic/temperature.png",
+                Field2DRenderer.Interpolation.NEAREST);
 
         // ----------------------------------------------------------------
         // 3. Particles.
@@ -305,7 +332,7 @@ public class BuoyantWakePicTest {
 
             applyBoundaryConditions(u, v, inflowUIdx, inflowUVals, inflowZeros,
                     outflowUIdx, outflowSrcUIdx, outflowZeros,
-                    wallVIdx, wallVZeros, obstUIdx, obstUZeros, obstVIdx, obstVZeros);
+                    wallVIdx, wallVZeros, obstUIdx, obstUZeros, obstVIdx, obstVZeros, false);
 
             // --- pressure projection ---
             double[] uRaw = ((CpuDoubleVector) u).array();
@@ -314,7 +341,7 @@ public class BuoyantWakePicTest {
             for (int k = 0; k < nFluid; k++) {
                 int i = fluidCells.get(k)[0], j = fluidCells.get(k)[1];
                 double div = (uRaw[uIdx(i + 1, j)] - uRaw[uIdx(i, j)]) / dx
-                           + (vRaw[vIdx(i, j + 1)] - vRaw[vIdx(i, j)]) / dy;
+                        + (vRaw[vIdx(i, j + 1)] - vRaw[vIdx(i, j)]) / dy;
                 rhs[k] = (rho / dt) * div;
             }
             double[] pVals = BiCGStab.solve(A, rhs, 200, 1e-8);
@@ -338,7 +365,7 @@ public class BuoyantWakePicTest {
 
             applyBoundaryConditions(u, v, inflowUIdx, inflowUVals, inflowZeros,
                     outflowUIdx, outflowSrcUIdx, outflowZeros,
-                    wallVIdx, wallVZeros, obstUIdx, obstUZeros, obstVIdx, obstVZeros);
+                    wallVIdx, wallVZeros, obstUIdx, obstUZeros, obstVIdx, obstVZeros, false);
 
             // --- advect: G2P + buoyancy force, frozen grid for this outer step ---
             final DoubleVector uFrozen = u, vFrozen = v;
@@ -363,6 +390,35 @@ public class BuoyantWakePicTest {
             if (advectScratch.get(0).size() != n) advectScratch.resize(n);
             RK2Advector.step(particles, resampler, dt, subSteps, advectScratch);
 
+            // --- clamp to domain / push out of obstacle (raw-array escape hatch,
+            //     same as the outflow-kill predicate below) --------------------
+            // RK2Advector only knows about DoubleVector positions/velocities, not
+            // domain geometry -- nothing stops a particle's y from drifting past
+            // Ly once buoyancy has pushed it upward, since only the GRID gets a
+            // wall boundary condition, never the particle itself. Left unclamped,
+            // particles accumulate indefinitely along/above the top wall (worse
+            // near the wake, where the redirected flow also carries them toward
+            // the outflow corner) and are never culled since only x >= Lx kills.
+            {
+                double[] px = ((CpuDoubleVector) particles.position(0)).array();
+                double[] py = ((CpuDoubleVector) particles.position(1)).array();
+                double[] pu = ((CpuDoubleVector) particles.velocity(0)).array();
+                double[] pv = ((CpuDoubleVector) particles.velocity(1)).array();
+                for (int i = 0; i < particles.count(); i++) {
+                    if (py[i] < 0) { py[i] = 0; if (pv[i] < 0) pv[i] = 0; }
+                    if (py[i] > Ly) { py[i] = Ly; if (pv[i] > 0) pv[i] = 0; }
+
+                    int ci = clampInt((int) Math.floor(px[i] / dx), 0, nx - 1);
+                    int cj = clampInt((int) Math.floor(py[i] / dy), 0, ny - 1);
+                    if (solidCell(ci, cj)) {
+                        // Cheap push-out: snap back to just upstream of the block
+                        // (same fix-up as the Python toy's push_out_of_solid).
+                        px[i] = (obstacleI0 - 0.1) * dx;
+                        if (pu[i] < 0) pu[i] = 0;
+                    }
+                }
+            }
+
             // --- outflow cull (raw-array predicate, same escape hatch as setup code) ---
             double[] pxAfter = ((CpuDoubleVector) particles.position(0)).array();
             for (int i = 0; i < particles.count(); i++)
@@ -382,6 +438,62 @@ public class BuoyantWakePicTest {
                 for (double val : uf) maxU = Math.max(maxU, Math.abs(val));
                 System.out.printf(java.util.Locale.ROOT,
                         "step=%d t=%.0fs particles=%d maxU=%.2f%n", step, step * dt, particles.count(), maxU);
+
+                // ---- plotting, same three renderers as BentPlateVorteLaminarTest ----
+                double[][] uField = new double[nx][ny];
+                double[][] vField = new double[nx][ny];
+                double[][] speed = new double[nx][ny];
+                double[][] pressure = new double[nx][ny];
+                double[][] vorticity = new double[nx][ny];
+                double[][] divergence = new double[nx][ny];
+
+                for (int i = 0; i < nx; i++)
+                    for (int j = 0; j < ny; j++) {
+                        if (solidCell(i, j)) continue;
+                        double uc = 0.5 * (uRaw[uIdx(i, j)] + uRaw[uIdx(i + 1, j)]);
+                        double vc = 0.5 * (vRaw[vIdx(i, j)] + vRaw[vIdx(i, j + 1)]);
+                        uField[i][j] = uc;
+                        vField[i][j] = vc;
+                        speed[i][j] = Math.hypot(uc, vc);
+                        pressure[i][j] = p[i * ny + j];
+                        divergence[i][j] = (uRaw[uIdx(i + 1, j)] - uRaw[uIdx(i, j)]) / dx
+                                + (vRaw[vIdx(i, j + 1)] - vRaw[vIdx(i, j)]) / dy;
+                    }
+
+                for (int i = 1; i < nx - 1; i++)
+                    for (int j = 1; j < ny - 1; j++) {
+                        if (solidCell(i, j)) continue;
+                        double dvdx = (vField[i + 1][j] - vField[i - 1][j]) / (2 * dx);
+                        double dudy = (uField[i][j + 1] - uField[i][j - 1]) / (2 * dy);
+                        vorticity[i][j] = dvdx - dudy;
+                    }
+
+                String stepDir = "buoyant_wake_pic";
+
+                // ---- particle mass density: sum of particle mass per cell ----
+                // (post-processing/plotting code, same raw-array style as the field
+                // arrays above -- not something that belongs as a DoubleVector op)
+                double[][] massDensity = new double[nx][ny];
+                double[] pxNow = ((CpuDoubleVector) particles.position(0)).array();
+                double[] pyNow = ((CpuDoubleVector) particles.position(1)).array();
+                double[] pmNow = ((CpuDoubleVector) particles.mass()).array();
+                for (int k = 0; k < particles.count(); k++) {
+                    int ci = clampInt((int) Math.floor(pxNow[k] / dx), 0, nx - 1);
+                    int cj = clampInt((int) Math.floor(pyNow[k] / dy), 0, ny - 1);
+                    massDensity[ci][cj] += pmNow[k];
+                }
+                Field2DRenderer.saveHeatmap(massDensity, String.format("%s/density/%05d.png", stepDir, step),
+                        Field2DRenderer.Interpolation.NEAREST);
+                Field2DRenderer.saveHeatmap(divergence, String.format("%s/divergence/%05d.png", stepDir, step),
+                        Field2DRenderer.Interpolation.NEAREST);
+                Field2DRenderer.saveHeatmap(vorticity, String.format("%s/vorticity/%05d.png", stepDir, step),
+                        Field2DRenderer.Interpolation.NEAREST);
+                Field2DRenderer.saveHeatmap(pressure, String.format("%s/pressure/%05d.png", stepDir, step),
+                        Field2DRenderer.Interpolation.NEAREST);
+                Field2DRenderer.saveHeatmap(speed, String.format("%s/speed/%05d.png", stepDir, step),
+                        Field2DRenderer.Interpolation.NEAREST);
+                StreamlineRenderer.saveStreamlines(uField, vField, String.format("%s/streamline/%05d.png", stepDir, step));
+                VectorFieldRenderer.saveVectorField(uField, vField, String.format("%s/vect/%05d.png", stepDir, step));
             }
         }
     }
@@ -407,16 +519,33 @@ public class BuoyantWakePicTest {
         field.skippedAxpy(1.0, val, one, true, false);
     }
 
+    /**
+     * Enforces inflow / wall / obstacle every call. {@code applyOutflow}
+     * controls whether the outflow zero-gradient copy runs.
+     *
+     * <p>Must be {@code false} for the pre-solve call: forcing
+     * {@code u[nx,:] := u[nx-1,:]} before the divergence RHS is computed
+     * makes that column's east-face divergence term exactly zero by
+     * construction (not because the flow is actually divergence-free
+     * there) -- which contradicts the Dirichlet-p=0 ghost outflow anchor
+     * baked into the pressure matrix, and the solver "resolves" that
+     * contradiction by pushing pressure (and velocity) to extremes at
+     * that boundary, worse each step. The *only* place u[nx,:] should be
+     * set is the post-solve ghost-pressure correction.
+     */
     private static void applyBoundaryConditions(DoubleVector u, DoubleVector v,
-            IntegerVector inflowUIdx, DoubleVector inflowUVals, DoubleVector inflowZeros,
-            IntegerVector outflowUIdx, IntegerVector outflowSrcUIdx, DoubleVector outflowZeros,
-            IntegerVector wallVIdx, DoubleVector wallVZeros,
-            IntegerVector obstUIdx, DoubleVector obstUZeros,
-            IntegerVector obstVIdx, DoubleVector obstVZeros) {
+                                                IntegerVector inflowUIdx, DoubleVector inflowUVals, DoubleVector inflowZeros,
+                                                IntegerVector outflowUIdx, IntegerVector outflowSrcUIdx, DoubleVector outflowZeros,
+                                                IntegerVector wallVIdx, DoubleVector wallVZeros,
+                                                IntegerVector obstUIdx, DoubleVector obstUZeros,
+                                                IntegerVector obstVIdx, DoubleVector obstVZeros,
+                                                boolean applyOutflow) {
         setAt(u, inflowUIdx, inflowZeros, inflowUVals);
-        DoubleVector outflowSrc = new CpuDoubleVector(outflowSrcUIdx.size());
-        outflowSrc.gather(u, outflowSrcUIdx);
-        setAt(u, outflowUIdx, outflowZeros, outflowSrc);
+        if (applyOutflow) {
+            DoubleVector outflowSrc = new CpuDoubleVector(outflowSrcUIdx.size());
+            outflowSrc.gather(u, outflowSrcUIdx);
+            setAt(u, outflowUIdx, outflowZeros, outflowSrc);
+        }
         setAt(v, wallVIdx, wallVZeros, null);
         setAt(u, obstUIdx, obstUZeros, null);
         setAt(v, obstVIdx, obstVZeros, null);

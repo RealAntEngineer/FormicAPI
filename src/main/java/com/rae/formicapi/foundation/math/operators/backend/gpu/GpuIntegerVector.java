@@ -3,6 +3,7 @@ package com.rae.formicapi.foundation.math.operators.backend.gpu;
 import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
+import org.jetbrains.annotations.Nullable;
 import org.jocl.cl_mem;
 
 /**
@@ -18,8 +19,8 @@ import org.jocl.cl_mem;
  */
 public final class GpuIntegerVector extends GpuExecutable implements IntegerVector {
 
-    private cl_mem buffer;
-    private int    size;
+    private @Nullable cl_mem buffer;
+    private           int    size;
     private int    capacity;
 
     public GpuIntegerVector(GpuExecutor executor, int[] hostData) {
@@ -61,7 +62,7 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
     }
 
     @Override
-    public void resize(int newSize) {
+    public IntegerVector resize(int newSize) {
         GpuExecutor ctx = requireExecutor();
 
         if (newSize >= capacity) {
@@ -74,16 +75,18 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
         }
 
         size = newSize;
+        return this;
     }
 
     @Override
-    public void copy(Vector x) {
+    public IntegerVector copy(Vector x) {
         if (!(x instanceof GpuIntegerVector vec) || vec.executor != this.executor)
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
         resize(vec.size);
         requireExecutor().copyIntBuffer(vec.buffer, buffer, vec.size);
         requireExecutor().finish();
+        return this;
     }
 
     @Override
@@ -95,18 +98,20 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
     }
 
     @Override
-    public void clear() {
+    public IntegerVector clear() {
         int[] zeros = new int[size];
         requireExecutor().uploadInts(buffer, zeros, size);
         requireExecutor().finish();
+        return this;
     }
 
     /**
      * Single-element write - a device round-trip. Fine for setup/debugging; use {@link #upload(int[])} for bulk data.
      */
     @Override
-    public void set(int value, int idx) {
+    public IntegerVector set(int value, int idx) {
         requireExecutor().uploadIntAt(buffer, idx, value);
+        return this;
     }
 
     /**

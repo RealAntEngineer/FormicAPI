@@ -226,6 +226,9 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
         if (!(x instanceof CpuDoubleVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
+        if (x.size() < size)
+            throw new UnsupportedOperationException("can't multiply by a vector smaller than us : "+x.size() + " < " +  size);
+
         final double[] d  = data;
         final double[] xd = vec.data;
 
@@ -494,7 +497,65 @@ public final class CpuDoubleVector extends CpuExecutable implements DoubleVector
 
     @Override
     public DoubleVector gather(DoubleVector source, IntegerVector indices) {
-        throw new UnsupportedOperationException();
+        if (!(source instanceof CpuDoubleVector vec && indices instanceof CpuIntegerVector vecIdx))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + source.getClass());
+
+        final int n = indices.size();
+        if (this.size() < n)
+            throw new IllegalArgumentException(
+                    "gather target must have >= indices.size() (" + n + ") elements, has " + this.size());
+
+        final double[] xd = vec.data;
+        final int[] id = vecIdx.array();
+        final boolean aliased = (xd == this.data);
+
+        if (!aliased) {
+            final double[] d = this.data;
+            if (executor != null && executor.shouldUseParallel(n)) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] = xd[id[i]];
+                });
+            } else {
+                for (int i = 0; i < n; i++)
+                    d[i] = xd[id[i]];
+            }
+            return this;
+        }
+
+        // Aliased: only safe to do in place if the permutation is monotone in
+        // one direction relative to i -- id[i] >= i for every i (forward
+        // pass safe, e.g. ParticleSystem.compact's swap-with-last
+        // permutation), or id[i] <= i for every i (backward pass safe).
+        // Anything else risks reading a slot after it's already been
+        // overwritten by an earlier iteration -- silently wrong, not a crash,
+        // which is worse.
+        boolean forwardSafe = true, backwardSafe = true;
+        for (int i = 0; i < n && (forwardSafe || backwardSafe); i++) {
+            if (id[i] < i) forwardSafe = false;
+            if (id[i] > i) backwardSafe = false;
+        }
+
+        if (!forwardSafe && !backwardSafe)
+            throw new IllegalArgumentException(
+                    "gather: source and this share the same backing array, and this permutation " +
+                            "is not safe to apply in place (neither id[i] >= i nor id[i] <= i holds for " +
+                            "all i). This method never allocates to work around that. Use a WorkingBuffer " +
+                            "instead: gather source into a scratch DoubleVector, then copy() the scratch " +
+                            "into this.");
+
+        // Both directions must stay single-threaded: the safety argument
+        // depends on strict sequential order -- position id[i] is guaranteed
+        // untouched only because everything before it in *this* traversal
+        // order has already run. A parallel split would let one chunk read a
+        // slot before the chunk responsible for writing it first has executed.
+        final double[] d = this.data;
+        if (forwardSafe) {
+            for (int i = 0; i < n; i++) d[i] = xd[id[i]];
+        } else {
+            for (int i = n - 1; i >= 0; i--) d[i] = xd[id[i]];
+        }
+        return this;
     }
 
     public double[] array() {
