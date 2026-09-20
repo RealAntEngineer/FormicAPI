@@ -8,14 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static com.rae.formicapi.content.data.CodecUtil.orderedMapCodec;
+
 public class TwoDSparseTabulatedFunction {
-    // Codec for individual inner maps (Y -> Value)
-    public static final Codec<TreeMap<Float, Float>> INNER_MAP_CODEC = Codec.unboundedMap(
-            Codec.STRING.xmap(Float::parseFloat, Object::toString), Codec.FLOAT
-    ).xmap(TreeMap::new, TreeMap::new);
-    // Codec for the entire TwoDTabulatedFunction table
+
     public static final Codec<TwoDSparseTabulatedFunction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.unboundedMap(Codec.STRING.xmap(Float::parseFloat, Object::toString), INNER_MAP_CODEC).xmap(TreeMap::new, TreeMap::new).fieldOf("table")
+            orderedMapCodec(Codec.FLOAT, orderedMapCodec(Codec.FLOAT, Codec.FLOAT))
+                    .xmap(TreeMap::new, TreeMap::new).fieldOf("table")
                     .forGetter(f -> f.table),
             Codec.BOOL.fieldOf("clamp").forGetter(f -> f.clamp)
     ).apply(instance, TwoDSparseTabulatedFunction::new));
