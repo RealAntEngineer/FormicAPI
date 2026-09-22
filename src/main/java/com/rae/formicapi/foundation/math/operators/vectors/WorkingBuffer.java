@@ -1,8 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.vectors;
 
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -15,8 +13,7 @@ import java.util.function.Supplier;
  */
 public final class WorkingBuffer<T extends Vector> {
 
-    private final Vector[] vectors;
-
+    private final T[] vectors;
 
     /**
      * Creates a working buffer.
@@ -27,13 +24,13 @@ public final class WorkingBuffer<T extends Vector> {
         this.vectors = vectors;
     }
 
+    @SuppressWarnings("unchecked")//we know it's safe
     public WorkingBuffer(int number, Supplier<T> defaultVec) {
-        this.vectors = new Vector[number];
+        this.vectors = (T[]) new Vector[number];
         for (int i = 0; i < number; i++) {
             this.vectors[i] = defaultVec.get();
-        };
+        }
     }
-
 
     /**
      * Returns a temporary vector by index.
@@ -42,7 +39,7 @@ public final class WorkingBuffer<T extends Vector> {
      * @return reusable vector
      */
     public T get(int index) {
-        return Objects.requireNonNull((T) vectors[index]);
+        return Objects.requireNonNull(vectors[index]);
     }
 
 

@@ -1,6 +1,6 @@
 package com.rae.formicapi.foundation.math.lagrangian;
 
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 
 /**
@@ -44,7 +44,7 @@ import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
  * tracers by convention: callers that don't want force integration for a
  * given particle should leave its {@code force} at zero rather than rely
  * on divide-by-zero behavior, since that is backend-defined (see
- * {@link DoubleVector#divide}).
+ * {@link RealVector#divide}).
  */
 public final class RK2Advector {
 
@@ -66,7 +66,7 @@ public final class RK2Advector {
      *                  Each is resized internally to {@code particles.count()}
      */
     public static void step(ParticleSystem particles, VelocityResampler resampler,
-                             double dt, int subSteps, WorkingBuffer<DoubleVector> scratch) {
+                             double dt, int subSteps, WorkingBuffer<RealVector> scratch) {
         int dim = particles.dim();
         int n = particles.count();
 
@@ -82,8 +82,8 @@ public final class RK2Advector {
             applyForces(particles, h, scratch, dim, n);
 
             for (int d = 0; d < dim; d++) {
-                DoubleVector posStart = (DoubleVector) scratch.get(d).resize(n);
-                DoubleVector k1 = (DoubleVector) scratch.get(dim + d).resize(n);
+                RealVector posStart = (RealVector) scratch.get(d).resize(n);
+                RealVector k1       = (RealVector) scratch.get(dim + d).resize(n);
 
                 posStart.copy(particles.position(d));
                 k1.copy(particles.velocity(d));
@@ -97,9 +97,9 @@ public final class RK2Advector {
             applyForces(particles, h, scratch, dim, n);
 
             for (int d = 0; d < dim; d++) {
-                DoubleVector pos = particles.position(d);
-                DoubleVector posStart = scratch.get(d);
-                DoubleVector k2 = particles.velocity(d);
+                RealVector pos      = particles.position(d);
+                RealVector posStart = scratch.get(d);
+                RealVector k2       = particles.velocity(d);
 
                 // x_{n+1} = x_n + h*k2 : restore start, advance by full step
                 pos.copy(posStart);
@@ -110,9 +110,9 @@ public final class RK2Advector {
 
     /** velocity(d) += h * force(d) / mass, for every axis, via a scratch accel temp. */
     private static void applyForces(ParticleSystem particles, double h,
-                                     WorkingBuffer<DoubleVector> scratch, int dim, int n) {
+                                    WorkingBuffer<RealVector> scratch, int dim, int n) {
         for (int d = 0; d < dim; d++) {
-            DoubleVector accel = (DoubleVector) scratch.get(2 * dim + d).resize(n);
+            RealVector accel = (RealVector) scratch.get(2 * dim + d).resize(n);
             accel.copy(particles.force(d));
             accel.divide(particles.mass());
             particles.velocity(d).axpy(h, accel);

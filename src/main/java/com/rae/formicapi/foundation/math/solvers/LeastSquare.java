@@ -2,7 +2,7 @@ package com.rae.formicapi.foundation.math.solvers;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 
 public class LeastSquare {
@@ -18,7 +18,7 @@ public class LeastSquare {
         return solve(A, new CpuDoubleVector(b), new CpuDoubleVector(x0), maxIter, tol);
     }
 
-    public static int solve(Matrix A, DoubleVector b, DoubleVector x0, int maxIter, float tol) {
+    public static int solve(Matrix A, RealVector b, RealVector x0, int maxIter, float tol) {
         int m = A.rows();
         int n = A.cols();
         return solve(A, b, x0, maxIter, tol, new WorkingBuffer<>(2, () -> new CpuDoubleVector(m)),
@@ -28,18 +28,18 @@ public class LeastSquare {
 
     /**
      * Solve min ||Ax-b|| using LSQR.
-     *
+     * <p>
      * Solution is written into x.
-     *
+     * <p>
      * mBuffer:
      *  U    -> A.rows()
      *  TEMP -> A.rows()
-     *
+     * <p>
      * nBuffer:
      *  V -> A.cols()
      *  W -> A.cols()
      */
-    public static int solve(Matrix A, DoubleVector b, DoubleVector x, int maxIter, double tol, WorkingBuffer<DoubleVector> mBuffer, WorkingBuffer<DoubleVector> nBuffer) {
+    public static int solve(Matrix A, RealVector b, RealVector x, int maxIter, double tol, WorkingBuffer<RealVector> mBuffer, WorkingBuffer<RealVector> nBuffer) {
 
         int m = A.rows();
         int n = A.cols();
@@ -50,12 +50,12 @@ public class LeastSquare {
 
         x.resize(n);
 
-        DoubleVector u = mBuffer.get(U);
-        DoubleVector temp = mBuffer.get(TEMP);
+        RealVector u    = mBuffer.get(U);
+        RealVector temp = mBuffer.get(TEMP);
 
-        DoubleVector v = nBuffer.get(V);
-        DoubleVector w = nBuffer.get(W);
-        DoubleVector temp2 = nBuffer.get(TEMP2);
+        RealVector v     = nBuffer.get(V);
+        RealVector w     = nBuffer.get(W);
+        RealVector temp2 = nBuffer.get(TEMP2);
 
         u.resize(m);
         temp.resize(m);

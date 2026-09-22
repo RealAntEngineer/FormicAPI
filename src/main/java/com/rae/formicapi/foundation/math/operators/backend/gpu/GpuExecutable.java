@@ -1,46 +1,45 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Base class for every GPU-backed vector implementation. Mirrors
- * {@link com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutable}:
- * where that class holds an optional {@code CpuExecutor} and falls back to a
- * plain serial loop when none is attached, this class holds a
- * {@link GpuExecutor} that is <b>required</b> - there is no "serial on GPU"
- * fallback, so every operation needs one attached to actually dispatch a
- * kernel through.
- *
- * <p>Unlike {@code CpuExecutable}'s {@code useParallel()} threshold check,
- * there's no size-based decision to make here: once a value lives in a
- * {@code Gpu*Vector} at all, every operation on it goes through the
- * executor. The CPU/GPU split itself - which backend a given piece of data
- * lives in - is the caller's decision, made once when the vector is
- * created.
- *
- * <p>Deliberately does not declare {@code implements Vector} the way
- * {@code CpuExecutable} does: each concrete {@code Gpu*Vector} already gets
- * {@code Vector} transitively through its own interface
- * ({@code DoubleVector}/{@code BooleanVector}/{@code IntegerVector} extend
- * it), so a second, separate {@code implements Vector} here wouldn't add
- * any capability - nothing needs to hold a bare {@code GpuExecutable}
- * reference and call {@code Vector} methods on it. {@code CpuExecutable}'s
- * copy of this looks like the same redundancy; not changed here since that
- * class is out of scope for this GPU work.
+ * Base class for every GPU-backed vector implementation.
  */
 public abstract class GpuExecutable {
 
-    protected @Nullable GpuExecutor executor;
+    protected @Nullable OpenCLGpuExecutor executor;
 
-    public @Nullable GpuExecutor getExecutor() {
+    public @Nullable OpenCLGpuExecutor getExecutor() {
         return executor;
     }
 
-    public void setExecutor(@Nullable GpuExecutor executor) {
+    /**
+     * Attaches {@code executor} and eagerly binds this class's kernels
+     * against it (see {@link #bindKernels}), so every arithmetic method
+     * can dispatch straight away with no first-use compile stall and no
+     * per-call binding to worry about.
+     */
+    public void setExecutor(@Nullable OpenCLGpuExecutor executor) {
         this.executor = executor;
+        if (executor != null)
+            bindKernels(executor);
     }
 
-    protected GpuExecutor requireExecutor() {
+    /**
+     * Override to bind this class's static {@link Kernel} constants
+     * against {@code executor} -- one {@code KERNEL.bind(executor)} call
+     * per kernel this class dispatches (see {@code GpuDoubleVector}). Since
+     * kernel constants are {@code static final} and shared across every
+     * instance, re-binding here when a second vector attaches to the same
+     * executor is a cheap no-op (the kernel is already compiled), not a
+     * recompile. No-op by default for classes that don't dispatch kernels
+     * directly.
+     */
+    protected void bindKernels(GpuExecutor executor) {
+    }
+
+    protected OpenCLGpuExecutor requireExecutor() {
         if (executor == null)
             throw new IllegalStateException(
                     getClass().getSimpleName() + " has no GpuExecutor attached - call setExecutor(...) before use");

@@ -1,7 +1,9 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import org.jetbrains.annotations.Nullable;
 import org.jocl.cl_mem;
 
@@ -17,8 +19,8 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
     private double[] values;
     private int[] colIndex;
 
-    private @Nullable cl_mem dValues;
-    private @Nullable cl_mem dColIndex;
+    private @Nullable GpuResource dValues;
+    private @Nullable GpuResource dColIndex;
 
     public GpuPaddedCSRMatrix(int rows, int cols, int nnzPerRow) {
         if (rows < 0)
@@ -41,16 +43,16 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
     }
 
     @Override
-    public void setExecutor(@Nullable GpuExecutor executor) {
-        GpuExecutor previous = getExecutor();
+    public void setExecutor(@Nullable OpenCLGpuExecutor executor) {
+        OpenCLGpuExecutor previous = getExecutor();
         super.setExecutor(executor);
 
         if (previous != null) {
             if (dValues != null)
-                previous.release(dValues);
+                dValues.release();
 
             if (dColIndex != null)
-                previous.release(dColIndex);
+                dColIndex.release();
 
             dValues = null;
             dColIndex = null;
@@ -69,17 +71,13 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
     }
 
     @Override
-    public void apply(DoubleVector x, DoubleVector result) {
+    public void apply(RealVector x, RealVector result) {
 
         if (!(x instanceof GpuDoubleVector gpuX))
-            throw new UnsupportedOperationException(
-                    "Unable to execute operation with a vector of class " + x.getClass()
-            );
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
         if (!(result instanceof GpuDoubleVector gpuResult))
-            throw new UnsupportedOperationException(
-                    "Unable to execute operation with a vector of class " + result.getClass()
-            );
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + result.getClass());
 
         if (x.size() != cols)
             throw new IllegalArgumentException("x.size() != A.cols()");
@@ -87,22 +85,19 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         result.resize(rows);
         //ptr what ?
         requireExecutor().launchCsrMatvec(dValues, dColIndex, nnzPerRow, gpuX.buffer(), gpuResult.buffer(), rows);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     @Override
-    public void transposeApply(DoubleVector x, DoubleVector result) {
+    public void transposeApply(RealVector x, RealVector result) {
         requireExecutor();
 
         if (!(x instanceof GpuDoubleVector gpuX))
-            throw new UnsupportedOperationException(
-                    "Unable to execute operation with a vector of class " + x.getClass()
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass()
             );
 
         if (!(result instanceof GpuDoubleVector gpuResult))
-            throw new UnsupportedOperationException(
-                    "Unable to execute operation with a vector of class " + result.getClass()
-            );
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + result.getClass());
 
         if (x.size() != rows)
             throw new IllegalArgumentException("x.size() != A.rows()");
@@ -112,7 +107,7 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         gpuResult.clear();
 
         requireExecutor().launchCsrMatvecTranspose(dValues, dColIndex, nnzPerRow, gpuX.buffer(), gpuResult.buffer(), rows);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     @Override
@@ -153,6 +148,11 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         }
 
         return 0.0;
+    }
+
+    @Override
+    public RealVector getValues(IntegerVector r, IntegerVector c) {
+        return null;
     }
 
     private int findIndex(int row, int col) {
@@ -199,7 +199,7 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
 
         requireExecutor().uploadDoubles(dValues, base, values, base, nnzPerRow);
         requireExecutor().uploadInts(dColIndex, base, colIndex, base, nnzPerRow);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     public void resize(int newRows) {
@@ -217,28 +217,16 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         requireExecutor();
         assert executor != null;
 
-        cl_mem newValues =
-                executor.allocateDoubleBuffer(Math.max(newLength, 1));
-
-        cl_mem newColIndex =
-                executor.allocateIntBuffer(Math.max(newLength, 1));
+        GpuResource newValues = executor.allocateDoubleBuffer(Math.max(newLength, 1));
+        GpuResource newColIndex = executor.allocateIntBuffer(Math.max(newLength, 1));
 
         if (newLength > 0) {
-            executor.uploadDoubles(
-                    newValues,
-                    values,
-                    newLength
-            );
-
-            executor.uploadInts(
-                    newColIndex,
-                    colIndex,
-                    newLength
-            );
+            executor.uploadDoubles(newValues, values, newLength);
+            executor.uploadInts(newColIndex, colIndex, newLength);
         }
 
-        executor.release(dValues);
-        executor.release(dColIndex);
+        dValues.release();
+        dColIndex.release();
 
         dValues = newValues;
         dColIndex = newColIndex;
@@ -246,13 +234,6 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
 
     @Override
     public void multiply(double[] x, double[] result) {
-        throw new UnsupportedOperationException(
-                "Use GPU DoubleVector operations instead"
-        );
-    }
-
-    @Override
-    public void transposeMultiply(double[] x, double[] result) {
         throw new UnsupportedOperationException(
                 "Use GPU DoubleVector operations instead"
         );
@@ -277,11 +258,11 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
             throw new IndexOutOfBoundsException("row: " + row);
     }
 
-    public cl_mem valuesBuffer() {
+    public GpuResource valuesBuffer() {
         return dValues;
     }
 
-    public cl_mem colIndexBuffer() {
+    public GpuResource colIndexBuffer() {
         return dColIndex;
     }
 
@@ -296,12 +277,12 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
     public void close() {
         if (executor != null) {
             if (dValues != null) {
-                executor.release(dValues);
+                dValues.release();
                 dValues = null;
             }
 
             if (dColIndex != null) {
-                executor.release(dColIndex);
+                dColIndex.release();
                 dColIndex = null;
             }
         }

@@ -1,6 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jetbrains.annotations.Nullable;
 import org.jocl.cl_mem;
@@ -24,7 +25,7 @@ import java.util.Arrays;
  * {@link #resize} keep a same-shaped device buffer in sync for
  * {@link #apply}/{@link #applyJacobian} to run kernels against.
  */
-public class GpuPaddedCSR3Tensor extends GpuExecutable {
+public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable {
 
     private final int termsPerEquation;
     private       int equations;
@@ -33,9 +34,9 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
     private int[]    var1Index;
     private int[]    var2Index;
 
-    private @Nullable cl_mem dValues;
-    private @Nullable cl_mem dVar1Index;
-    private @Nullable cl_mem dVar2Index;
+    private @Nullable GpuResource dValues;
+    private @Nullable GpuResource dVar1Index;
+    private @Nullable GpuResource dVar2Index;
 
     public GpuPaddedCSR3Tensor(int equations, int termsPerEquation) {
         if (equations < 0)
@@ -55,17 +56,17 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
     }
 
     @Override
-    public void setExecutor(@Nullable GpuExecutor executor) {
-        GpuExecutor previous = getExecutor();
+    public void setExecutor(@Nullable OpenCLGpuExecutor executor) {
+        OpenCLGpuExecutor previous = getExecutor();
         super.setExecutor(executor);
 
         if (previous != null) {
             if (dValues != null)
-                previous.release(dValues);
+                dValues.release();
             if (dVar1Index != null)
-                previous.release(dVar1Index);
+                dVar1Index.release();
             if (dVar2Index != null)
-                previous.release(dVar2Index);
+                dVar2Index.release();
 
             dValues = null;
             dVar1Index = null;
@@ -115,11 +116,11 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
             var2Index[base + i] = 0;
         }
 
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
         executor.uploadDoubles(dValues, base, values, base, termsPerEquation);
         executor.uploadInts(dVar1Index, base, var1Index, base, termsPerEquation);
         executor.uploadInts(dVar2Index, base, var2Index, base, termsPerEquation);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     /**
@@ -137,7 +138,7 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
         values[index] += value;
 
         requireExecutor().uploadDoubleAt(dValues, index, values[index]);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     private int findIndex(int equation, int var1, int var2) {
@@ -160,7 +161,7 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
      * resized to {@link #equations()} first, same as {@link GpuPaddedCSRMatrix#apply}.
      */
     public void apply(Vector x, Vector result) {
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
 
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
@@ -172,16 +173,16 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
 
         executor.launchCsr2Apply(dValues, dVar1Index, dVar2Index, termsPerEquation,
                 gpuX.buffer(), gpuResult.buffer(), equations);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     /**
      * Evaluates the Jacobian-vector product {@code result = J(x) * direction}
-     * on the device. See {@link CpuPaddedCSR3Tensor#applyJacobian} for the
+     * on the device. See {@link CpuPaddedCSR3Tensor#multiplyJacobian} for the
      * math (handles {@code j == k} correctly without a special case).
      */
     public void applyJacobian(Vector x, Vector direction, Vector result) {
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
 
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
@@ -196,7 +197,7 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
 
         executor.launchCsr2ApplyJacobian(dValues, dVar1Index, dVar2Index, termsPerEquation,
                 gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), equations);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     public void multiply(double[] x, double[] result) {
@@ -233,11 +234,11 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
 
         equations = newEquations;
 
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
 
-        cl_mem newValuesBuf = executor.allocateDoubleBuffer(Math.max(newLength, 1));
-        cl_mem newVar1Buf = executor.allocateIntBuffer(Math.max(newLength, 1));
-        cl_mem newVar2Buf = executor.allocateIntBuffer(Math.max(newLength, 1));
+        GpuResource newValuesBuf = executor.allocateDoubleBuffer(Math.max(newLength, 1));
+        GpuResource newVar1Buf = executor.allocateIntBuffer(Math.max(newLength, 1));
+        GpuResource newVar2Buf = executor.allocateIntBuffer(Math.max(newLength, 1));
 
         if (newLength > 0) {
             executor.uploadDoubles(newValuesBuf, values, newLength);
@@ -245,9 +246,9 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
             executor.uploadInts(newVar2Buf, var2Index, newLength);
         }
 
-        executor.release(dValues);
-        executor.release(dVar1Index);
-        executor.release(dVar2Index);
+        dValues.release();
+        dVar1Index.release();
+        dVar2Index.release();
 
         dValues = newValuesBuf;
         dVar1Index = newVar1Buf;
@@ -274,33 +275,33 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable {
             throw new IndexOutOfBoundsException("equation: " + equation);
     }
 
-    public cl_mem valuesBuffer() {
+    public @Nullable GpuResource valuesBuffer() {
         return dValues;
     }
 
-    public cl_mem var1IndexBuffer() {
+    public @Nullable GpuResource var1IndexBuffer() {
         return dVar1Index;
     }
 
-    public cl_mem var2IndexBuffer() {
+    public @Nullable GpuResource var2IndexBuffer() {
         return dVar2Index;
     }
 
     public void close() {
-        GpuExecutor executor = getExecutor();
+        OpenCLGpuExecutor executor = getExecutor();
         if (executor == null)
             return;
 
         if (dValues != null) {
-            executor.release(dValues);
+            dValues.release();
             dValues = null;
         }
         if (dVar1Index != null) {
-            executor.release(dVar1Index);
+            dVar1Index.release();
             dVar1Index = null;
         }
         if (dVar2Index != null) {
-            executor.release(dVar2Index);
+            dVar2Index.release();
             dVar2Index = null;
         }
     }

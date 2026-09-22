@@ -2,12 +2,12 @@ package com.rae.formicapi.foundation.math.operators.nonlinear;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 
 import java.util.Arrays;
 
 /**
- * Fixed-structure sparse 3rd order tensor.
+ * Fixed-structure sparse 3rd rank tensor.
  *
  * <p>Represents a quadratic nonlinear operator:
  *
@@ -30,14 +30,16 @@ import java.util.Arrays;
  *
  * <p>The sparsity pattern is fixed after construction.
  */
-public class PaddedCSR3Tensor implements NonlinearOperator {
+public class PaddedCSR3Tensor implements PolynomialOperator {
 
-    private final int termsPerEquation;
-    private       int equations;
+    //TODO since this isn't a general purpose 3rd rank tensor maybe drop the tensor name ?
+
+    private final int      termsPerEquation;
+    private       int      equations;
     /**
      * Quadratic coefficients.
      */
-    private double[] values;
+    private       double[] values;
 
     //pack both indexes into a long for faster access ?
     /**
@@ -138,7 +140,7 @@ public class PaddedCSR3Tensor implements NonlinearOperator {
     }
 
     @Override
-    public void apply(DoubleVector x, DoubleVector result) {
+    public void apply(RealVector x, RealVector result) {
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             multiply(xCpu.array(), resCpu.array());
             return;
@@ -180,18 +182,7 @@ public class PaddedCSR3Tensor implements NonlinearOperator {
         }
     }
 
-    //since it represent every possible compination of x_i*x_j. it's size(x) as input and equations as output. It should be able to be non squared.
-    @Override
-    public int inputSize() {
-        return equations;
-    }
-
-    @Override
-    public int outputSize() {
-        return equations;
-    }
-
-    public void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result) {
+    public void multiplyJacobian(RealVector x, RealVector direction, RealVector result) {
         if (x instanceof CpuDoubleVector xCpu && direction instanceof CpuDoubleVector dirCpu && result instanceof CpuDoubleVector resCpu) {
             multiplyJacobian(xCpu.array(), dirCpu.array(), resCpu.array());
             return;
@@ -201,6 +192,17 @@ public class PaddedCSR3Tensor implements NonlinearOperator {
                 "PaddedCSR2Tensor.multiplyJacobian(...) only supports CpuDoubleVector operands; got x="
                         + x.getClass().getSimpleName() + ", direction=" + direction.getClass().getSimpleName()
                         + ", result=" + result.getClass().getSimpleName());
+    }
+
+    //since it represent every possible compination of x_i*x_j. it's size(x) as input and equations as output. It should be able to be non squared.
+    @Override
+    public int inputSize() {
+        return equations;
+    }
+
+    @Override
+    public int outputSize() {
+        return equations;
     }
 
     /**
@@ -277,5 +279,10 @@ public class PaddedCSR3Tensor implements NonlinearOperator {
         }
 
         equations = newEquations;
+    }
+
+    @Override
+    public int order() {
+        return 2;
     }
 }

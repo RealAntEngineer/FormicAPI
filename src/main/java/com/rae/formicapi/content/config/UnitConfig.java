@@ -4,7 +4,6 @@ import com.rae.formicapi.foundation.units.Pressure;
 import com.rae.formicapi.foundation.units.IrradiationFlux;
 import com.rae.formicapi.foundation.units.Temperature;
 import net.createmod.catnip.config.ConfigBase;
-import org.jetbrains.annotations.NotNull;
 
 public class UnitConfig extends ConfigBase {
     public final ConfigEnum<Temperature> temperature = e(Temperature.CELSIUS,"temperature", Comments.temperature);
@@ -13,7 +12,7 @@ public class UnitConfig extends ConfigBase {
 
 
     @Override
-    public @NotNull String getName() {
+    public String getName() {
         return "units";
     }
 

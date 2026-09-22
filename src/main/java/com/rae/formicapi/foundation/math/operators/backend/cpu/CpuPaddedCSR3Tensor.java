@@ -1,6 +1,8 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
+import com.rae.formicapi.foundation.math.operators.GeneralOperator;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
@@ -24,7 +26,7 @@ import java.util.Arrays;
  * {@code PaddedCSR2Tensor}: a term-major layout would be preferable for a
  * GPU backend, but is fine here since threads/tasks are split by row range).
  */
-public class CpuPaddedCSR3Tensor extends CpuExecutable {
+public class CpuPaddedCSR3Tensor extends CpuExecutable implements GeneralOperator {
 
     private final int      termsPerEquation;
     private       int      equations;
@@ -129,7 +131,7 @@ public class CpuPaddedCSR3Tensor extends CpuExecutable {
      * Evaluates {@code result = F(x)}, dispatching serially or in parallel
      * across equations depending on {@link CpuExecutor#getParallelThreshold()}.
      */
-    public void apply(Vector x, Vector result) {
+    public void apply(RealVector x, RealVector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             double[] xArr      = xCpu.array();
@@ -180,7 +182,7 @@ public class CpuPaddedCSR3Tensor extends CpuExecutable {
      * {@code c * (direction_j * x_k + x_j * direction_k)}; this also handles
      * {@code j == k} correctly without a special case.
      */
-    public void applyJacobian(Vector x, Vector direction, Vector result) {
+    public void multiplyJacobian(RealVector x, RealVector direction, RealVector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
         if (x instanceof CpuDoubleVector xCpu &&
                 direction instanceof CpuDoubleVector dCpu &&
@@ -199,6 +201,16 @@ public class CpuPaddedCSR3Tensor extends CpuExecutable {
         } else {
             throw new IllegalArgumentException("For a cpu backend tensor, you need to cpu backend vectors");
         }
+    }
+
+    @Override
+    public int inputSize() {
+        return equations;
+    }
+
+    @Override
+    public int outputSize() {
+        return equations;
     }
 
     private void applyJacobianRange(int start, int end, double[] xArr, double[] dArr, double[] resultArr) {

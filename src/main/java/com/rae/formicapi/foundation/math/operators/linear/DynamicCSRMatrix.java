@@ -2,6 +2,8 @@ package com.rae.formicapi.foundation.math.operators.linear;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
+
 /**
  * A sparse matrix that supports dynamic assembly via a hash-based buffer,
  * and compiles to CSR format for efficient multiplication.
@@ -103,9 +105,14 @@ public class DynamicCSRMatrix implements MutableMatrix {
      * @param x      input vector of length {@link #rows()}
      * @param result output vector of length {@link #cols()}, overwritten with Aᵀx
      */
-    @Override
     public void transposeMultiply(double[] x, double[] result) {
-        compiled().transposeMultiply(x, result);
+        Matrix matrix = compiled();
+        Arrays.fill(result, 0.0);
+        for (int r = 0; r < matrix.rows(); r++) {
+            for (int c = 0; c < matrix.cols(); c++) {
+                result[c] += matrix.get(r, c) * x[r];
+            }
+        }
     }
 
     @Override

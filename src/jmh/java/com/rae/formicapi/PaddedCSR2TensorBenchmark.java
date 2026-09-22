@@ -2,7 +2,7 @@ package com.rae.formicapi;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -43,9 +43,9 @@ public class PaddedCSR2TensorBenchmark {
     public String indexPattern;
 
     private PaddedCSR3Tensor tensor;
-    private DoubleVector     x;
-    private DoubleVector direction;
-    private DoubleVector result;
+    private RealVector       x;
+    private RealVector       direction;
+    private RealVector       result;
 
     @Setup(Level.Trial)
     public void setup() {

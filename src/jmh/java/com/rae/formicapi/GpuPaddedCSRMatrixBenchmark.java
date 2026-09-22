@@ -2,7 +2,7 @@ package com.rae.formicapi;
 
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutable;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrix;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
  * {@link CpuPaddedCSRMatrixParallelBenchmark} (blocks of 4096 rows,
  * nnzPerRow = 7) so the two benchmarks' numbers are directly comparable
  * row-count for row-count. Unlike the CPU version there is no
- * {@code threads} parameter: {@link GpuExecutor} dispatches onto a single
+ * {@code threads} parameter: {@link OpenCLGpuExecutor} dispatches onto a single
  * device queue, and (per {@link GpuExecutable}'s javadoc) there is no
  * serial/size-threshold fallback on the GPU path - every row goes through a
  * kernel launch regardless of {@code blocks}.
@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * letting every {@code transposeApply} trial fail individually with
  * {@link UnsupportedOperationException}.
  *
- * <p><b>Every trial's {@link GpuExecutor} is closed in
+ * <p><b>Every trial's {@link OpenCLGpuExecutor} is closed in
  * {@code @TearDown(Level.Trial)}</b>, releasing the OpenCL context/queue/
  * program - mirroring the CPU benchmark's executor shutdown, though the
  * failure mode it guards against is different: a GPU context left open
@@ -68,7 +68,7 @@ public class GpuPaddedCSRMatrixBenchmark {
     @Param({"16", "64", "256"})
     public int blocks;
 
-    private GpuExecutor executor;
+    private OpenCLGpuExecutor  executor;
     private GpuPaddedCSRMatrix matrix;
     private GpuDoubleVector x;
     private GpuDoubleVector result;
@@ -77,7 +77,7 @@ public class GpuPaddedCSRMatrixBenchmark {
     public void setup() {
         Random rnd = new Random(42);
 
-        executor = new GpuExecutor();
+        executor = new OpenCLGpuExecutor();
 
         if (!executor.supportsScatterAtomics())
             throw new IllegalStateException(
@@ -108,7 +108,7 @@ public class GpuPaddedCSRMatrixBenchmark {
         for (int i = 0; i < 1000; i++) {
             matrix.apply(x, result);
         }
-        executor.finish();
+        //executor.finish();
         bh.consume(result);
     }
 
@@ -117,11 +117,11 @@ public class GpuPaddedCSRMatrixBenchmark {
         for (int i = 0; i < 1000; i++) {
             matrix.transposeApply(x, result);
         }
-        executor.finish();
+        //executor.finish();
         bh.consume(result);
     }
 
-    private GpuPaddedCSRMatrix createPaddedMatrix(Random random, int rows, GpuExecutor executor) {
+    private GpuPaddedCSRMatrix createPaddedMatrix(Random random, int rows, OpenCLGpuExecutor executor) {
 
         GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(rows, rows, 7);
         matrix.setExecutor(executor);

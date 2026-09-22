@@ -2,7 +2,7 @@ package com.rae.formicapi.math_tests.vector;
 
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuBooleanVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuIntegerVector;
 import com.rae.formicapi.math_tests.gpu.GpuTestSupport;
 import org.junit.jupiter.api.Test;
@@ -182,7 +182,7 @@ class GpuVectorTest extends GpuTestSupport {
 
     @Test
     void operandsFromDifferentExecutorsAreRejected() {
-        try (GpuExecutor otherExecutor = new GpuExecutor()) {
+        try (OpenCLGpuExecutor otherExecutor = new OpenCLGpuExecutor()) {
             GpuDoubleVector v1 = new GpuDoubleVector(executor, new double[]{1.0, 2.0});
             GpuDoubleVector v2 = new GpuDoubleVector(otherExecutor, new double[]{3.0, 4.0});
 

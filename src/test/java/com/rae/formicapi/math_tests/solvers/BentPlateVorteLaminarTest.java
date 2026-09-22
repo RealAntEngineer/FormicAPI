@@ -3,9 +3,11 @@ package com.rae.formicapi.math_tests.solvers;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
+import com.rae.formicapi.foundation.plotting.StreamlineRenderer;
+import com.rae.formicapi.foundation.plotting.VectorFieldRenderer;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -379,8 +381,8 @@ public class BentPlateVorteLaminarTest {
                 }
             }
 
-            WorkingBuffer<DoubleVector> bufferN = new WorkingBuffer<>(7, () -> new CpuDoubleVector(n));
-            WorkingBuffer<DoubleVector> bufferM = new WorkingBuffer<>(3, () -> new CpuDoubleVector(n));
+            WorkingBuffer<RealVector> bufferN = new WorkingBuffer<>(7, () -> new CpuDoubleVector(n));
+            WorkingBuffer<RealVector> bufferM = new WorkingBuffer<>(3, () -> new CpuDoubleVector(n));
 
             stats.reset();
 
@@ -444,12 +446,12 @@ public class BentPlateVorteLaminarTest {
                         vorticity[i][j] = dvdx - dudy;
                     }
 
-                Field2DRenderer.saveHeatmap(divergence, String.format("bent_plate_laminar/divergence/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(vorticity, String.format("bent_plate_laminar/vorticity/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(pressure, String.format("bent_plate_laminar/pressure/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(divergence, String.format("bent_plate_laminar/divergence/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(vorticity, String.format("bent_plate_laminar/vorticity/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(pressure, String.format("bent_plate_laminar/pressure/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
                 StreamlineRenderer.saveStreamlines(uField, vField,
                         String.format("bent_plate_laminar/streamline/%05d.png", step));
                 VectorFieldRenderer.saveVectorField(uField, vField,

@@ -8,11 +8,12 @@ import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataProvider;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
-import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
+
+import static com.rae.formicapi.content.data.managers.TwoDTabulatedFunctionLoader.CODEC;
 
 public class TwoDTabulatedFunctionProvider implements DataProvider {
 
@@ -51,7 +52,7 @@ public class TwoDTabulatedFunctionProvider implements DataProvider {
     }
 
     @Override
-    public @NotNull CompletableFuture<?> run(@NotNull CachedOutput cache) {
+    public CompletableFuture<?> run(CachedOutput cache) {
         // Example path: data/yourmod/tabulated_functions/my_function.json
         TwoDTabulatedFunction function = TwoDTabulatedFunction.populate(
               f, // your function here
@@ -60,7 +61,7 @@ public class TwoDTabulatedFunctionProvider implements DataProvider {
                 clamp
         );
 
-        JsonElement json = TwoDTabulatedFunction.CODEC.encodeStart(JsonOps.INSTANCE, function)
+        JsonElement json = CODEC.encodeStart(JsonOps.INSTANCE, function)
                 .getOrThrow();
         Path path = output.getOutputFolder()
                 .resolve("data/" + location.getNamespace() + "/tabulated_functions/" + location.getPath() + ".json");
@@ -69,7 +70,7 @@ public class TwoDTabulatedFunctionProvider implements DataProvider {
     }
 
     @Override
-    public @NotNull String getName() {
-        return "2D Functions for " + location.toString();
+    public String getName() {
+        return "2D Functions for " + location;
     }
 }

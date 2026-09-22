@@ -1,4 +1,4 @@
-package com.rae.formicapi.math_tests.solvers;
+package com.rae.formicapi.foundation.plotting;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

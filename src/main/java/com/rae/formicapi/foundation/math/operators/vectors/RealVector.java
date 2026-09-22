@@ -1,7 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.vectors;
 
 /**
- * A mutable, arbitrarily-backed (CPU, GPU, ...) vector of doubles: the
+ * A mutable, arbitrarily-backed (CPU, GPU, ...) vector of real (float or doubles): the
  * elementwise/linear-algebra primitives that iterative solvers (CG,
  * BiCGSTAB, Newton-Krylov, ...) and the Lagrangian particle layer are built
  * out of.
@@ -30,7 +30,7 @@ package com.rae.formicapi.foundation.math.operators.vectors;
  * mix full-space and reduced-space vectors depending on which side of the
  * boundary each one lives on.
  */
-public interface DoubleVector extends Vector {
+public interface RealVector extends Vector {
 
     /** Euclidean norm: {@code sqrt(this . this)}. */
     default double norm() {
@@ -41,35 +41,35 @@ public interface DoubleVector extends Vector {
      * Dot product: {@code this . other}. Both vectors must be the same
      * size.
      */
-    double dot(DoubleVector other);
+    double dot(RealVector other);
 
     /**
      * Reduced-space dot product: equivalent to gathering both operands
      * through {@code unknowIdx} (per {@code thisSkip}/{@code sourceSkip})
      * and dotting the result, without materializing the gathered vectors.
      *
-     * @see DoubleVector class-level docs on skipped/scattered operations
+     * @see RealVector class-level docs on skipped/scattered operations
      */
-    default double skippedDot(DoubleVector other, IntegerVector unknowIdx) {
+    default double skippedDot(RealVector other, IntegerVector unknowIdx) {
         return skippedDot(other, unknowIdx, true, false);
     }
 
-    double skippedDot(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
+    double skippedDot(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
 
     /**
      * {@code this = this + a*x} (AXPY).
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector axpy(double a, DoubleVector x);
+    RealVector axpy(double a, RealVector x);
 
     /**
      * Reduced-space AXPY.
      *
      * @return {@code this}, for chaining
-     * @see DoubleVector class-level docs on skipped/scattered operations
+     * @see RealVector class-level docs on skipped/scattered operations
      */
-    default DoubleVector skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx) {
+    default RealVector skippedAxpy(double alpha, RealVector other, IntegerVector unknowIdx) {
         return skippedAxpy(alpha, other, unknowIdx, true, false);
     }
 
@@ -81,33 +81,33 @@ public interface DoubleVector extends Vector {
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
+    RealVector skippedAxpy(double alpha, RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip);
 
     /**
      * {@code this = a * this} (uniform scalar scale).
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector scale(double a);
+    RealVector scale(double a);
 
     /**
      * Elementwise scale: {@code this[i] *= x[i]}.
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector scale(DoubleVector x);
+    RealVector scale(RealVector x);
 
     /**
      * Reduced-space elementwise scale.
      *
      * @return {@code this}, for chaining
-     * @see DoubleVector class-level docs on skipped/scattered operations
+     * @see RealVector class-level docs on skipped/scattered operations
      */
-    default DoubleVector skippedScale(DoubleVector other, IntegerVector unknowIdx) {
+    default RealVector skippedScale(RealVector other, IntegerVector unknowIdx) {
         return skippedScale(other, unknowIdx, true, false);
     }
 
-    DoubleVector skippedScale(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+    RealVector skippedScale(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 
     /**
      * Elementwise division: {@code this[i] /= x[i]}. Behavior on a zero
@@ -117,64 +117,64 @@ public interface DoubleVector extends Vector {
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector divide(DoubleVector x);
+    RealVector divide(RealVector x);
 
     /**
      * Reduced-space elementwise division.
      *
      * @return {@code this}, for chaining
-     * @see DoubleVector class-level docs on skipped/scattered operations
+     * @see RealVector class-level docs on skipped/scattered operations
      */
-    default DoubleVector skippedDivide(DoubleVector other, IntegerVector unknowIdx) {
+    default RealVector skippedDivide(RealVector other, IntegerVector unknowIdx) {
         return skippedDivide(other, unknowIdx, true, false);
     }
 
-    DoubleVector skippedDivide(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+    RealVector skippedDivide(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 
     /**
      * {@code this[i] += a}, for every element (uniform scalar add).
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector add(double a);
+    RealVector add(double a);
 
     /**
      * Elementwise add: {@code this[i] += x[i]}.
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector add(DoubleVector x);
+    RealVector add(RealVector x);
 
     /**
      * Reduced-space elementwise add.
      *
      * @return {@code this}, for chaining
-     * @see DoubleVector class-level docs on skipped/scattered operations
+     * @see RealVector class-level docs on skipped/scattered operations
      */
-    default DoubleVector skippedAdd(DoubleVector other, IntegerVector unknowIdx) {
+    default RealVector skippedAdd(RealVector other, IntegerVector unknowIdx) {
         return skippedAdd(other, unknowIdx, true, false);
     }
 
-    DoubleVector skippedAdd(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+    RealVector skippedAdd(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 
     /**
      * Elementwise subtract: {@code this[i] -= x[i]}.
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector subtract(DoubleVector x);
+    RealVector subtract(RealVector x);
 
     /**
      * Reduced-space elementwise subtract.
      *
      * @return {@code this}, for chaining
-     * @see DoubleVector class-level docs on skipped/scattered operations
+     * @see RealVector class-level docs on skipped/scattered operations
      */
-    default DoubleVector skippedSubtract(DoubleVector other, IntegerVector unknowIdx) {
+    default RealVector skippedSubtract(RealVector other, IntegerVector unknowIdx) {
         return skippedSubtract(other, unknowIdx, true, false);
     }
 
-    DoubleVector skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
+    RealVector skippedSubtract(RealVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 
     /**
      * Gather: {@code this[i] = source[indices[i]]}, for
@@ -189,7 +189,5 @@ public interface DoubleVector extends Vector {
      *
      * @return {@code this}, for chaining
      */
-    DoubleVector gather(DoubleVector source, IntegerVector indices);
-
-    //TODO add fluent chain version ? -- done above; remove once implementations are updated
+    RealVector gather(RealVector source, IntegerVector indices);
 }

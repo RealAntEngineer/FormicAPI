@@ -132,7 +132,6 @@ public class CSRMatrix implements Matrix {
      * @param x      input vector of length {@link #rows()}
      * @param result output vector of length {@link #cols()}, overwritten with Aᵀx
      */
-    @Override
     public void transposeMultiply(double[] x, double[] result) {
         Arrays.fill(result, 0.0);
         for (int r = 0; r < rows; r++)

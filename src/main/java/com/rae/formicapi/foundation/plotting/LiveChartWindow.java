@@ -1,4 +1,4 @@
-package com.rae.formicapi;
+package com.rae.formicapi.foundation.plotting;
 
 import org.knowm.xchart.BitmapEncoder;
 import org.knowm.xchart.SwingWrapper;

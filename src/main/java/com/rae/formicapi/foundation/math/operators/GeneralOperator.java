@@ -1,6 +1,6 @@
 package com.rae.formicapi.foundation.math.operators;
 
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 
 public interface GeneralOperator {
 
@@ -11,9 +11,7 @@ public interface GeneralOperator {
      * @param result output vector, overwritten by the result
      * @throws IllegalArgumentException if the vector dimensions are incompatible
      */
-    void apply(DoubleVector x, DoubleVector result);
-
-    void multiplyJacobian(DoubleVector x, DoubleVector direction, DoubleVector result);
+    void apply(RealVector x, RealVector result);
 
     int inputSize();
 

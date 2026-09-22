@@ -189,16 +189,14 @@ public final class CpuExecutor implements AutoCloseable {
                     blackhole = sum;
                 });
 
-                long parallelTime = medianNanos(() -> {
-                    exec.parallelFor(size, (start, end) -> {
-                        double sum = 0.0;
-                        for (int i = start; i < end; i++) {
-                            a[i] += 1.0000001 * x[i];
-                            sum += a[i];
-                        }
-                        blackhole = sum;
-                    });
-                });
+                long parallelTime = medianNanos(() -> exec.parallelFor(size, (start, end) -> {
+                    double sum = 0.0;
+                    for (int i = start; i < end; i++) {
+                        a[i] += 1.0000001 * x[i];
+                        sum += a[i];
+                    }
+                    blackhole = sum;
+                }));
 
                 if (parallelTime < serialTime)
                     return size;

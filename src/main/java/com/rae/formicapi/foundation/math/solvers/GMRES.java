@@ -2,7 +2,7 @@ package com.rae.formicapi.foundation.math.solvers;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 
 @SuppressWarnings("unused")
@@ -18,7 +18,7 @@ public class GMRES {
         return solve(A, new CpuDoubleVector(b), new CpuDoubleVector(x0), maxIter, tol);
     }
 
-    public static int solve(Matrix A, DoubleVector b, DoubleVector x0, int maxIter, float tol) {
+    public static int solve(Matrix A, RealVector b, RealVector x0, int maxIter, float tol) {
         int m = A.rows();
         int n = A.cols();
         return solve(A, b, x0, maxIter, tol,
@@ -29,25 +29,25 @@ public class GMRES {
 
     /**
      * Solve Ax = b using GMRES.
-     *
+     * <p>
      * The vector x is used as the initial guess and overwritten by the solution.
-     *
+     * <p>
      * The method minimizes the residual over the Krylov subspace
-     *
+     * <p>
      *     x_k = x_0 + K_k(A, r_0)
-     *
+     * <p>
      * where
-     *
+     * <p>
      *     K_k(A, r_0) = span(r_0, A*r_0, ..., A^(k-1)*r_0).
-     *
+     * <p>
      * mBuffer:
      *  RESIDUAL -> A.rows()
      *  TEMP     -> A.rows()
-     *
+     * <p>
      * nBuffer:
      *  V[0..maxIter] -> Krylov basis vectors
      */
-    public static int solve(Matrix A, DoubleVector b, DoubleVector x, int maxIter, double tol, WorkingBuffer<DoubleVector> mBuffer, WorkingBuffer<DoubleVector> nBuffer) {
+    public static int solve(Matrix A, RealVector b, RealVector x, int maxIter, double tol, WorkingBuffer<RealVector> mBuffer, WorkingBuffer<RealVector> nBuffer) {
 
         int m = A.rows();
         int n = A.cols();
@@ -60,13 +60,13 @@ public class GMRES {
 
         x.resize(n);
 
-        DoubleVector residual = mBuffer.get(RESIDUAL);
-        DoubleVector temp = mBuffer.get(TEMP);
+        RealVector residual = mBuffer.get(RESIDUAL);
+        RealVector temp     = mBuffer.get(TEMP);
 
         residual.resize(n);
         temp.resize(n);
 
-        DoubleVector v0 = nBuffer.get(0);
+        RealVector v0 = nBuffer.get(0);
         v0.resize(n);
 
         // residual = b - A*x
@@ -93,8 +93,8 @@ public class GMRES {
         g[0] = beta;
 
         for (int iter = 0; iter < maxIter; iter++) {
-            DoubleVector v = nBuffer.get(iter);
-            DoubleVector next = nBuffer.get(iter + 1);
+            RealVector v    = nBuffer.get(iter);
+            RealVector next = nBuffer.get(iter + 1);
 
             v.resize(n);
             next.resize(n);
@@ -106,7 +106,7 @@ public class GMRES {
             // Arnoldi orthogonalization
 
             for (int j = 0; j <= iter; j++) {
-                DoubleVector vj = nBuffer.get(j);
+                RealVector vj = nBuffer.get(j);
 
                 double hij = next.dot(vj);
 
@@ -168,7 +168,7 @@ public class GMRES {
         return maxIter;
     }
 
-    private static void updateSolution(DoubleVector x, WorkingBuffer<DoubleVector> nBuffer, double[] h, double[] g, int iter, int maxIter) {
+    private static void updateSolution(RealVector x, WorkingBuffer<RealVector> nBuffer, double[] h, double[] g, int iter, int maxIter) {
 
         int k = iter + 1;
 
@@ -184,7 +184,7 @@ public class GMRES {
         }
 
         for (int i = 0; i < k; i++) {
-            DoubleVector v = nBuffer.get(i);
+            RealVector v = nBuffer.get(i);
             x.axpy(y[i], v);
         }
     }

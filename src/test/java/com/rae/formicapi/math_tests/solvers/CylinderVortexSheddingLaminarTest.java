@@ -1,13 +1,13 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.LiveChartWindow;
+import com.rae.formicapi.foundation.plotting.LiveChartWindow;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
-import org.junit.jupiter.api.Test;
+import com.rae.formicapi.foundation.plotting.StreamlineRenderer;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
 import org.knowm.xchart.style.Styler;
@@ -329,8 +329,8 @@ public class CylinderVortexSheddingLaminarTest {
                 }
             }
 
-            WorkingBuffer<DoubleVector> bufferN = new WorkingBuffer<>(7, () -> new CpuDoubleVector(n));
-            WorkingBuffer<DoubleVector> bufferM = new WorkingBuffer<>(3, () -> new CpuDoubleVector(n));
+            WorkingBuffer<RealVector> bufferN = new WorkingBuffer<>(7, () -> new CpuDoubleVector(n));
+            WorkingBuffer<RealVector> bufferM = new WorkingBuffer<>(3, () -> new CpuDoubleVector(n));
 
             stats.reset();
 
@@ -388,12 +388,12 @@ public class CylinderVortexSheddingLaminarTest {
                         vorticity[i][j] = dvdx - dudy;
                     }
 
-                Field2DRenderer.saveHeatmap(speed, String.format("cylinder_shedding_laminar/speed/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(vorticity, String.format("cylinder_shedding_laminar/vorticity/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(pressure, String.format("cylinder_shedding_laminar/pressure/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(speed, String.format("cylinder_shedding_laminar/speed/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(vorticity, String.format("cylinder_shedding_laminar/vorticity/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(pressure, String.format("cylinder_shedding_laminar/pressure/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
                 StreamlineRenderer.saveStreamlines( u, v, String.format("cylinder_shedding_laminar/streamline/%05d.png", step));
             }
         }

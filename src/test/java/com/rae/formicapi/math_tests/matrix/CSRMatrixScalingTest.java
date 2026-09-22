@@ -1,10 +1,12 @@
 package com.rae.formicapi.math_tests.matrix;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.CSRMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.DynamicCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.HashSparseMatrix;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -134,7 +136,7 @@ public class CSRMatrixScalingTest {
             double[] x = randomVector(n);
             double[] result = new double[n];
 
-            long ns = benchmark(() -> A.transposeMultiply(x, result));
+            long ns = benchmark(() -> A.transposeApply(new CpuDoubleVector(x), new CpuDoubleVector(result)));
             long nnz = (long) n * nnzPerRow;
             printRow(n, ns, nnz);
 
@@ -186,7 +188,15 @@ public class CSRMatrixScalingTest {
             double[] x = randomVector(n);
             double[] result = new double[n];
 
-            long ns = benchmark(() -> A.transposeMultiply(x, result));
+            long ns = benchmark(() -> {
+                double[] result1 = new CpuDoubleVector(result).array();
+                Arrays.fill(result1, 0.0);
+                for (int r = 0; r < A.rows(); r++) {
+                    for (int c = 0; c < A.cols(); c++) {
+                        result1[c] += A.get(r, c) * new CpuDoubleVector(x).array()[r];
+                    }
+                }
+            });
             long nnz = (long) n * m;
             printRow(m, ns, nnz);
 
@@ -206,8 +216,8 @@ public class CSRMatrixScalingTest {
         double[] x = randomVector(n);
         double[] result = new double[n];
 
-        long nsCSR = benchmark(() -> csr.transposeMultiply(x, result));
-        long nsHash = benchmark(() -> hash.transposeMultiply(x, result));
+        long nsCSR = benchmark(() -> csr.transposeApply(new CpuDoubleVector(x), new CpuDoubleVector(result)));
+        long nsHash = benchmark(() -> hash.transposeApply(new CpuDoubleVector(x), new CpuDoubleVector(result)));
 
         System.out.printf("%n=== transposeMultiply: CSR vs default (n=%d, nnzPerRow=%d) ===%n", n, nnzPerRow);
         System.out.printf("  CSR     : %s ns%n", fmt(nsCSR));

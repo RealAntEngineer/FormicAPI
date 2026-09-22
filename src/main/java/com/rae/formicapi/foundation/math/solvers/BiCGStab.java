@@ -3,7 +3,7 @@ package com.rae.formicapi.foundation.math.solvers;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import org.jetbrains.annotations.Nullable;
@@ -49,12 +49,12 @@ public class BiCGStab {
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
     public static double[] solve(Matrix A, double[] x_init, double[] b, int maxIter, double tol) {
-        DoubleVector xv = new CpuDoubleVector(x_init);
+        RealVector xv = new CpuDoubleVector(x_init);
         solve(A, xv, new CpuDoubleVector(b), maxIter, tol);
         return ((CpuDoubleVector) xv).array();
     }
 
-    public static int solve(Matrix A, DoubleVector x, DoubleVector b, int maxIter, double tol) {
+    public static int solve(Matrix A, RealVector x, RealVector b, int maxIter, double tol) {
         int n = A.rows();
         int m = A.cols();
 
@@ -70,9 +70,9 @@ public class BiCGStab {
      */
     public static double[] solveConstrained(Matrix A, double[] x, boolean[] fixedVariables, double[] b,
                                             int maxIter, double tol) {
-        int n = A.rows();
-        DoubleVector xv = new CpuDoubleVector(x);
-        DoubleVector bv = new CpuDoubleVector(b);
+        int        n  = A.rows();
+        RealVector xv = new CpuDoubleVector(x);
+        RealVector bv = new CpuDoubleVector(b);
 
         IntegerVector unknownIdx = new CpuIntegerVector(n);
         Util.fillUnknowIdx(fixedVariables, unknownIdx, A.inputSize(), A.outputSize());
@@ -84,7 +84,7 @@ public class BiCGStab {
      * Solve a constrained system, allocating its working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static int solveConstrained(Matrix A, DoubleVector x, DoubleVector b,
+    public static int solveConstrained(Matrix A, RealVector x, RealVector b,
                                        int maxIter, double tol, IntegerVector unknownIdx) {
         int n = A.rows();
         int m = A.cols();
@@ -147,9 +147,9 @@ public class BiCGStab {
      * @throws IllegalStateException if the number of free variables does not equal
      *         the number of equations
      */
-    public static int solve(Matrix A, DoubleVector x, DoubleVector b, int maxIter, double tol,
-                            @Nullable IntegerVector unknownIdx, @Nullable DoubleVector scaling,
-                            WorkingBuffer<DoubleVector> nBuffer, WorkingBuffer<DoubleVector> mBuffer) {
+    public static int solve(Matrix A, RealVector x, RealVector b, int maxIter, double tol,
+                            @Nullable IntegerVector unknownIdx, @Nullable RealVector scaling,
+                            WorkingBuffer<RealVector> nBuffer, WorkingBuffer<RealVector> mBuffer) {
         int n = A.rows();
         int m = A.cols();
 
@@ -185,13 +185,13 @@ public class BiCGStab {
         if (scalePrecondition && scaling.size() < n)
             throw new IllegalArgumentException("scaling size (" + scaling.size() + ") < matrix rows (" + n + ")");
 
-        DoubleVector r = nBuffer.get(R);
-        DoubleVector r0 = nBuffer.get(R0);
-        DoubleVector v = nBuffer.get(V);
-        DoubleVector t = nBuffer.get(T);
+        RealVector r  = nBuffer.get(R);
+        RealVector r0 = nBuffer.get(R0);
+        RealVector v  = nBuffer.get(V);
+        RealVector t  = nBuffer.get(T);
 
-        DoubleVector p = mBuffer.get(P);
-        DoubleVector s = mBuffer.get(S);
+        RealVector p = mBuffer.get(P);
+        RealVector s = mBuffer.get(S);
 
         p.clear();
         s.clear();

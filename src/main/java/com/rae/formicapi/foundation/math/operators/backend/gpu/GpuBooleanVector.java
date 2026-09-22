@@ -1,5 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.vectors.BooleanVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
@@ -8,7 +9,7 @@ import org.jocl.cl_mem;
 /**
  * GPU backend for {@link BooleanVector}. Stored as one {@code cl_char} per
  * element on device (0/1) since OpenCL has no packed device-side boolean
- * type - see {@link GpuExecutor#allocateByteBuffer(int)}.
+ * type - see {@link OpenCLGpuExecutor#allocateByteBuffer(int)}.
  *
  * <p>Same single-element-access caveat as {@link GpuIntegerVector}: {@link #get}/
  * {@link #set} are a device round-trip each, fine for setup/masking logic
@@ -16,23 +17,23 @@ import org.jocl.cl_mem;
  */
 public final class GpuBooleanVector extends GpuExecutable implements BooleanVector {
 
-    private cl_mem buffer;
+    private GpuResource buffer;
     private int    size;
     private int    capacity;
 
-    public GpuBooleanVector(GpuExecutor executor, boolean[] hostData) {
+    public GpuBooleanVector(OpenCLGpuExecutor executor, boolean[] hostData) {
         this(executor, hostData.length);
         upload(hostData);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
-    public GpuBooleanVector(GpuExecutor executor, int size) {
+    public GpuBooleanVector(OpenCLGpuExecutor executor, int size) {
         setExecutor(executor);
         this.capacity = size;
         this.size = size;
         this.buffer = executor.allocateByteBuffer(Math.max(size, 1));
         executor.fillByteBuffer(buffer, (byte) 0, size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     public void upload(boolean[] host) {
@@ -89,14 +90,14 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
 
     @Override
     public BooleanVector resize(int newSize) {
-        GpuExecutor ctx = requireExecutor();
+        OpenCLGpuExecutor ctx = requireExecutor();
 
         if (newSize > capacity) {
-            cl_mem newBuffer = ctx.allocateByteBuffer(Math.max(newSize, 1));
+            GpuResource newBuffer = ctx.allocateByteBuffer(Math.max(newSize, 1));
             ctx.fillByteBuffer(newBuffer, (byte) 0, newSize);
             if (capacity > 0)
                 ctx.copyByteBuffer(buffer, newBuffer, Math.min(capacity, newSize));
-            ctx.release(buffer);
+            buffer.release();
             buffer = newBuffer;
             capacity = newSize;
         }
@@ -112,7 +113,7 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
 
         resize(vec.size);
         requireExecutor().copyByteBuffer(vec.buffer, buffer, vec.size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
         return this;
     }
 
@@ -120,20 +121,19 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
     public BooleanVector copy() {
         GpuBooleanVector out = new GpuBooleanVector(requireExecutor(), size);
         requireExecutor().copyByteBuffer(buffer, out.buffer, size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
         return out;
     }
 
     @Override
     public BooleanVector clear() {
         requireExecutor().fillByteBuffer(buffer, (byte) 0, size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
         return this;
     }
 
     public void release() {
-        if (executor != null)
-            executor.release(buffer);
+        buffer.release();
         buffer = null;
     }
 }

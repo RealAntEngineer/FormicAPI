@@ -5,19 +5,10 @@ import com.mojang.serialization.Codec;
 import java.util.function.DoubleUnaryOperator;
 
 public enum StepMode {
-    LINEAR(
-            x -> x,
-            x -> x
-    ),
-    LOGARITHMIC(
-            Math::log,
-            Math::exp
-    );
+    LINEAR(x -> x, x -> x),
+    LOGARITHMIC(Math::log, Math::exp);
 
-    public static final Codec<StepMode> CODEC = Codec.STRING.xmap(
-            StepMode::valueOf,
-            StepMode::name
-    );
+    public static final Codec<StepMode> CODEC = Codec.STRING.xmap(StepMode::valueOf, StepMode::name);
     public final DoubleUnaryOperator forward;
     public final DoubleUnaryOperator inverse;
 
@@ -25,5 +16,4 @@ public enum StepMode {
         this.forward = forward;
         this.inverse = inverse;
     }
-
 }

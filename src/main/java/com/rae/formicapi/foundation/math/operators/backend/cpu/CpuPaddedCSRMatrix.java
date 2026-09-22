@@ -1,7 +1,8 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 
 import java.util.Arrays;
 
@@ -189,7 +190,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
 
 
     @Override
-    public void apply(DoubleVector x, DoubleVector result) {
+    public void apply(RealVector x, RealVector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");//TODO maybe default to serial ?
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             double[] xArr      = xCpu.array();
@@ -235,9 +236,8 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         }*/
     }
 
-
     @Override
-    public void transposeApply(DoubleVector x, DoubleVector result) {
+    public void transposeApply(RealVector x, RealVector result) {
         if (executor == null) throw new RuntimeException("Executor wasn't setup");
         if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
             double[] xArr      = xCpu.array();
@@ -283,11 +283,6 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
     }
 
     @Override
-    public void transposeMultiply(double[] x, double[] result) {
-        throw new RuntimeException("Unsuported, use vector version instead");
-    }
-
-    @Override
     public int rows() {
         return rows;
     }
@@ -308,6 +303,11 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         }
 
         return 0.0;
+    }
+
+    @Override
+    public RealVector getValues(IntegerVector r, IntegerVector c) {
+        return null;
     }
 
     public double[] getRowValues(int r) {

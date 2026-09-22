@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * JMH benchmark for the CPU-parallel {@link CpuPaddedCSR3Tensor}:
  * {@link CpuPaddedCSR3Tensor#apply} (F(x) = C:x:x) and
- * {@link CpuPaddedCSR3Tensor#applyJacobian} (J(x)*direction).
+ * {@link CpuPaddedCSR3Tensor#multiplyJacobian} (J(x)*direction).
  *
  * <p>Compare against the plain (serial) {@code PaddedCSR2TensorBenchmark} to
  * see whether/where parallel dispatch actually pays for itself.
@@ -110,7 +110,7 @@ public class CpuPaddedCSR2TensorParallelBenchmark {
 
     @Benchmark
     public void applyJacobian(Blackhole bh) {
-        tensor.applyJacobian(x, direction, result);
+        tensor.multiplyJacobian(x, direction, result);
         bh.consume(result);
     }
 }

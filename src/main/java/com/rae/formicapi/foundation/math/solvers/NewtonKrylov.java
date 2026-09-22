@@ -4,7 +4,7 @@ import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import org.jetbrains.annotations.Nullable;
@@ -107,8 +107,8 @@ public class NewtonKrylov {
     public static double[] solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b,
                                  int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
                                  double @Nullable [] scaling, @Nullable Stats stats) {
-        DoubleVector xv       = new CpuDoubleVector(x);
-        DoubleVector scalingV = scaling == null ? null : new CpuDoubleVector(scaling);
+        RealVector xv       = new CpuDoubleVector(x);
+        RealVector scalingV = scaling == null ? null : new CpuDoubleVector(scaling);
         solve(C, A, xv, new CpuDoubleVector(b), maxNewtonIter, maxLinearIter, newtonTol, linearTol, scalingV, stats);
         return ((CpuDoubleVector) xv).array();
     }
@@ -117,9 +117,9 @@ public class NewtonKrylov {
      * Unconstrained solve, allocating its working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static DoubleVector solve(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b,
-                                     int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
-                                     @Nullable DoubleVector scaling, @Nullable Stats stats) {
+    public static RealVector solve(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+                                   int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
+                                   @Nullable RealVector scaling, @Nullable Stats stats) {
         int n = A.outputSize();
         int m = A.inputSize();
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, scaling, stats, null,
@@ -140,10 +140,10 @@ public class NewtonKrylov {
      * @param bufferN working buffer providing {@value #BUFFER_COUNT_N} vectors of size {@code n = A.outputSize()}
      * @param bufferM working buffer providing {@value #BUFFER_COUNT_M} vectors of size {@code m = A.inputSize()}
      */
-    public static DoubleVector solve(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b,
-                                     int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
-                                     @Nullable DoubleVector scaling, @Nullable Stats stats,
-                                     @Nullable IntegerVector unknownIdx, WorkingBuffer<DoubleVector> bufferN, WorkingBuffer<DoubleVector> bufferM) {
+    public static RealVector solve(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+                                   int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
+                                   @Nullable RealVector scaling, @Nullable Stats stats,
+                                   @Nullable IntegerVector unknownIdx, WorkingBuffer<RealVector> bufferN, WorkingBuffer<RealVector> bufferM) {
         int     n           = A.outputSize();
         int     m           = A.inputSize();
         boolean constrained = unknownIdx != null;
@@ -175,7 +175,7 @@ public class NewtonKrylov {
             if (bufferM.get(i).size() < m)
                 throw new IllegalArgumentException("Variable-space working buffer vector " + i + " has size < " + m);
 
-        DoubleVector F = bufferN.get(RES), tmp = bufferN.get(TMP), dx = bufferM.get(DX);
+        RealVector F = bufferN.get(RES), tmp = bufferN.get(TMP), dx = bufferM.get(DX);
 
         for (int iteration = 0; iteration < maxNewtonIter; iteration++) {
             double residualNorm = residual(C, A, x, b, F, tmp, scaling);
@@ -215,8 +215,8 @@ public class NewtonKrylov {
      * {@code scaling ⊙ F} — see the scaling section of the class javadoc.
      * Returns {@code ||F||2} (of the possibly-scaled {@code F}).
      */
-    private static double residual(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b,
-                                   DoubleVector F, DoubleVector tmp, @Nullable DoubleVector scaling) {
+    private static double residual(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+                                   RealVector F, RealVector tmp, @Nullable RealVector scaling) {
         C.apply(x, F);
         A.apply(x, tmp);
         F.add(tmp);
@@ -235,15 +235,15 @@ public class NewtonKrylov {
      * {@code BiCGStab}'s {@code x} — it starts at {@code 0} instead of a
      * warm start, so no jacobian call is needed to seed {@code r}.
      */
-    private static int newtonStep(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector F,
-                                  @Nullable IntegerVector unknownIdx, @Nullable DoubleVector scaling, DoubleVector dx,
-                                  int maxIter, double tol, WorkingBuffer<DoubleVector> bufferN, WorkingBuffer<DoubleVector> bufferM) {
+    private static int newtonStep(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector F,
+                                  @Nullable IntegerVector unknownIdx, @Nullable RealVector scaling, RealVector dx,
+                                  int maxIter, double tol, WorkingBuffer<RealVector> bufferN, WorkingBuffer<RealVector> bufferM) {
         boolean constrained       = unknownIdx != null;
         boolean scalePrecondition = scaling != null;
 
-        DoubleVector r     = bufferN.get(R), r0 = bufferN.get(R0), v = bufferN.get(V), t = bufferN.get(T);
-        DoubleVector cTerm = bufferN.get(CTERM);
-        DoubleVector p     = bufferM.get(P), s = bufferM.get(S);
+        RealVector r     = bufferN.get(R), r0 = bufferN.get(R0), v = bufferN.get(V), t = bufferN.get(T);
+        RealVector cTerm = bufferN.get(CTERM);
+        RealVector p     = bufferM.get(P), s = bufferM.get(S);
 
         dx.clear();
         p.clear();
@@ -339,8 +339,8 @@ public class NewtonKrylov {
      * written into {@code out}. Scaling is applied by the caller, not here —
      * see the scaling section of the class javadoc.
      */
-    private static void jacobian(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector direction,
-                                 DoubleVector cTerm, DoubleVector out) {
+    private static void jacobian(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector direction,
+                                 RealVector cTerm, RealVector out) {
         C.multiplyJacobian(x, direction, cTerm);
         A.apply(direction, out);
         out.add(cTerm);
@@ -359,8 +359,8 @@ public class NewtonKrylov {
     public static double[] solveConstrained(PaddedCSR3Tensor C, Matrix A, double[] x, boolean[] fixedVariables, double[] b,
                                             int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
                                              double @Nullable [] scaling, @Nullable Stats stats) {
-        DoubleVector xv       = new CpuDoubleVector(x);
-        DoubleVector scalingV = scaling == null ? null : new CpuDoubleVector(scaling);
+        RealVector xv       = new CpuDoubleVector(x);
+        RealVector scalingV = scaling == null ? null : new CpuDoubleVector(scaling);
 
         IntegerVector unknownIdx = new CpuIntegerVector(A.outputSize());
         Util.fillUnknowIdx(fixedVariables, unknownIdx, A.inputSize(), A.outputSize());
@@ -375,9 +375,9 @@ public class NewtonKrylov {
      * allocating its working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static DoubleVector solveConstrained(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b,
-                                                int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
-                                                @Nullable DoubleVector scaling, @Nullable Stats stats, IntegerVector unknownIdx) {
+    public static RealVector solveConstrained(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+                                              int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
+                                              @Nullable RealVector scaling, @Nullable Stats stats, IntegerVector unknownIdx) {
         int n = C.equations();
         int m = C.inputSize();
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, scaling, stats, unknownIdx,
@@ -385,8 +385,8 @@ public class NewtonKrylov {
                 new WorkingBuffer<>(BUFFER_COUNT_M, () -> new CpuDoubleVector(m)));
     }
 
-    public static DoubleVector solve(PaddedCSR3Tensor C, Matrix A, DoubleVector x, DoubleVector b,
-                                     int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol) {
+    public static RealVector solve(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+                                   int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol) {
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, null, null);
     }
 

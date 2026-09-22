@@ -1,12 +1,11 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.LiveChartWindow;
+import com.rae.formicapi.foundation.plotting.LiveChartWindow;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
-import org.junit.jupiter.api.Test;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
 import org.knowm.xchart.style.Styler;
@@ -416,10 +415,10 @@ public class Convection1Test {
                         temperature[i][j] = x[T];
                     }
 
-                Field2DRenderer.saveHeatmap(speed, String.format("convection_RB/speed_%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(temperature, String.format("convection_RB/temp_%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(speed, String.format("convection_RB/speed_%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(temperature, String.format("convection_RB/temp_%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
             }
         }
     }

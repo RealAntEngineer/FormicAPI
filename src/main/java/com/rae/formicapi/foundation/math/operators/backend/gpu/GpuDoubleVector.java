@@ -1,63 +1,165 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLKernel;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLResource;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
-import org.jocl.cl_mem;
 
 /**
- * GPU backend for {@link DoubleVector}. Data lives entirely on the device in
- * a {@code cl_mem} buffer for the vector's whole lifetime; every arithmetic
- * op here is a thin wrapper that sets kernel args on the shared
- * {@link GpuExecutor} and enqueues a launch - no host round-trip on the hot
- * path.
+ * GPU backend for {@link RealVector}. Data lives entirely on the device in
+ * a {@link GpuResource} for the vector's whole lifetime.
  *
- * <p>Mirrors {@link com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector}'s
- * capacity/size split: {@link #resize} only reallocates the device buffer
- * when growing past current capacity (matching {@code Arrays.copyOf}'s
- * grow-and-zero-pad semantics), shrinking just adjusts the logical size.
- *
- * <p>{@link #copy(Vector)} and {@link #copy()} only interoperate with other
- * {@code GpuDoubleVector}s attached to the <b>same</b> {@link GpuExecutor} -
- * same restriction as the CPU vectors only interoperating with their own
- * type. Moving data between CPU and GPU backends is a separate, explicit
- * step via {@link #upload(double[])} / {@link #download(double[])}.
+ * <p>Kernels are defined as static constants right here, next to the
+ * methods that use them (see {@link OpenCLKernel}'s class doc). They're
+ * bound once, eagerly, in {@link #bindKernels} -- called automatically by
+ * {@link #setExecutor} -- so every arithmetic method below dispatches
+ * directly with zero lookup. {@code dot}/{@code skippedDot} are not a
+ * special case: their kernels are ordinary {@link Kernel}s whose result
+ * happens to land in a small partials buffer passed as one more argument
+ * (see {@link #reduceSum}), not a distinct "reduction" dispatch path.
  */
-public final class GpuDoubleVector extends GpuExecutable implements DoubleVector {
+public final class GpuDoubleVector extends GpuExecutable implements RealVector, AutoCloseable {
 
-    private cl_mem buffer;
-    private int    size;
-    private int    capacity;
+    private static final int PREFERRED_LOCAL_SIZE = 256;
 
-    public GpuDoubleVector(GpuExecutor executor, double[] hostData) {
-        this(executor, hostData.length);
-        upload(hostData);
-        requireExecutor().finish();
+    /** Refined from {@link #PREFERRED_LOCAL_SIZE} against the real device the first time any vector binds; shared, since kernel binding already assumes one active executor at a time. */
+    private static int localSize = PREFERRED_LOCAL_SIZE;
+
+    private static final OpenCLKernel AXPY = new OpenCLKernel("axpy", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void axpy(__global double* d, const double a, __global const double* x) {
+                int i = get_global_id(0);
+                d[i] += a * x[i];
+            }
+            """, "cl_khr_fp64");
+
+    private static final OpenCLKernel ADD_SCALAR = new OpenCLKernel("add_scalar", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void add_scalar(__global double* d, const double a) {
+                int i = get_global_id(0);
+                d[i] += a;
+            }
+            """, "cl_khr_fp64");
+
+    private static final OpenCLKernel ADD_VECTOR = new OpenCLKernel("add_vector", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void add_vector(__global double* d, __global const double* x) {
+                int i = get_global_id(0);
+                d[i] += x[i];
+            }
+            """, "cl_khr_fp64");
+
+    private static final OpenCLKernel SCALE = new OpenCLKernel("scale", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void scale(__global double* d, const double a) {
+                int i = get_global_id(0);
+                d[i] *= a;
+            }
+            """, "cl_khr_fp64");
+
+    // NOTE: no atomics here - mirrors CpuDoubleVector.scatterAxpy's parallel
+    // path, which also does a plain read-modify-write across worker threads
+    // with no synchronization. Caller must not pass duplicate targets in
+    // idx across work-items that can run concurrently, or this races.
+    private static final OpenCLKernel SCATTER_AXPY = new OpenCLKernel("scatter_axpy", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void scatter_axpy(__global double* d, const double alpha, __global const double* s, __global const int* idx) {
+                int i = get_global_id(0);
+                int target = idx[i];
+                d[target] += alpha * s[i];
+            }
+            """, "cl_khr_fp64");
+
+    // Tree reduction within each work-group; writes one partial sum per
+    // group into `partials`. reduceSum(...) below sums the (small)
+    // partials array on the host -- the kernel itself is an ordinary
+    // Kernel, nothing reduction-specific about the abstraction.
+    private static final OpenCLKernel DOT_PARTIAL = new OpenCLKernel("dot_partial", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void dot_partial(__global const double* a, __global const double* b,
+                                       __local double* scratch, __global double* partials, const int n) {
+                int gid = get_global_id(0);
+                int lid = get_local_id(0);
+                int lsize = get_local_size(0);
+                scratch[lid] = (gid < n) ? a[gid] * b[gid] : 0.0;
+                barrier(CLK_LOCAL_MEM_FENCE);
+                for (int offset = lsize / 2; offset > 0; offset >>= 1) {
+                    if (lid < offset) scratch[lid] += scratch[lid + offset];
+                    barrier(CLK_LOCAL_MEM_FENCE);
+                }
+                if (lid == 0) partials[get_group_id(0)] = scratch[0];
+            }
+            """, "cl_khr_fp64");
+
+    private static final OpenCLKernel SKIPPED_DOT_PARTIAL = new OpenCLKernel("skipped_dot_partial", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void skipped_dot_partial(__global const double* a, __global const double* b,
+                                               __global const int* unknownIdx,
+                                               __local double* scratch, __global double* partials, const int n) {
+                int gid = get_global_id(0);
+                int lid = get_local_id(0);
+                int lsize = get_local_size(0);
+                scratch[lid] = (gid < n) ? a[unknownIdx[gid]] * b[gid] : 0.0;
+                barrier(CLK_LOCAL_MEM_FENCE);
+                for (int offset = lsize / 2; offset > 0; offset >>= 1) {
+                    if (lid < offset) scratch[lid] += scratch[lid + offset];
+                    barrier(CLK_LOCAL_MEM_FENCE);
+                }
+                if (lid == 0) partials[get_group_id(0)] = scratch[0];
+            }
+            """, "cl_khr_fp64");
+
+    @Override
+    protected void bindKernels(GpuExecutor executor) {
+        AXPY.bind(executor);
+        ADD_SCALAR.bind(executor);
+        ADD_VECTOR.bind(executor);
+        SCALE.bind(executor);
+        SCATTER_AXPY.bind(executor);
+        DOT_PARTIAL.bind(executor);
+        SKIPPED_DOT_PARTIAL.bind(executor);
+
+        localSize = largestPowerOfTwoLEQ((int) Math.min(PREFERRED_LOCAL_SIZE, executor.maxWorkGroupSize()));
     }
 
-    public GpuDoubleVector(GpuExecutor executor, int size) {
-        setExecutor(executor);
+    private static int largestPowerOfTwoLEQ(int n) {
+        int p = 1;
+        while (p * 2 <= n)
+            p *= 2;
+        return Math.max(p, 1);
+    }
+
+    private GpuResource buffer;
+    private int       size;
+    private int       capacity;
+
+    public GpuDoubleVector(OpenCLGpuExecutor executor, double[] hostData) {
+        this(executor, hostData.length);
+        upload(hostData);
+        //requireExecutor().finish();
+    }
+
+    public GpuDoubleVector(OpenCLGpuExecutor executor, int size) {
+        setExecutor(executor); // also binds kernels, see bindKernels above
         this.capacity = size;
         this.size = size;
         this.buffer = executor.allocateDoubleBuffer(Math.max(size, 1));
         executor.fillDoubleBuffer(buffer, 0.0, size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     // ---------------------------------------------------------------- host interop
 
-    /**
-     * Blocking copy of {@code host} onto the device, replacing this vector's contents. Does not resize.
-     */
+    /** Blocking copy of {@code host} onto the device, replacing this vector's contents. Does not resize. */
     public void upload(double[] host) {
         if (host.length != size)
             throw new IllegalArgumentException("host array length " + host.length + " != vector size " + size);
         requireExecutor().uploadDoubles(buffer, host, size);
     }
 
-    /**
-     * Blocking copy of this vector's current contents back to the host.
-     */
+    /** Blocking copy of this vector's current contents back to the host. */
     public double[] download() {
         double[] out = new double[size];
         download(out);
@@ -70,112 +172,145 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
         requireExecutor().downloadDoubles(buffer, host, size);
     }
 
-    /**
-     * Package-visible accessor so sibling Gpu*Vector types (e.g. index vectors) can be passed into kernel launches.
-     */
-    cl_mem buffer() {
+    /** Package-visible accessor so sibling Gpu*Vector types (e.g. index vectors) can be passed into kernel launches. */
+    GpuResource buffer() {
         return buffer;
     }
 
-    // ---------------------------------------------------------------- DoubleVector
+    // ---------------------------------------------------------------- RealVector
 
     @Override
-    public double dot(DoubleVector other) {
+    public double dot(RealVector other) {
         GpuDoubleVector o = requireSameBackend(other);
-        return requireExecutor().launchDot(buffer, o.buffer, size);
+        return reduceSum(DOT_PARTIAL, size, buffer, o.buffer);
     }
 
     @Override
-    public double skippedDot(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip) {
+    public double skippedDot(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean sourceSkip) {
         GpuDoubleVector o = requireSameBackend(other);
         if (!(unknowIdx instanceof GpuIntegerVector idx))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + unknowIdx.getClass());
 
-        return requireExecutor().launchSkippedDot(buffer, o.buffer, idx.buffer(), idx.size());
+        return reduceSum(SKIPPED_DOT_PARTIAL, idx.size(), buffer, o.buffer, idx.buffer());
+    }
+
+    /**
+     * Shared bookkeeping for {@code dot_partial}/{@code skipped_dot_partial}-shaped
+     * kernels: appends the {@code (local scratch, partials buffer, n)}
+     * triple every such kernel expects -- the partials buffer is passed as
+     * an ordinary {@link OpenCLResource#buffer}, nothing special about it
+     * from {@link Kernel}'s point of view -- dispatches, then downloads and
+     * sums the (small) partials array on the host.
+     */
+    private double reduceSum(Kernel kernel, int size, GpuResource... dataArgs) {
+        if (size <= 0) return 0.0;
+
+        int numGroups        = (size + localSize - 1) / localSize;
+        int paddedGlobalSize = numGroups * localSize;
+
+        OpenCLGpuExecutor ex       = requireExecutor();
+        GpuResource         partials = ex.allocateDoubleBuffer(numGroups);
+        try {
+            GpuResource[] args = new GpuResource[dataArgs.length + 3];
+            System.arraycopy(dataArgs, 0, args, 0, dataArgs.length);
+            args[dataArgs.length]     = OpenCLResource.local(executor, (long) localSize * Double.BYTES);
+            args[dataArgs.length + 1] = partials;
+            args[dataArgs.length + 2] = OpenCLResource.of(executor,size);
+
+            // We're about to read the partials buffer this dispatch just
+            // wrote to -- block on this specific command rather than relying
+            // on downloadDoubles's own blocking transfer to cover it implicitly.
+            kernel.useBlocking(paddedGlobalSize, args);
+
+            double[] partialsHost = new double[numGroups];
+            ex.downloadDoubles(partials, partialsHost, numGroups);
+
+            double sum = 0.0;
+            for (double v : partialsHost)
+                sum += v;
+            return sum;
+        } finally {
+            partials.release();
+        }
     }
 
     @Override
-    public DoubleVector axpy(double a, DoubleVector x) {
+    public RealVector axpy(double a, RealVector x) {
         GpuDoubleVector vec = requireSameBackend(x);
-        requireExecutor().launchAxpy(buffer, a, vec.buffer, size);
-        requireExecutor().finish();
+        // Block: about to return `this` for the caller to read/release/reuse.
+        AXPY.use(size, buffer, OpenCLResource.of(executor, a), vec.buffer);
         return this;
     }
 
     @Override
-    public DoubleVector skippedAxpy(double alpha, DoubleVector other, IntegerVector unknowIdx, boolean thisSkipped, boolean otherSkipped) {
+    public RealVector skippedAxpy(double alpha, RealVector other, IntegerVector unknowIdx, boolean thisSkipped, boolean otherSkipped) {
         GpuDoubleVector vec = requireSameBackend(other);
         if (!(unknowIdx instanceof GpuIntegerVector gpuIdx))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + unknowIdx.getClass());
 
-        requireExecutor().launchScatterAxpy(buffer, alpha, vec.buffer, gpuIdx.buffer(), unknowIdx.size());
-        requireExecutor().finish();
+        SCATTER_AXPY.use(unknowIdx.size(), buffer, OpenCLResource.of(executor,alpha), vec.buffer, gpuIdx.buffer());
         return this;
     }
 
     @Override
-    public DoubleVector scale(double a) {
-        requireExecutor().launchScale(buffer, a, size);
-        requireExecutor().finish();
+    public RealVector scale(double a) {
+        SCALE.use(size, buffer, OpenCLResource.of(executor, a));
         return this;
     }
 
     @Override
-    public DoubleVector scale(DoubleVector x) {
+    public RealVector scale(RealVector x) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DoubleVector skippedScale(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public RealVector skippedScale(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DoubleVector divide(DoubleVector x) {
+    public RealVector divide(RealVector x) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DoubleVector skippedDivide(DoubleVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public RealVector skippedDivide(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DoubleVector add(double a) {
-        requireExecutor().launchAddScalar(buffer, a, size);
-        requireExecutor().finish();
+    public RealVector add(double a) {
+        ADD_SCALAR.use(size, buffer, OpenCLResource.of(executor, a));
         return this;
     }
 
     @Override
-    public DoubleVector add(DoubleVector x) {
+    public RealVector add(RealVector x) {
         GpuDoubleVector vec = requireSameBackend(x);
-        requireExecutor().launchAddVector(buffer, vec.buffer, size);
-        requireExecutor().finish();
+        ADD_VECTOR.use(size, buffer, vec.buffer);
         return this;
     }
 
     @Override
-    public DoubleVector skippedAdd(DoubleVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public RealVector skippedAdd(RealVector source, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DoubleVector subtract(DoubleVector x) {
+    public RealVector subtract(RealVector x) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DoubleVector skippedSubtract(DoubleVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+    public RealVector skippedSubtract(RealVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DoubleVector gather(DoubleVector source, IntegerVector indices) {
+    public RealVector gather(RealVector source, IntegerVector indices) {
         throw new UnsupportedOperationException();
     }
 
-    //TODO this probably belong to Executable directly ? or maybe annotation ?
     private GpuDoubleVector requireSameBackend(Vector x) {
         if (!(x instanceof GpuDoubleVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
@@ -190,15 +325,15 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public DoubleVector resize(int newSize) {
-        GpuExecutor ctx = requireExecutor();
+    public RealVector resize(int newSize) {
+        OpenCLGpuExecutor ctx = requireExecutor();
 
         if (newSize > capacity) {
-            cl_mem newBuffer = ctx.allocateDoubleBuffer(Math.max(newSize, 1));
+            GpuResource newBuffer = ctx.allocateDoubleBuffer(Math.max(newSize, 1));
             ctx.fillDoubleBuffer(newBuffer, 0.0, newSize);
             if (capacity > 0)
                 ctx.copyDoubleBuffer(buffer, newBuffer, Math.min(capacity, newSize));
-            ctx.release(buffer);
+            buffer.release();
             buffer = newBuffer;
             capacity = newSize;
         }
@@ -208,11 +343,11 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     }
 
     @Override
-    public DoubleVector copy(Vector x) {
+    public RealVector copy(Vector x) {
         GpuDoubleVector vec = requireSameBackend(x);
         resize(vec.size);
         requireExecutor().copyDoubleBuffer(vec.buffer, buffer, vec.size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
         return this;
     }
 
@@ -220,23 +355,21 @@ public final class GpuDoubleVector extends GpuExecutable implements DoubleVector
     public Vector copy() {
         GpuDoubleVector out = new GpuDoubleVector(requireExecutor(), size);
         requireExecutor().copyDoubleBuffer(buffer, out.buffer, size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
         return out;
     }
 
     @Override
-    public DoubleVector clear() {
+    public RealVector clear() {
         requireExecutor().fillDoubleBuffer(buffer, 0.0, size);
-        requireExecutor().finish();
+        //requireExecutor().finish();
         return this;
     }
 
-    /**
-     * Releases the underlying device buffer. The vector is unusable afterwards.
-     */
-    public void release() {
-        if (executor != null)
-            executor.release(buffer);
+    /** Releases the underlying device buffer. The vector is unusable afterwards. */
+    @Override
+    public void close() {
+        buffer.release();
         buffer = null;
     }
 }

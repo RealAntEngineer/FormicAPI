@@ -5,7 +5,6 @@ import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
-import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -105,7 +104,7 @@ class DNSTest {
             for (int j = 0; j < ny; j++)
                 velocity[i][j] = x[2 * (j * nx + i)];//u
 
-        Field2DRenderer.saveHeatmap(velocity, "laminar_2d_velocity.png");
+        com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(velocity, "laminar_2d_velocity.png");
         /*
          * Check quadratic velocity profile
          */
@@ -313,7 +312,7 @@ class DNSTest {
                 //System.out.printf("t = %.4f (step %d/%d)%n", step * dt, step, nSteps);
                 //printDiagnostics(nx, ny, u, v, speed);
 
-                Field2DRenderer.saveHeatmap(speed, String.format("cavity/speed_%04d.png", step), Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(speed, String.format("cavity/speed_%04d.png", step), com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
             }
         }
     }

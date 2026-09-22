@@ -4,10 +4,10 @@ package com.rae.formicapi.foundation.math.operators.vectors;
 /**
  * A mutable vector of booleans, used primarily as a liveness/inclusion
  * mask (e.g. {@code ParticleSystem}'s alive flags) alongside
- * {@link DoubleVector} payload fields.
+ * {@link RealVector} payload fields.
  *
  * <p><b>Fluent chaining.</b> Mutating methods return {@code this}, matching
- * {@link DoubleVector}'s convention.
+ * {@link RealVector}'s convention.
  */
 public interface BooleanVector extends Vector {
 
@@ -39,7 +39,7 @@ public interface BooleanVector extends Vector {
      * <p>Safe to call with {@code source == this} — implementations must
      * read every source value before it could be overwritten, since
      * {@code indices} may reorder or duplicate entries. Same contract as
-     * {@link DoubleVector#gather}.
+     * {@link RealVector#gather}.
      *
      * @return {@code this}, for chaining
      */

@@ -13,8 +13,6 @@ import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
-import org.jetbrains.annotations.NotNull;
-import org.lwjgl.system.NonnullDefault;
 import org.slf4j.Logger;
 
 import java.util.HashMap;
@@ -24,7 +22,6 @@ import java.util.Set;
 
 import static com.rae.formicapi.content.event.Event.getSideAwareRegistry;
 
-@NonnullDefault
 public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
     public static final  Logger                           LOGGER        = LogUtils.getLogger();
     private static final Gson                             GSON          = new Gson();
@@ -92,7 +89,7 @@ public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
         TAG_FLOAT_MAP.putAll(newTagValues);
     }
 
-    public float getValue(@NotNull T registryEntry, float defaultValue) {
+    public float getValue(T registryEntry, float defaultValue) {
         if (!tagLoaded) {
             for (Map.Entry<TagKey<T>, Float> entry : TAG_FLOAT_MAP.entrySet()) {
                 for (Holder<T> holder : registry.getTagOrEmpty(entry.getKey())) {

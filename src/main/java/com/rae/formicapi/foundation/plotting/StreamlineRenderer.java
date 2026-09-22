@@ -1,4 +1,4 @@
-package com.rae.formicapi.math_tests.solvers;
+package com.rae.formicapi.foundation.plotting;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -9,7 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.rae.formicapi.math_tests.solvers.Field2DRenderer.*;
+import static com.rae.formicapi.foundation.plotting.Field2DRenderer.*;
 
 public class StreamlineRenderer {
 

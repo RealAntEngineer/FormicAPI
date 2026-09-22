@@ -1,7 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.vectors;
 
 /**
- * Which norm {@link DoubleVector#norm()} computes.
+ * Which norm {@link RealVector#norm()} computes.
  *
  * <p>{@code L2} is {@code sqrt(dot(x,x))} -- always an {@code O(n)} reduction,
  * no way around it. {@code L_INFINITY} is {@code max(|x_i|)}; on
@@ -19,6 +19,7 @@ package com.rae.formicapi.foundation.math.operators.vectors;
  * independent of problem size) rather than making the check stricter.
  */
 public enum NormMode {
+    //TODO this is for the future, refine the solver backend for it
     L2,
     L_INFINITY
 }

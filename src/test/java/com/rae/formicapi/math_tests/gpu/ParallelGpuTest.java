@@ -2,10 +2,10 @@ package com.rae.formicapi.math_tests.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * when the row loop order matches.
  *
  * <p>Each timed loop enqueues all 1000 GPU calls back-to-back and calls
- * {@link com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor#finish()}
+ * {@link OpenCLGpuExecutor#finish()}
  * once at the end, rather than after every call - {@code GpuExecutor}
  * enqueues kernels without a wait event (see {@code GpuPaddedCSRMatrixBenchmark}'s
  * javadoc), so without a {@code finish()} the reported time would just be
@@ -161,7 +161,7 @@ public class ParallelGpuTest extends GpuTestSupport {
         assertArrayEquals(serialResult.array(), gpuResult.download(), 1e-9);
     }
 
-    private static WorkingBuffer<DoubleVector>[] createGpuBuffers(int m, int n, GpuExecutor executor) {
+    private static WorkingBuffer<RealVector>[] createGpuBuffers(int m, int n, OpenCLGpuExecutor executor) {
         GpuDoubleVector u    = new GpuDoubleVector(executor, m);
         GpuDoubleVector temp = new GpuDoubleVector(executor, m);
 
@@ -169,8 +169,8 @@ public class ParallelGpuTest extends GpuTestSupport {
         GpuDoubleVector w     = new GpuDoubleVector(executor, n);
         GpuDoubleVector temp2 = new GpuDoubleVector(executor, n);
 
-        WorkingBuffer<DoubleVector> mBuffer = new WorkingBuffer<>(new GpuDoubleVector[]{ u, temp });
-        WorkingBuffer<DoubleVector> nBuffer = new WorkingBuffer<>(new GpuDoubleVector[]{ v, w, temp2 });
+        WorkingBuffer<RealVector> mBuffer = new WorkingBuffer<>(new GpuDoubleVector[]{ u, temp });
+        WorkingBuffer<RealVector> nBuffer = new WorkingBuffer<>(new GpuDoubleVector[]{ v, w, temp2 });
 
         return new WorkingBuffer[]{ mBuffer, nBuffer };
     }
@@ -250,7 +250,7 @@ public class ParallelGpuTest extends GpuTestSupport {
         //assertArrayEquals(xSerial.array(), xGpu.download(), tol);
     }
 
-    private static WorkingBuffer<DoubleVector>[] createBuffers(int m, int n) {
+    private static WorkingBuffer<RealVector>[] createBuffers(int m, int n) {
         CpuDoubleVector u    = new CpuDoubleVector(m);
         CpuDoubleVector temp = new CpuDoubleVector(m);
 
@@ -258,8 +258,8 @@ public class ParallelGpuTest extends GpuTestSupport {
         CpuDoubleVector w     = new CpuDoubleVector(n);
         CpuDoubleVector temp2 = new CpuDoubleVector(n);
 
-        WorkingBuffer<DoubleVector> mBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ u, temp });
-        WorkingBuffer<DoubleVector> nBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ v, w, temp2 });
+        WorkingBuffer<RealVector> mBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ u, temp });
+        WorkingBuffer<RealVector> nBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ v, w, temp2 });
 
         return new WorkingBuffer[]{ mBuffer, nBuffer };
     }

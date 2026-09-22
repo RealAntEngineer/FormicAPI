@@ -1,12 +1,12 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
-import com.rae.formicapi.foundation.math.operators.vectors.FloatVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
-public final class CpuFloatVector extends CpuExecutable implements FloatVector {
+public final class CpuFloatVector extends CpuExecutable implements RealVector {
 
     private float[] data;
     private int     size;
@@ -22,7 +22,7 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
     }
 
     @Override
-    public float dot(FloatVector other) {
+    public double dot(RealVector other) {
         CpuFloatVector o = (CpuFloatVector) other;
         final float[]  a = data;
         final float[]  b = o.data;
@@ -48,7 +48,7 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
     }
 
     @Override
-    public FloatVector resize(int size) {
+    public RealVector resize(int size) {
         if (size >= data.length)
             data = Arrays.copyOf(data, size);
         this.size = size;
@@ -56,15 +56,10 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
     }
 
     @Override
-    public FloatVector copy(Vector x) {
+    public RealVector copy(Vector x) {
         if (!(x instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
-        /*if (x.size() < this.size)
-            throw new IllegalArgumentException("can't copy a smaller vector into itself");//no, you can resize.*/
-
-        // System.arraycopy is already an intrinsic memcpy - splitting it
-        // across threads doesn't win anything, so this stays serial.
         resize(vec.size);
         System.arraycopy(vec.data, 0, data, 0, vec.size);
         return this;
@@ -73,13 +68,12 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
     @Override
     public Vector copy() {
         Vector vector = new CpuFloatVector(Arrays.copyOf(data, data.length));
-        //System.out.println("Size " + size);
         vector.resize(size);
         return vector;
     }
 
     @Override
-    public FloatVector clear() {
+    public RealVector clear() {
         // Same reasoning as copy(): Arrays.fill is already an optimized
         // intrinsic and is memory-bandwidth bound, not compute bound.
         Arrays.fill(data, 0.0f);
@@ -87,29 +81,210 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
     }
 
     @Override
-    public float skippedDot(FloatVector other, IntegerVector unknowIdx) {
+    public double skippedDot(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+
+        if (!otherSkip && !thisSkip) {
+            throw new IllegalArgumentException("When calling a skipping method at least one skip should be true");
+        }
+
         CpuFloatVector o = (CpuFloatVector) other;
         final float[]  a = data;
         final float[]  b = o.data;
         final int      n = unknowIdx.size();
 
         if (executor != null && executor.shouldUseParallel(size())) {
-            return executor.parallelReduceFloat(n, (start, end) -> {
-                float sum = 0.0f;
-                for (int i = start; i < end; i++)
-                    sum += a[unknowIdx.get(i)] * b[i];
-                return sum;
-            });
+            if (!otherSkip) {
+                return executor.parallelReduceFloat(n, (start, end) -> {
+                    float sum = 0.0f;
+                    for (int i = start; i < end; i++)
+                        sum += a[unknowIdx.get(i)] * b[i];
+                    return sum;
+                });
+            } else if (!thisSkip) {
+                return executor.parallelReduceFloat(n, (start, end) -> {
+                    float sum = 0.0f;
+                    for (int i = start; i < end; i++)
+                        sum += a[i] * b[unknowIdx.get(i)];
+                    return sum;
+                });
+            } else {
+                return executor.parallelReduceFloat(n, (start, end) -> {
+                    float sum = 0.0f;
+                    for (int i = start; i < end; i++)
+                        sum += a[unknowIdx.get(i)] * b[unknowIdx.get(i)];
+                    return sum;
+                });
+            }
         }
 
         float sum = 0.0f;
-        for (int i = 0; i < n; i++)
-            sum += a[unknowIdx.get(i)] * b[i];
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                sum += a[unknowIdx.get(i)] * b[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                sum += a[i] * b[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                sum += a[unknowIdx.get(i)] * b[unknowIdx.get(i)];
+        }
         return sum;
     }
 
     @Override
-    public void axpy(float a, FloatVector x) {
+    public RealVector axpy(double a, RealVector x) {
+        if (!(x instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+
+        final float[] d  = data;
+        final float[] xd = vec.data;
+        final float fa = (float) a;
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            executor.parallelFor(size, (start, end) -> {
+                for (int i = start; i < end; i++)
+                    d[i] += fa * xd[i];
+            });
+            return this;
+        }
+
+        for (int i = 0; i < size; i++)
+            d[i] += fa * xd[i];
+        return this;
+    }
+
+    @Override
+    public RealVector skippedAxpy(double alpha, RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        if (!(other instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + other.getClass());
+
+        if (!otherSkip && !thisSkip)
+            throw new IllegalArgumentException("When calling a skipping method at least one skip should be true");
+
+        final float[] a  = data;
+        final float[] b  = vec.data;
+        final int     n  = unknowIdx.size();
+        final float   fa = (float) alpha;
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            if (!otherSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        a[unknowIdx.get(i)] += fa * b[i];
+                });
+            } else if (!thisSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        a[i] += fa * b[unknowIdx.get(i)];
+                });
+            } else {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        a[unknowIdx.get(i)] += fa * b[unknowIdx.get(i)];
+                });
+            }
+            return this;
+        }
+
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                a[unknowIdx.get(i)] += fa * b[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                a[i] += fa * b[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                a[unknowIdx.get(i)] += fa * b[unknowIdx.get(i)];
+        }
+        return this;
+    }
+
+    @Override
+    public RealVector scale(double a) {
+        final float[] d = data;
+        final float fa = (float) a;
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            executor.parallelFor(size, (start, end) -> {
+                for (int i = start; i < end; i++)
+                    d[i] *= fa;
+            });
+            return this;
+        }
+
+        for (int i = 0; i < size; i++)
+            d[i] *= fa;
+        return this;
+    }
+
+    @Override
+    public RealVector scale(RealVector x) {
+        if (!(x instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+
+        if (x.size() < size)
+            throw new UnsupportedOperationException("can't multiply by a vector smaller than us : " + x.size() + " < " + size);
+
+        final float[] d  = data;
+        final float[] xd = vec.data;
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            executor.parallelFor(size, (start, end) -> {
+                for (int i = start; i < end; i++)
+                    d[i] *= xd[i];
+            });
+            return this;
+        }
+
+        for (int i = 0; i < size; i++)
+            d[i] *= xd[i];
+        return this;
+    }
+
+    @Override
+    public RealVector skippedScale(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        if (!(other instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + other.getClass());
+
+        final float[] d  = data;
+        final float[] xd = vec.data;
+        final int     n  = unknowIdx.size();
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            if (!otherSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] *= xd[i];
+                });
+            } else if (!thisSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] *= xd[unknowIdx.get(i)];
+                });
+            } else {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] *= xd[unknowIdx.get(i)];
+                });
+            }
+            return this;
+        }
+
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] *= xd[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                d[i] *= xd[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] *= xd[unknowIdx.get(i)];
+        }
+        return this;
+    }
+
+    @Override
+    public RealVector divide(RealVector x) {
         if (!(x instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -119,69 +294,77 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
         if (executor != null && executor.shouldUseParallel(size())) {
             executor.parallelFor(size, (start, end) -> {
                 for (int i = start; i < end; i++)
-                    d[i] += a * xd[i];
+                    d[i] /= xd[i];
             });
-            return;
+            return this;
         }
 
         for (int i = 0; i < size; i++)
-            d[i] += a * xd[i];
+            d[i] /= xd[i];
+        return this;
     }
 
     @Override
-    public void scatterAxpy(float alpha, FloatVector source, IntegerVector idx) {
-        if (!(source instanceof CpuFloatVector vec))
-            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + source.getClass());
+    public RealVector skippedDivide(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        if (!(other instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + other.getClass());
 
         final float[] d  = data;
-        final float[] sd = vec.data;
-        final int     n  = idx.size();
+        final float[] xd = vec.data;
+        final int     n  = unknowIdx.size();
 
         if (executor != null && executor.shouldUseParallel(size())) {
-            executor.parallelFor(n, (start, end) -> {
-                for (int i = start; i < end; i++)
-                    d[idx.get(i)] += alpha * sd[i];
-            });
-            return;
+            if (!otherSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] /= xd[i];
+                });
+            } else if (!thisSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] /= xd[unknowIdx.get(i)];
+                });
+            } else {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] /= xd[unknowIdx.get(i)];
+                });
+            }
+            return this;
         }
 
-        for (int i = 0; i < n; i++)
-            d[idx.get(i)] += alpha * sd[i];
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] /= xd[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                d[i] /= xd[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] /= xd[unknowIdx.get(i)];
+        }
+        return this;
     }
 
     @Override
-    public void scale(float a) {
+    public RealVector add(double a) {
         final float[] d = data;
-
+        final float fa = (float) a;
         if (executor != null && executor.shouldUseParallel(size())) {
             executor.parallelFor(size, (start, end) -> {
                 for (int i = start; i < end; i++)
-                    d[i] *= a;
+                    d[i] += fa;
             });
-            return;
+            return this;
         }
 
         for (int i = 0; i < size; i++)
-            d[i] *= a;
+            d[i] += fa;
+        return this;
     }
 
     @Override
-    public void add(float a) {
-        final float[] d = data;
-        if (executor != null && executor.shouldUseParallel(size())) {
-            executor.parallelFor(size, (start, end) -> {
-                for (int i = start; i < end; i++)
-                    d[i] += a;
-            });
-            return;
-        }
-
-        for (int i = 0; i < size; i++)
-            d[i] += a;
-    }
-
-    @Override
-    public void add(FloatVector x) {
+    public RealVector add(RealVector x) {
         if (!(x instanceof CpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -193,11 +376,181 @@ public final class CpuFloatVector extends CpuExecutable implements FloatVector {
                 for (int i = start; i < end; i++)
                     d[i] += xd[i];
             });
-            return;
+            return this;
         }
 
         for (int i = 0; i < size; i++)
             d[i] += xd[i];
+        return this;
+    }
+
+    @Override
+    public RealVector skippedAdd(RealVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        if (!(x instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+
+        final float[] d  = data;
+        final float[] xd = vec.data;
+        final int     n  = unknowIdx.size();
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            if (!otherSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] += xd[i];
+                });
+            } else if (!thisSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] += xd[unknowIdx.get(i)];
+                });
+            } else {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] += xd[unknowIdx.get(i)];
+                });
+            }
+            return this;
+        }
+
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] += xd[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                d[i] += xd[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] += xd[unknowIdx.get(i)];
+        }
+        return this;
+    }
+
+    @Override
+    public RealVector subtract(RealVector x) {
+        if (!(x instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+
+        final float[] d  = data;
+        final float[] xd = vec.data;
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            executor.parallelFor(size, (start, end) -> {
+                for (int i = start; i < end; i++)
+                    d[i] -= xd[i];
+            });
+            return this;
+        }
+
+        for (int i = 0; i < size; i++)
+            d[i] -= xd[i];
+        return this;
+    }
+
+    @Override
+    public RealVector skippedSubtract(RealVector x, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
+        if (!(x instanceof CpuFloatVector vec))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
+
+        final float[] d  = data;
+        final float[] xd = vec.data;
+        final int     n  = unknowIdx.size();
+
+        if (executor != null && executor.shouldUseParallel(size())) {
+            if (!otherSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] -= xd[i];
+                });
+            } else if (!thisSkip) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] -= xd[unknowIdx.get(i)];
+                });
+            } else {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[unknowIdx.get(i)] -= xd[unknowIdx.get(i)];
+                });
+            }
+            return this;
+        }
+
+        if (!otherSkip) {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] -= xd[i];
+        } else if (!thisSkip) {
+            for (int i = 0; i < n; i++)
+                d[i] -= xd[unknowIdx.get(i)];
+        } else {
+            for (int i = 0; i < n; i++)
+                d[unknowIdx.get(i)] -= xd[unknowIdx.get(i)];
+        }
+        return this;
+    }
+
+    @Override
+    public RealVector gather(RealVector source, IntegerVector indices) {
+        if (!(source instanceof CpuFloatVector vec && indices instanceof CpuIntegerVector vecIdx))
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + source.getClass());
+
+        final int n = indices.size();
+        if (this.size() < n)
+            throw new IllegalArgumentException(
+                    "gather target must have >= indices.size() (" + n + ") elements, has " + this.size());
+
+        final float[] xd = vec.data;
+        final int[] id = vecIdx.array();
+        final boolean aliased = (xd == this.data);
+
+        if (!aliased) {
+            final float[] d = this.data;
+            if (executor != null && executor.shouldUseParallel(n)) {
+                executor.parallelFor(n, (start, end) -> {
+                    for (int i = start; i < end; i++)
+                        d[i] = xd[id[i]];
+                });
+            } else {
+                for (int i = 0; i < n; i++)
+                    d[i] = xd[id[i]];
+            }
+            return this;
+        }
+
+        // Aliased: only safe to do in place if the permutation is monotone in
+        // one direction relative to i -- id[i] >= i for every i (forward
+        // pass safe, e.g. swap-with-las permutation),
+        // or id[i] <= i for every i (backward pass safe).
+        // Anything else risks reading a slot after it's already been
+        // overwritten by an earlier iteration -- silently wrong, not a crash,
+        // which is worse.
+        boolean forwardSafe = true, backwardSafe = true;
+        for (int i = 0; i < n && (forwardSafe || backwardSafe); i++) {
+            if (id[i] < i) forwardSafe = false;
+            if (id[i] > i) backwardSafe = false;
+        }
+
+        if (!forwardSafe && !backwardSafe)
+            throw new IllegalArgumentException(
+                    "gather: source and this share the same backing array, and this permutation " +
+                            "is not safe to apply in place (neither id[i] >= i nor id[i] <= i holds for " +
+                            "all i). This method never allocates to work around that. Use a WorkingBuffer " +
+                            "instead: gather source into a scratch FloatVector, then copy() the scratch " +
+                            "into this.");
+
+        // Both directions must stay single-threaded: the safety argument
+        // depends on strict sequential order -- position id[i] is guaranteed
+        // untouched only because everything before it in *this* traversal
+        // order has already run. A parallel split would let one chunk read a
+        // slot before the chunk responsible for writing it first has executed.
+
+        final float[] d = this.data;
+        if (forwardSafe) {
+            for (int i = 0; i < n; i++) d[i] = xd[id[i]];
+        } else {
+            for (int i = n - 1; i >= 0; i--) d[i] = xd[id[i]];
+        }
+        return this;
     }
 
     public float[] array() {

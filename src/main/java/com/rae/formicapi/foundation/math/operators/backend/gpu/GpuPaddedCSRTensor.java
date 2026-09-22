@@ -1,6 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRTensor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jetbrains.annotations.Nullable;
 import org.jocl.cl_mem;
@@ -25,7 +26,7 @@ import java.util.Arrays;
  * representation anyway, so the host mirror uses the same flattened shape
  * the device buffer needs, instead of flattening on every sync.
  */
-public class GpuPaddedCSRTensor extends GpuExecutable {
+public class GpuPaddedCSRTensor extends GpuExecutable implements AutoCloseable {
 
     private final int termsPerEquation;
     private final int order;
@@ -34,8 +35,8 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
     private double[] values;
     private int[]    variableIndices;
 
-    private cl_mem dValues;
-    private cl_mem dVariableIndices;
+    private @Nullable GpuResource dValues;
+    private @Nullable GpuResource dVariableIndices;
 
     public GpuPaddedCSRTensor(int order, int equations, int termsPerEquation) {
         if (order < 2)
@@ -58,15 +59,15 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
     }
 
     @Override
-    public void setExecutor(@Nullable GpuExecutor executor) {
-        GpuExecutor previous = getExecutor();
+    public void setExecutor(@Nullable OpenCLGpuExecutor executor) {
+        OpenCLGpuExecutor previous = getExecutor();
         super.setExecutor(executor);
 
         if (previous != null) {
             if (dValues != null)
-                previous.release(dValues);
+                dValues.release();
             if (dVariableIndices != null)
-                previous.release(dVariableIndices);
+                dVariableIndices.release();
 
             dValues = null;
             dVariableIndices = null;
@@ -117,11 +118,11 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
             Arrays.fill(variableIndices, (base + i) * (order - 1), (base + i + 1) * (order - 1), 0);
         }
 
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
         executor.uploadDoubles(dValues, base, values, base, termsPerEquation);
         executor.uploadInts(dVariableIndices, base * (order - 1), variableIndices, base * (order - 1),
                 termsPerEquation * (order - 1));
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     /**
@@ -159,7 +160,7 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
 
     /** Evaluates {@code result = F(x)} on the device. {@code result} is resized to {@link #equations()} first. */
     public void apply(Vector x, Vector result) {
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
 
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
@@ -171,12 +172,12 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
 
         executor.launchCsrNApply(dValues, dVariableIndices, termsPerEquation, order - 1,
                 gpuX.buffer(), gpuResult.buffer(), equations);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     /** Evaluates the Jacobian-vector product {@code result = J(x) * direction} on the device. */
     public void applyJacobian(Vector x, Vector direction, Vector result) {
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
 
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
@@ -191,7 +192,7 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
 
         executor.launchCsrNApplyJacobian(dValues, dVariableIndices, termsPerEquation, order - 1,
                 gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), equations);
-        requireExecutor().finish();
+        //requireExecutor().finish();
     }
 
     public void multiply(double[] x, double[] result) {
@@ -227,18 +228,18 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
 
         equations = newEquations;
 
-        GpuExecutor executor = requireExecutor();
+        OpenCLGpuExecutor executor = requireExecutor();
 
-        cl_mem newValuesBuf = executor.allocateDoubleBuffer(Math.max(newTerms, 1));
-        cl_mem newIndicesBuf = executor.allocateIntBuffer(Math.max(newIndicesLength, 1));
+        GpuResource newValuesBuf = executor.allocateDoubleBuffer(Math.max(newTerms, 1));
+        GpuResource newIndicesBuf = executor.allocateIntBuffer(Math.max(newIndicesLength, 1));
 
         if (newTerms > 0) {
             executor.uploadDoubles(newValuesBuf, values, newTerms);
             executor.uploadInts(newIndicesBuf, variableIndices, newIndicesLength);
         }
 
-        executor.release(dValues);
-        executor.release(dVariableIndices);
+        dValues.release();
+        dVariableIndices.release();
 
         dValues = newValuesBuf;
         dVariableIndices = newIndicesBuf;
@@ -268,25 +269,25 @@ public class GpuPaddedCSRTensor extends GpuExecutable {
             throw new IndexOutOfBoundsException("equation: " + equation);
     }
 
-    public cl_mem valuesBuffer() {
+    public GpuResource valuesBuffer() {
         return dValues;
     }
 
-    public cl_mem variableIndicesBuffer() {
+    public GpuResource variableIndicesBuffer() {
         return dVariableIndices;
     }
 
     public void close() {
-        GpuExecutor executor = getExecutor();
+        OpenCLGpuExecutor executor = getExecutor();
         if (executor == null)
             return;
 
         if (dValues != null) {
-            executor.release(dValues);
+            dValues.release();
             dValues = null;
         }
         if (dVariableIndices != null) {
-            executor.release(dVariableIndices);
+            dVariableIndices.release();
             dVariableIndices = null;
         }
     }

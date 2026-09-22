@@ -3,15 +3,14 @@ package com.rae.formicapi.foundation.math.solvers;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
-import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 
 /**
  * Conjugate Gradient solvers for symmetric positive-definite linear systems.
  *
- * <p>Ports the original array-based implementation onto the {@link DoubleVector}
+ * <p>Ports the original array-based implementation onto the {@link RealVector}
  * / {@link IntegerVector} backend abstraction (see {@link LeastSquare} for the
  * same pattern), so the solve can run on whichever backend the caller's vectors
  * belong to instead of being hard-wired to {@code double[]}.
@@ -70,7 +69,7 @@ public class ConjugateGradient {
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
     public static double[] solve(Matrix A, double[] x_init, double[] b, int maxIter, double tol) {
-        DoubleVector xv = new CpuDoubleVector(x_init);
+        RealVector xv = new CpuDoubleVector(x_init);
         solve(A, xv, new CpuDoubleVector(b), maxIter, tol);
         return ((CpuDoubleVector) xv).array();
     }
@@ -79,7 +78,7 @@ public class ConjugateGradient {
      * Solve {@code Ax = b}, allocating its working buffer internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static int solve(Matrix A, DoubleVector x, DoubleVector b, int maxIter, double tol) {
+    public static int solve(Matrix A, RealVector x, RealVector b, int maxIter, double tol) {
         int n = A.rows();
         return solve(A, x, b, maxIter, tol, new WorkingBuffer<>(3, () -> new CpuDoubleVector(n)));
     }
@@ -117,8 +116,8 @@ public class ConjugateGradient {
      * @return the number of iterations performed (capped at {@code maxIter}).
      * @throws IllegalArgumentException if the matrix is not square or {@code b} has the wrong size.
      */
-    public static int solve(Matrix A, DoubleVector x, DoubleVector b, int maxIter, double tol,
-                            WorkingBuffer<DoubleVector> buffer) {
+    public static int solve(Matrix A, RealVector x, RealVector b, int maxIter, double tol,
+                            WorkingBuffer<RealVector> buffer) {
         int n = A.rows(); // number of equations
         int m = A.cols(); // number of unknowns
         if (n != m)
@@ -130,9 +129,9 @@ public class ConjugateGradient {
 
         x.resize(n);
 
-        DoubleVector r  = buffer.get(R);
-        DoubleVector p  = buffer.get(P);
-        DoubleVector Ap = buffer.get(AP);
+        RealVector r  = buffer.get(R);
+        RealVector p  = buffer.get(P);
+        RealVector Ap = buffer.get(AP);
 
         r.resize(n);
         p.resize(n);
@@ -176,9 +175,9 @@ public class ConjugateGradient {
      */
     public static double[] solveConstrained(Matrix A, double[] x, boolean[] fixedVariables, double[] b,
                                             int maxIter, double tol) {
-        int n = A.rows();
-        DoubleVector xv = new CpuDoubleVector(x);
-        DoubleVector bv = new CpuDoubleVector(b);
+        int        n  = A.rows();
+        RealVector xv = new CpuDoubleVector(x);
+        RealVector bv = new CpuDoubleVector(b);
         solveConstrained(A, xv, fixedVariables, bv, maxIter, tol, new CpuIntegerVector(n));
         return ((CpuDoubleVector) xv).array();
     }
@@ -187,7 +186,7 @@ public class ConjugateGradient {
      * Solve a constrained system, allocating its working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static int solveConstrained(Matrix A, DoubleVector x, boolean[] fixedVariables, DoubleVector b,
+    public static int solveConstrained(Matrix A, RealVector x, boolean[] fixedVariables, RealVector b,
                                        int maxIter, double tol, IntegerVector unknownIdx) {
         int n = A.rows();
         int m = A.cols();
@@ -222,7 +221,7 @@ public class ConjugateGradient {
      * components. Entries of {@code p} corresponding to fixed variables are kept
      * at zero because fixed variables have no search direction: {@code p[fixedIndex] = 0}.
      *
-     * <p>This allows the regular {@link Matrix#apply(DoubleVector, DoubleVector)}
+     * <p>This allows the regular {@link Matrix#apply(RealVector, RealVector)}
      * operation to be used directly. The multiplication of {@code A*p} naturally
      * ignores fixed variables because their direction is zero.
      *
@@ -238,8 +237,8 @@ public class ConjugateGradient {
      * The only genuinely indexed operation left is placing the compact,
      * equation-space residual {@code r} into the free positions of the
      * variable-space direction {@code p}; that's exactly what
-     * {@link DoubleVector#skippedAxpy} is for, the scatter counterpart of
-     * {@link DoubleVector#skippedDot}. No vector's backing array is ever touched
+     * {@link RealVector#skippedAxpy} is for, the scatter counterpart of
+     * {@link RealVector#skippedDot}. No vector's backing array is ever touched
      * directly, so this runs on whatever backend {@code x}/{@code b}/the buffers
      * belong to.
      *
@@ -279,18 +278,18 @@ public class ConjugateGradient {
      * @throws IllegalStateException if the number of free variables does not equal
      *         the number of equations.
      */
-    public static int solveConstrained(Matrix A, DoubleVector x, boolean[] fixedVariables, DoubleVector b,
+    public static int solveConstrained(Matrix A, RealVector x, boolean[] fixedVariables, RealVector b,
                                        int maxIter, double tol, IntegerVector unknownIdx,
-                                       WorkingBuffer<DoubleVector> nBuffer, WorkingBuffer<DoubleVector> mBuffer) {
+                                       WorkingBuffer<RealVector> nBuffer, WorkingBuffer<RealVector> mBuffer) {
         int n = A.rows(); // number of equations
         int m = A.cols(); // number of unknowns
 
         x.resize(m);
         unknownIdx.resize(n);
 
-        DoubleVector r  = nBuffer.get(CR);
-        DoubleVector Ap = nBuffer.get(CAP);
-        DoubleVector p  = mBuffer.get(CP);
+        RealVector r  = nBuffer.get(CR);
+        RealVector Ap = nBuffer.get(CAP);
+        RealVector p  = mBuffer.get(CP);
 
         r.resize(n);
         Ap.resize(n);
@@ -305,20 +304,17 @@ public class ConjugateGradient {
                 idx += 1;
             }
         }
-        if (idx != n) {
-            throw new IllegalStateException(
-                    "CG requires number of free variables == equations, got " + idx);
-        }
+        if (idx != n) throw new IllegalStateException("CG requires number of free variables == equations, got " + idx);
 
         // r = b - A*x : a plain full-vector op in equation space. Fixed variables'
         // contribution is already baked in since A.apply used the full x.
         A.apply(x, Ap); // use Ap as temp for the initial full residual
         r.copy(b);
-        r.axpy(-1.0, Ap);
+        r.subtract(Ap);
 
         // p = scatter(r) into variable space; stays zero at every fixed index.
         p.clear();
-        p.skippedAxpy(1.0, r, unknownIdx, true, false);
+        p.skippedAdd(r, unknownIdx, true, false);
 
         double rsold = r.dot(r);
 
@@ -342,7 +338,7 @@ public class ConjugateGradient {
             // p[unknownIdx[i]] = r[i] + beta*p[unknownIdx[i]], for all free i;
             // fixed indices stay at beta*0 = 0.
             p.scale(beta);
-            p.skippedAxpy(1.0, r, unknownIdx, false, true);
+            p.skippedAdd(r, unknownIdx, false, true);
             rsold = rsnew;
         }
         return maxIter;

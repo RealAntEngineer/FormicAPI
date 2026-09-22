@@ -1,6 +1,8 @@
 package com.rae.formicapi.math_tests.solvers;
 
-import com.rae.formicapi.LiveChartWindow;
+import com.rae.formicapi.foundation.plotting.LiveChartWindow;
+import com.rae.formicapi.foundation.plotting.StreamlineRenderer;
+import com.rae.formicapi.foundation.plotting.VectorFieldRenderer;
 import org.junit.jupiter.api.Test;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.XYChartBuilder;
@@ -158,14 +160,14 @@ public class SemiLagrangianVortexSheddingTest {
                     }
                 }
 
-                Field2DRenderer.saveHeatmap(speed, String.format("semi_lagrangian/speed/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(vorticity, String.format("semi_lagrangian/vorticity/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(pressure, String.format("semi_lagrangian/pressure/%05d.png", step),
-                        Field2DRenderer.Interpolation.NEAREST);
-                Field2DRenderer.saveHeatmap(smoke, String.format("semi_lagrangian/smoke/%05d.png", step),
-                        Field2DRenderer.Interpolation.BILINEAR);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(speed, String.format("semi_lagrangian/speed/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(vorticity, String.format("semi_lagrangian/vorticity/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(pressure, String.format("semi_lagrangian/pressure/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.NEAREST);
+                com.rae.formicapi.foundation.plotting.Field2DRenderer.saveHeatmap(smoke, String.format("semi_lagrangian/smoke/%05d.png", step),
+                        com.rae.formicapi.foundation.plotting.Field2DRenderer.Interpolation.BILINEAR);
                 StreamlineRenderer.saveStreamlines(uField, vField,
                         String.format("semi_lagrangian/streamline/%05d.png", step));
                 VectorFieldRenderer.saveVectorField(uField, vField,

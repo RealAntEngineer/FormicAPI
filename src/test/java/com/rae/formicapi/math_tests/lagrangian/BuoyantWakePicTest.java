@@ -7,7 +7,7 @@ import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuBooleanVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.BiCGStab;
@@ -15,9 +15,9 @@ import com.rae.formicapi.foundation.math.solvers.BiCGStab;
 // three renderers BentPlateVorteLaminarTest uses (Field2DRenderer,
 // StreamlineRenderer, VectorFieldRenderer). Not shown in the excerpt I
 // have, so this package name is a guess.
-import com.rae.formicapi.math_tests.solvers.Field2DRenderer;
-import com.rae.formicapi.math_tests.solvers.StreamlineRenderer;
-import com.rae.formicapi.math_tests.solvers.VectorFieldRenderer;
+import com.rae.formicapi.foundation.plotting.Field2DRenderer;
+import com.rae.formicapi.foundation.plotting.StreamlineRenderer;
+import com.rae.formicapi.foundation.plotting.VectorFieldRenderer;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ import java.util.Random;
  *   <li>{@link BiCGStab}, reused completely unchanged, for the pressure
  *       projection -- the one elliptic solve per step that enforces
  *       incompressibility</li>
- *   <li>P2G / BC enforcement done entirely with existing {@link DoubleVector}
+ *   <li>P2G / BC enforcement done entirely with existing {@link RealVector}
  *       primitives ({@code skippedAxpy}, {@code gather}, {@code skippedScale}),
  *       no new API needed for this test</li>
  * </ul>
@@ -49,7 +49,7 @@ import java.util.Random;
  * field, buoyancy law, boundary conditions) lives in this test file, not
  * in the lagrangian package -- {@link ParticleSystem}/{@link RK2Advector}
  * never see a temperature, an obstacle, or a boundary condition, only
- * {@link DoubleVector}s and a {@link VelocityResampler} callback.
+ * {@link RealVector}s and a {@link VelocityResampler} callback.
  *
  * <p><b>Design note on buoyancy placement.</b> Buoyancy is applied via
  * {@code particles.force(1)} inside the {@link VelocityResampler}
@@ -121,7 +121,7 @@ public class BuoyantWakePicTest {
     // ------------------------------------------------------------------
     private static final class CornerWeights {
         IntegerVector c00, c10, c01, c11;
-        DoubleVector w00, w10, w01, w11;
+        RealVector w00, w10, w01, w11;
     }
 
     private static CornerWeights bilinearWeights(double[] px, double[] py, int n,
@@ -158,13 +158,13 @@ public class BuoyantWakePicTest {
     private static double clampD(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
 
     /** P2G: scatter a particle-space DoubleVector onto a grid-space field of size {@code gridN}. */
-    private static DoubleVector scatterToGrid(DoubleVector particleValues, int n, int gridN, CornerWeights cw) {
-        DoubleVector accum = new CpuDoubleVector(gridN);
-        DoubleVector weight = new CpuDoubleVector(gridN);
-        DoubleVector[] w = {cw.w00, cw.w10, cw.w01, cw.w11};
-        IntegerVector[] c = {cw.c00, cw.c10, cw.c01, cw.c11};
+    private static RealVector scatterToGrid(RealVector particleValues, int n, int gridN, CornerWeights cw) {
+        RealVector      accum  = new CpuDoubleVector(gridN);
+        RealVector      weight = new CpuDoubleVector(gridN);
+        RealVector[]    w      = {cw.w00, cw.w10, cw.w01, cw.w11};
+        IntegerVector[] c      = {cw.c00, cw.c10, cw.c01, cw.c11};
         for (int corner = 0; corner < 4; corner++) {
-            DoubleVector temp = (DoubleVector) particleValues.copy();
+            RealVector temp = (RealVector) particleValues.copy();
             temp.scale(w[corner]);
             accum.skippedAxpy(1.0, temp, c[corner], true, false);
             weight.skippedAxpy(1.0, w[corner], c[corner], true, false);
@@ -175,11 +175,11 @@ public class BuoyantWakePicTest {
     }
 
     /** G2P: gather a grid-space field into a particle-space DoubleVector of size {@code n}, overwriting {@code out}. */
-    private static void gatherToParticles(DoubleVector grid, DoubleVector out, int n, CornerWeights cw) {
+    private static void gatherToParticles(RealVector grid, RealVector out, int n, CornerWeights cw) {
         out.clear();
-        DoubleVector[] w = {cw.w00, cw.w10, cw.w01, cw.w11};
-        IntegerVector[] c = {cw.c00, cw.c10, cw.c01, cw.c11};
-        DoubleVector temp = new CpuDoubleVector(n);
+        RealVector[]    w    = {cw.w00, cw.w10, cw.w01, cw.w11};
+        IntegerVector[] c    = {cw.c00, cw.c10, cw.c01, cw.c11};
+        RealVector      temp = new CpuDoubleVector(n);
         for (int corner = 0; corner < 4; corner++) {
             temp.gather(grid, c[corner]);
             temp.scale(w[corner]);
@@ -188,7 +188,7 @@ public class BuoyantWakePicTest {
     }
 
     /** "Set at indices" idiom used throughout for BC enforcement: zero via skippedScale, then add the target value. */
-    private static void setAt(DoubleVector field, IntegerVector idx, DoubleVector zeros, DoubleVector values) {
+    private static void setAt(RealVector field, IntegerVector idx, RealVector zeros, RealVector values) {
         field.skippedScale(zeros, idx, true, false);
         if (values != null) field.skippedAxpy(1.0, values, idx, true, false);
     }
@@ -245,45 +245,45 @@ public class BuoyantWakePicTest {
         for (int i = 0; i <= nx; i++)
             for (int j = 0; j < ny; j++)
                 uArr[uIdx(i, j)] = inflowU((j + 0.5) * dy);
-        DoubleVector u = new CpuDoubleVector(uArr);
-        DoubleVector v = new CpuDoubleVector(vN());
+        RealVector u = new CpuDoubleVector(uArr);
+        RealVector v = new CpuDoubleVector(vN());
 
         // inflow (u): i=0, all j -- set to prescribed profile
         List<Integer> inflowList = new ArrayList<>();
         List<Double> inflowValList = new ArrayList<>();
         for (int j = 0; j < ny; j++) { inflowList.add(uIdx(0, j)); inflowValList.add(inflowU((j + 0.5) * dy)); }
-        IntegerVector inflowUIdx = toIntVec(inflowList);
-        DoubleVector inflowUVals = toDoubleVec(inflowValList);
-        DoubleVector inflowZeros = new CpuDoubleVector(inflowList.size());
+        IntegerVector inflowUIdx  = toIntVec(inflowList);
+        RealVector    inflowUVals = toDoubleVec(inflowValList);
+        RealVector    inflowZeros = new CpuDoubleVector(inflowList.size());
 
         // outflow (u): i=nx target, i=nx-1 source -- zero-gradient copy
         List<Integer> outflowList = new ArrayList<>(), outflowSrcList = new ArrayList<>();
         for (int j = 0; j < ny; j++) { outflowList.add(uIdx(nx, j)); outflowSrcList.add(uIdx(nx - 1, j)); }
         IntegerVector outflowUIdx = toIntVec(outflowList);
         IntegerVector outflowSrcUIdx = toIntVec(outflowSrcList);
-        DoubleVector outflowZeros = new CpuDoubleVector(outflowList.size());
+        RealVector    outflowZeros   = new CpuDoubleVector(outflowList.size());
 
         // walls (v): ground j=0 and top j=ny -- zero
         List<Integer> wallVList = new ArrayList<>();
         for (int i = 0; i < nx; i++) { wallVList.add(vIdx(i, 0)); wallVList.add(vIdx(i, ny)); }
-        IntegerVector wallVIdx = toIntVec(wallVList);
-        DoubleVector wallVZeros = new CpuDoubleVector(wallVList.size());
+        IntegerVector wallVIdx   = toIntVec(wallVList);
+        RealVector    wallVZeros = new CpuDoubleVector(wallVList.size());
 
         // obstacle (u): interior faces touching a solid cell -- zero
         List<Integer> obstUList = new ArrayList<>();
         for (int i = 1; i < nx; i++)
             for (int j = 0; j < ny; j++)
                 if (solidCell(i - 1, j) || solidCell(i, j)) obstUList.add(uIdx(i, j));
-        IntegerVector obstUIdx = toIntVec(obstUList);
-        DoubleVector obstUZeros = new CpuDoubleVector(obstUList.size());
+        IntegerVector obstUIdx   = toIntVec(obstUList);
+        RealVector    obstUZeros = new CpuDoubleVector(obstUList.size());
 
         // obstacle (v): interior faces touching a solid cell -- zero
         List<Integer> obstVList = new ArrayList<>();
         for (int i = 0; i < nx; i++)
             for (int j = 1; j < ny; j++)
                 if (solidCell(i, j - 1) || solidCell(i, j)) obstVList.add(vIdx(i, j));
-        IntegerVector obstVIdx = toIntVec(obstVList);
-        DoubleVector obstVZeros = new CpuDoubleVector(obstVList.size());
+        IntegerVector obstVIdx   = toIntVec(obstVList);
+        RealVector    obstVZeros = new CpuDoubleVector(obstVList.size());
 
         applyBoundaryConditions(u, v, inflowUIdx, inflowUVals, inflowZeros,
                 outflowUIdx, outflowSrcUIdx, outflowZeros,
@@ -316,7 +316,7 @@ public class BuoyantWakePicTest {
         // ----------------------------------------------------------------
         // 4. Time loop.
         // ----------------------------------------------------------------
-        WorkingBuffer<DoubleVector> advectScratch = new WorkingBuffer<>(6, () -> new CpuDoubleVector(0));
+        WorkingBuffer<RealVector> advectScratch = new WorkingBuffer<>(6, () -> new CpuDoubleVector(0));
 
         for (int step = 0; step < nSteps; step++) {
             int n = particles.count();
@@ -368,7 +368,7 @@ public class BuoyantWakePicTest {
                     wallVIdx, wallVZeros, obstUIdx, obstUZeros, obstVIdx, obstVZeros, false);
 
             // --- advect: G2P + buoyancy force, frozen grid for this outer step ---
-            final DoubleVector uFrozen = u, vFrozen = v;
+            final RealVector uFrozen = u, vFrozen = v;
             VelocityResampler resampler = ps -> {
                 int m = ps.count();
                 double[] px = ((CpuDoubleVector) ps.position(0)).array();
@@ -512,10 +512,10 @@ public class BuoyantWakePicTest {
      * idiom (baseline is guaranteed 0 from resize-on-grow, so += equals =).
      * Fine for one-off spawn-time initialization; not meant for hot loops.
      */
-    private static void setSingle(DoubleVector field, int idx, double value) {
+    private static void setSingle(RealVector field, int idx, double value) {
         IntegerVector one = new CpuIntegerVector(1);
         one.set(idx, 0);
-        DoubleVector val = new CpuDoubleVector(new double[]{value});
+        RealVector val = new CpuDoubleVector(new double[]{value});
         field.skippedAxpy(1.0, val, one, true, false);
     }
 
@@ -533,16 +533,16 @@ public class BuoyantWakePicTest {
      * that boundary, worse each step. The *only* place u[nx,:] should be
      * set is the post-solve ghost-pressure correction.
      */
-    private static void applyBoundaryConditions(DoubleVector u, DoubleVector v,
-                                                IntegerVector inflowUIdx, DoubleVector inflowUVals, DoubleVector inflowZeros,
-                                                IntegerVector outflowUIdx, IntegerVector outflowSrcUIdx, DoubleVector outflowZeros,
-                                                IntegerVector wallVIdx, DoubleVector wallVZeros,
-                                                IntegerVector obstUIdx, DoubleVector obstUZeros,
-                                                IntegerVector obstVIdx, DoubleVector obstVZeros,
+    private static void applyBoundaryConditions(RealVector u, RealVector v,
+                                                IntegerVector inflowUIdx, RealVector inflowUVals, RealVector inflowZeros,
+                                                IntegerVector outflowUIdx, IntegerVector outflowSrcUIdx, RealVector outflowZeros,
+                                                IntegerVector wallVIdx, RealVector wallVZeros,
+                                                IntegerVector obstUIdx, RealVector obstUZeros,
+                                                IntegerVector obstVIdx, RealVector obstVZeros,
                                                 boolean applyOutflow) {
         setAt(u, inflowUIdx, inflowZeros, inflowUVals);
         if (applyOutflow) {
-            DoubleVector outflowSrc = new CpuDoubleVector(outflowSrcUIdx.size());
+            RealVector outflowSrc = new CpuDoubleVector(outflowSrcUIdx.size());
             outflowSrc.gather(u, outflowSrcUIdx);
             setAt(u, outflowUIdx, outflowZeros, outflowSrc);
         }
@@ -557,7 +557,7 @@ public class BuoyantWakePicTest {
         return v;
     }
 
-    private static DoubleVector toDoubleVec(List<Double> list) {
+    private static RealVector toDoubleVec(List<Double> list) {
         double[] arr = new double[list.size()];
         for (int i = 0; i < list.size(); i++) arr[i] = list.get(i);
         return new CpuDoubleVector(arr);

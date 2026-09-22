@@ -72,7 +72,6 @@ public class HashSparseMatrix implements MutableMatrix {
      * @param x      input vector of length rows
      * @param result output vector of length cols, overwritten with Aᵀx
      */
-    @Override
     public void transposeMultiply(double[] x, double[] result) {
         Arrays.fill(result, 0);
         for (var rowEntry : data.entrySet()) {

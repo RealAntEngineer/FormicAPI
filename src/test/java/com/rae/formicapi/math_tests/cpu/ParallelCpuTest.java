@@ -4,7 +4,7 @@ import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.vectors.DoubleVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
 import org.junit.jupiter.api.Test;
@@ -149,7 +149,7 @@ public class ParallelCpuTest {
         assertArrayEquals(serialResult.array(), parallelResult.array(), 1e-9);
     }
 
-    private static WorkingBuffer<DoubleVector>[] createBuffers(int m, int n, CpuExecutor executor) {
+    private static WorkingBuffer<RealVector>[] createBuffers(int m, int n, CpuExecutor executor) {
         CpuDoubleVector u    = new CpuDoubleVector(m);
         CpuDoubleVector temp = new CpuDoubleVector(m);
 
@@ -165,8 +165,8 @@ public class ParallelCpuTest {
             temp2.setExecutor(executor);
         }
 
-        WorkingBuffer<DoubleVector> mBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ u, temp });
-        WorkingBuffer<DoubleVector> nBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ v, w, temp2 });
+        WorkingBuffer<RealVector> mBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ u, temp });
+        WorkingBuffer<RealVector> nBuffer = new WorkingBuffer<>(new CpuDoubleVector[]{ v, w, temp2 });
 
         return new WorkingBuffer[]{ mBuffer, nBuffer };
     }

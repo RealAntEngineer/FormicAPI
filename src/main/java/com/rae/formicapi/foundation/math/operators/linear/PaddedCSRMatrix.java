@@ -221,7 +221,6 @@ public class PaddedCSRMatrix implements MutableMatrix {
         }
     }
 
-    @Override
     public void transposeMultiply(double[] x, double[] result) {
         Arrays.fill(result, 0.0);
 

@@ -1,12 +1,12 @@
 package com.rae.formicapi.math_tests.gpu;
 
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 
 /**
- * Shared setup for every GPU backend test class: opens a {@link GpuExecutor}
+ * Shared setup for every GPU backend test class: opens a {@link OpenCLGpuExecutor}
  * before each test and closes it after, skipping (not failing) the test on
  * machines without a real fp64-capable OpenCL device - most CI runners,
  * most laptops without a discrete GPU or vendor OpenCL runtime installed.
@@ -21,12 +21,12 @@ public abstract class GpuTestSupport {
 
     protected static final double EPSILON = 1e-9;
 
-    protected GpuExecutor executor;
+    protected OpenCLGpuExecutor executor;
 
     @BeforeEach
     protected void setUpExecutor() {
         try {
-            executor = new GpuExecutor();
+            executor = new OpenCLGpuExecutor();
         } catch (RuntimeException e) {
             executor = null;
             Assumptions.assumeTrue(false, "Skipping GPU tests: no fp64-capable OpenCL device available (" + e.getMessage() + ")");
