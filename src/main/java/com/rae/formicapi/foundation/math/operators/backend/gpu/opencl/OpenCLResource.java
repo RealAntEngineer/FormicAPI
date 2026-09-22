@@ -69,7 +69,7 @@ public final class OpenCLResource implements GpuResource {
     //TODO The cl_mem can't be null. Why do we need that ?
     /** {@code __local} scratch space, sized in bytes -- no host-side data. */
     public static OpenCLResource local(GpuExecutor executor, long bytes) {
-        return new OpenCLResource(bytes, clCreateBuffer(((OpenCLGpuExecutor)executor).context(),
-                CL_MEM_READ_WRITE, Sizeof.cl_int, Pointer.to(new byte[(int)bytes]), null), NONE);
+        return new OpenCLResource(Sizeof.cl_char * bytes, clCreateBuffer(((OpenCLGpuExecutor)executor).context(),
+                CL_MEM_READ_WRITE, Sizeof.cl_char, Pointer.to(new byte[(int)bytes]), null), NONE);
     }
 }

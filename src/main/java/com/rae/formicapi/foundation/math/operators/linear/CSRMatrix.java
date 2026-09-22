@@ -1,5 +1,8 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
+
 import java.util.*;
 
 /**
@@ -165,5 +168,10 @@ public class CSRMatrix implements Matrix {
         for (int k = rowPtr[r]; k < rowPtr[r + 1]; k++)
             if (colIndex[k] == c) return values[k];
         return 0;
+    }
+
+    @Override
+    public RealVector getValues(IntegerVector r, IntegerVector c) {
+        return null;
     }
 }
