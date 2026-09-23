@@ -1,9 +1,12 @@
 package com.rae.formicapi.math_tests.gpu;
 
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.GpuProfiler;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
+
+import java.util.Map;
 
 /**
  * Shared setup for every GPU backend test class: opens a {@link OpenCLGpuExecutor}
@@ -22,13 +25,17 @@ public abstract class GpuTestSupport {
     protected static final double EPSILON = 1e-9;
 
     protected OpenCLGpuExecutor executor;
+    protected GpuProfiler profiler;
 
     @BeforeEach
     protected void setUpExecutor() {
         try {
             executor = new OpenCLGpuExecutor();
+            profiler = new GpuProfiler();
+            executor.setProfiler(profiler);
         } catch (RuntimeException e) {
             executor = null;
+            profiler = null;
             Assumptions.assumeTrue(false, "Skipping GPU tests: no fp64-capable OpenCL device available (" + e.getMessage() + ")");
         }
     }
@@ -37,5 +44,12 @@ public abstract class GpuTestSupport {
     protected void tearDownExecutor() {
         if (executor != null)
             executor.close();
+        if (profiler!=null){
+            Map<String, GpuProfiler.Stats> stats =  profiler.flush();
+            System.out.println("final profiling results :\n");
+            for (GpuProfiler.Stats stat :stats.values()){
+                System.out.println(stat);
+            }
+        }
     }
 }

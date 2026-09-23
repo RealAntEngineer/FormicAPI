@@ -43,7 +43,8 @@ public class OpenCLKernel implements Kernel {
     protected final String[] requirements;
 
     private @Nullable cl_kernel        id;
-    private @Nullable cl_command_queue queue;
+    //private @Nullable cl_command_queue queue;
+    private @Nullable OpenCLGpuExecutor executorRef; // for profiler lookup only, see dispatch()
 
     /**
      * @param name         name of the {@code __kernel} function in {@code source}
@@ -78,7 +79,8 @@ public class OpenCLKernel implements Kernel {
                                 "], which this device doesn't report support for");
             id = compile(executor.context(), executor.device());
         }
-        this.queue = executor.queue();
+        //this.queue = executor.queue();
+        this.executorRef = executor;
         return this;
     }
 
@@ -109,6 +111,7 @@ public class OpenCLKernel implements Kernel {
 
         cl_kernel        kernelId = requireId();
         cl_command_queue q        = requireQueue();
+        assert executorRef != null;
 
         synchronized (q) {
             List<OpenCLResource> touched = new ArrayList<>(args.length);
@@ -132,9 +135,15 @@ public class OpenCLKernel implements Kernel {
             int        count    = waitList == null ? 0 : waitList.length;
 
             cl_event completion = new cl_event();
+
+
+
             clEnqueueNDRangeKernel(q, kernelId, 1, null, new long[]{globalSize},
                     null, count, waitList, completion);
 
+            if (executorRef.profiler()!=null) {
+                executorRef.profiler().record(name, completion);
+            }
             for (OpenCLResource buf : touched) {
                 //why is it needed ?
                 clRetainEvent(completion); // each touched buffer holds its own independent reference
@@ -158,9 +167,9 @@ public class OpenCLKernel implements Kernel {
     }
 
     private cl_command_queue requireQueue() {
-        if (queue == null)
-            throw new IllegalStateException("Kernel '" + name + "' was never bind()ed -- call bind(executor) before use(...)");
-        return queue;
+        if (executorRef == null)
+            throw new IllegalStateException("Kernel '" + name + "' was never bind() -- call bind(executor) before use(...)");
+        return executorRef.queue();
     }
 
     private static String deviceExtensions(cl_device_id device) {
@@ -181,11 +190,14 @@ public class OpenCLKernel implements Kernel {
 
     /** Releases this kernel's compiled handle if it's currently bound to {@code queue}, so a later bind() against a different device recompiles cleanly. */
     private synchronized void releaseIfBoundTo(cl_command_queue queue) {
-        if (this.queue == queue && id != null) {
+        if (this.executorRef == null || this.executorRef.queue() != queue)
+            return;
+        if (id != null) {
             clReleaseKernel(id);
             id = null;
-            this.queue = null;
         }
+        //this.queue = null;
+        this.executorRef = null;
     }
 
     /** Called from {@link OpenCLGpuExecutor#close()}: releases every kernel currently bound to that executor's queue, untouched otherwise. */

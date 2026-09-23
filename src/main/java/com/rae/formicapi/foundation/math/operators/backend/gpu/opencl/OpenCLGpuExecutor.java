@@ -5,6 +5,7 @@ import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuResource;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.Kernel;
 import org.jocl.*;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -65,8 +66,25 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
         props.addProperty(CL_CONTEXT_PLATFORM, platform);
 
         this.context = clCreateContext(props, 1, new cl_device_id[]{device}, null, null, null);
-        this.queue = clCreateCommandQueue(context, device, 0, null);
+        cl_queue_properties properties = new cl_queue_properties();
+
+        properties.addProperty(
+                CL.CL_QUEUE_PROPERTIES,
+                CL.CL_QUEUE_PROFILING_ENABLE | CL.CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+        );
+
+        this.queue = clCreateCommandQueueWithProperties(context, device, properties, null);
     }
+
+    private @Nullable GpuProfiler profiler;
+
+    /** Attaches a profiler: every kernel dispatch and async buffer op (fill/copy) from now on additionally reports its event here. {@code null} detaches. See {@link GpuProfiler}. */
+    public void setProfiler(@Nullable GpuProfiler profiler) {
+        this.profiler = profiler;
+    }
+
+    @Nullable
+    GpuProfiler profiler() { return profiler; }
 
     // Package-private, OpenCL-specific: only OpenCLKernel should ever reference this class instead of GpuExecutor.
     cl_device_id device() { return device; }
@@ -90,8 +108,10 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
 
         for (cl_platform_id platform : platforms) {
             for (cl_device_id candidate : devicesOf(platform, CL_DEVICE_TYPE_GPU)) {
-                if (supportsFp64(candidate))
+                if (supportsFp64(candidate)) {
+                    System.out.println("GPU selected");
                     return candidate;
+                }
                 System.out.println("GPU not supporting F64");
             }
             System.out.println("No gpu defaulting to CPU");

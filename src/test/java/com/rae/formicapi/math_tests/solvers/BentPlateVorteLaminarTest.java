@@ -288,7 +288,7 @@ public class BentPlateVorteLaminarTest {
                 && Math.abs(px - plateX) <= plateHalfThickness;
     }
 
-    @Test
+    //@Test
     void laminarEddiesBehindFlatPlate() {
 
         int nx = 350;

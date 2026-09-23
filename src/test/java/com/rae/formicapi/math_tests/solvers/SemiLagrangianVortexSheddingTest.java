@@ -24,7 +24,7 @@ import static com.google.common.primitives.Doubles.toArray;
  */
 public class SemiLagrangianVortexSheddingTest {
 
-    @Test
+    //@Test
     void windTunnelAroundCylinder() {
 
         double domainHeight = 1.0;

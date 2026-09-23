@@ -1,6 +1,8 @@
 package com.rae.formicapi.math_tests.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrix;
@@ -63,7 +65,7 @@ public class ParallelGpuTest extends GpuTestSupport {
         double[] values  = new double[entriesPerRow];
         int[]    indices = new int[entriesPerRow];
 
-        generateMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
+        generateRandomMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
 
         double[] xArr = new double[rows];
         for (int i = 0; i < rows; i++)
@@ -89,6 +91,7 @@ public class ParallelGpuTest extends GpuTestSupport {
         start = System.nanoTime();
         for (int i = 0; i < 1000; i++) {
             matrix.apply(xGpu, gpu);
+
         }
         executor.finish();
         time = System.nanoTime() - start;
@@ -119,7 +122,7 @@ public class ParallelGpuTest extends GpuTestSupport {
         double[] values  = new double[entriesPerRow];
         int[]    indices = new int[entriesPerRow];
 
-        generateMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
+        generateRandomMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
 
         double[] xArr = new double[rows];
         for (int i = 0; i < rows; i++)
@@ -203,7 +206,7 @@ public class ParallelGpuTest extends GpuTestSupport {
         double[] values  = new double[entriesPerRow];
         int[]    indices = new int[entriesPerRow];
 
-        generateMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
+        generateRandomMatrix(nz, ny, nx, indices, values, random, matrix, entriesPerRow, matrixSerial);
 
         double[] bArr = new double[rows];
         for (int i = 0; i < rows; i++)
@@ -227,6 +230,8 @@ public class ParallelGpuTest extends GpuTestSupport {
             xGpu.clear();
             iterationsGpu += LeastSquare.solve(matrix, bGpu, xGpu, maxIter, tol,
                     gpuBuffers[0], gpuBuffers[1]);
+            executor.finish();
+
         }
         executor.finish();
         long end = System.nanoTime();
@@ -256,6 +261,7 @@ public class ParallelGpuTest extends GpuTestSupport {
         //assertArrayEquals(xSerial.array(), xGpu.download(), tol);
     }
 
+
     private static WorkingBuffer<RealVector>[] createBuffers(int m, int n) {
         CpuDoubleVector u    = new CpuDoubleVector(m);
         CpuDoubleVector temp = new CpuDoubleVector(m);
@@ -282,8 +288,8 @@ public class ParallelGpuTest extends GpuTestSupport {
      * IllegalStateException} (see {@code GpuPaddedCSRMatrixBenchmark} for the
      * same trap).
      */
-    private static void generateMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random,
-                                        GpuPaddedCSRMatrix matrix, int entriesPerRow, PaddedCSRMatrix matrixSerial) {
+    private static void generateRandomMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random,
+                                             GpuPaddedCSRMatrix matrix, int entriesPerRow, PaddedCSRMatrix matrixSerial) {
         for (int z = 0; z < nz; z++) {
             for (int y = 0; y < ny; y++) {
                 for (int x = 0; x < nx; x++) {
