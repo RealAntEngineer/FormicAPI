@@ -1,5 +1,6 @@
 package com.rae.formicapi;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSRTensor;
 import org.openjdk.jmh.annotations.*;
@@ -170,9 +171,9 @@ public class TensorSpecializationBenchmark {
     public void genericJacobian(Blackhole bh) {
 
         generic.multiplyJacobian(
-                x,
-                direction,
-                resultGeneric
+                new CpuDoubleVector(x),
+                new CpuDoubleVector(direction),
+                        new CpuDoubleVector( resultGeneric)
         );
 
         bh.consume(resultGeneric);

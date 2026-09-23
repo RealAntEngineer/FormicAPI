@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 public final class CpuExecutor implements AutoCloseable {
 
@@ -374,15 +375,25 @@ public final class CpuExecutor implements AutoCloseable {
 
     private void workerLoop(int id) {
         int seen = 0;
+        //int spins = 0;
 
         while (true) {
             int gen;
+
+            //TODO improve spinning/park behavior
             while ((gen = generation.get()) == seen) {
                 if (shutdown)
                     return;
+
+                //if (spins++ < 10) {
                 Thread.onSpinWait();
+                //} else {
+                //    LockSupport.parkNanos(100);
+                //    spins = 0;
+                //}
             }
 
+            //spins = 0;
             seen = gen;
 
             if (shutdown)
@@ -393,7 +404,9 @@ public final class CpuExecutor implements AutoCloseable {
                 int chunk = (job.size + threads - 1) / threads;
                 int start = id * chunk;
                 int end   = Math.min(job.size, start + chunk);
-                job.runRange(id, start, end);
+
+                if (start < end)
+                    job.runRange(id, start, end);
             }
 
             completedGeneration[id * STRIDE] = seen;

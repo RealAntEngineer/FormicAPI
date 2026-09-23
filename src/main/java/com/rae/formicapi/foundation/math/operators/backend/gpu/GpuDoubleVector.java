@@ -135,13 +135,13 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
     private int       size;
     private int       capacity;
 
-    public GpuDoubleVector(OpenCLGpuExecutor executor, double[] hostData) {
+    public GpuDoubleVector(GpuExecutor executor, double[] hostData) {
         this(executor, hostData.length);
         upload(hostData);
         //requireExecutor().finish();
     }
 
-    public GpuDoubleVector(OpenCLGpuExecutor executor, int size) {
+    public GpuDoubleVector(GpuExecutor executor, int size) {
         setExecutor(executor); // also binds kernels, see bindKernels above
         this.capacity = size;
         this.size = size;
@@ -208,14 +208,14 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
         int numGroups        = (size + localSize - 1) / localSize;
         int paddedGlobalSize = numGroups * localSize;
 
-        OpenCLGpuExecutor ex       = requireExecutor();
+        GpuExecutor ex       = requireExecutor();
         GpuResource         partials = ex.allocateDoubleBuffer(numGroups);
         try {
             GpuResource[] args = new GpuResource[dataArgs.length + 3];
             System.arraycopy(dataArgs, 0, args, 0, dataArgs.length);
-            args[dataArgs.length]     = OpenCLResource.local(executor, (long) localSize * Double.BYTES);
+            args[dataArgs.length]     = OpenCLResource.local((long) localSize * Double.BYTES);
             args[dataArgs.length + 1] = partials;
-            args[dataArgs.length + 2] = OpenCLResource.of(executor,size);
+            args[dataArgs.length + 2] = OpenCLResource.of(size);
 
             // We're about to read the partials buffer this dispatch just
             // wrote to -- block on this specific command rather than relying
@@ -238,7 +238,7 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
     public RealVector axpy(double a, RealVector x) {
         GpuDoubleVector vec = requireSameBackend(x);
         // Block: about to return `this` for the caller to read/release/reuse.
-        AXPY.use(size, buffer, OpenCLResource.of(executor, a), vec.buffer);
+        AXPY.use(size, buffer, OpenCLResource.of(a), vec.buffer);
         return this;
     }
 
@@ -248,13 +248,13 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
         if (!(unknowIdx instanceof GpuIntegerVector gpuIdx))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + unknowIdx.getClass());
 
-        SCATTER_AXPY.use(unknowIdx.size(), buffer, OpenCLResource.of(executor,alpha), vec.buffer, gpuIdx.buffer());
+        SCATTER_AXPY.use(unknowIdx.size(), buffer, OpenCLResource.of(alpha), vec.buffer, gpuIdx.buffer());
         return this;
     }
 
     @Override
     public RealVector scale(double a) {
-        SCALE.use(size, buffer, OpenCLResource.of(executor, a));
+        SCALE.use(size, buffer, OpenCLResource.of(a));
         return this;
     }
 
@@ -280,7 +280,7 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
 
     @Override
     public RealVector add(double a) {
-        ADD_SCALAR.use(size, buffer, OpenCLResource.of(executor, a));
+        ADD_SCALAR.use(size, buffer, OpenCLResource.of(a));
         return this;
     }
 
@@ -326,7 +326,7 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
 
     @Override
     public RealVector resize(int newSize) {
-        OpenCLGpuExecutor ctx = requireExecutor();
+        GpuExecutor ctx = requireExecutor();
 
         if (newSize > capacity) {
             GpuResource newBuffer = ctx.allocateDoubleBuffer(Math.max(newSize, 1));

@@ -21,13 +21,13 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
     private int    size;
     private int    capacity;
 
-    public GpuBooleanVector(OpenCLGpuExecutor executor, boolean[] hostData) {
+    public GpuBooleanVector(GpuExecutor executor, boolean[] hostData) {
         this(executor, hostData.length);
         upload(hostData);
         //requireExecutor().finish();
     }
 
-    public GpuBooleanVector(OpenCLGpuExecutor executor, int size) {
+    public GpuBooleanVector(GpuExecutor executor, int size) {
         setExecutor(executor);
         this.capacity = size;
         this.size = size;
@@ -90,7 +90,7 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
 
     @Override
     public BooleanVector resize(int newSize) {
-        OpenCLGpuExecutor ctx = requireExecutor();
+        GpuExecutor ctx = requireExecutor();
 
         if (newSize > capacity) {
             GpuResource newBuffer = ctx.allocateByteBuffer(Math.max(newSize, 1));

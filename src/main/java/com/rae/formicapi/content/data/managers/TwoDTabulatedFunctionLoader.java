@@ -7,7 +7,9 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.rae.formicapi.FormicAPI;
 import com.rae.formicapi.foundation.math.data.StepMode;
+import com.rae.formicapi.foundation.math.data.TwoDSparseTabulatedFunction;
 import com.rae.formicapi.foundation.math.data.TwoDTabulatedFunction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -21,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -86,11 +89,10 @@ public class TwoDTabulatedFunctionLoader extends SimpleJsonResourceReloadListene
     public List<CompoundTag> splitSerialize() {
         if (!loaded()) throw new IllegalStateException("Can't call splitSerialize if Function not loaded yet");
         assert FUNCTION != null;
-        List<TwoDSparseTabulatedFunction> splitTables = FUNCTION.split(1000);
+        List<TwoDTabulatedFunction> splitTables = FUNCTION.split(1000);
 
         return splitTables.parallelStream().map(
-                (f) -> (CompoundTag) CODEC.encode(
-                                f, NbtOps.INSTANCE, new CompoundTag())
+                (f) -> (CompoundTag) CODEC.encode(f, NbtOps.INSTANCE, new CompoundTag())
                         .getOrThrow()
         ).toList();
     }

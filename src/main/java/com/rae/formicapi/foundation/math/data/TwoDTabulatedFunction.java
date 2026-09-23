@@ -218,14 +218,14 @@ public class TwoDTabulatedFunction {
             count += entry.getValue().size();
 
             if (count >= maxElements) {
-                result.add(new TwoDTabulatedFunction(new TreeMap<>(current), clamp));
+                result.add(new TwoDTabulatedFunction(new TreeMap<>(current), xStep, yStep, xMode, yMode, clamp));
                 current.clear();
                 count = 0;
             }
         }
 
         if (!current.isEmpty()) {
-            result.add(new TwoDTabulatedFunction(new TreeMap<>(current), clamp));
+            result.add(new TwoDTabulatedFunction(new TreeMap<>(current), xStep, yStep, xMode, yMode,clamp));
         }
 
         return result;

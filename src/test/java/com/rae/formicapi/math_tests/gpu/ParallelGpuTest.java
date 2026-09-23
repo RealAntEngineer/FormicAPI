@@ -101,8 +101,6 @@ public class ParallelGpuTest extends GpuTestSupport {
 
     @Test
     void transposeMultiplyGpuMatchesSerial() {
-        assumeTrue(executor.supportsScatterAtomics(),
-                "test device lacks cl_khr_int64_base_atomics; transposeApply is unsupported here");
 
         int nx = 64;
         int ny = 64;
@@ -188,9 +186,9 @@ public class ParallelGpuTest extends GpuTestSupport {
     @Test
     void leastSquareGpuMatchesSerial() {
 
-        int nx = 32;
-        int ny = 32;
-        int nz = 32;
+        int nx = 64;
+        int ny = 64;
+        int nz = 64;
 
         int rows = nx * ny * nz;
         int entriesPerRow = 7;
@@ -224,22 +222,30 @@ public class ParallelGpuTest extends GpuTestSupport {
         WorkingBuffer[] gpuBuffers = createGpuBuffers(rows, rows, executor);
 
         long start = System.nanoTime();
-        int iterationsGpu = LeastSquare.solve(matrix, bGpu, xGpu, maxIter, tol,
-                gpuBuffers[0], gpuBuffers[1]);
+        int iterationsGpu = 0;
+        for (int i = 0; i < 10; i++) {
+            xGpu.clear();
+            iterationsGpu += LeastSquare.solve(matrix, bGpu, xGpu, maxIter, tol,
+                    gpuBuffers[0], gpuBuffers[1]);
+        }
         executor.finish();
         long end = System.nanoTime();
 
-        System.out.println("gpu took " + (end - start) / rows + "ns/row");
+        System.out.println("gpu took " + (end - start) / rows / 10 + "ns/row");
         System.out.println("gpu took " + (end - start) / rows / iterationsGpu + "ns/row");
 
         CpuDoubleVector xSerial       = new CpuDoubleVector(rows);
         WorkingBuffer[] serialBuffers = createBuffers(rows, rows);
         start = System.nanoTime();
-        int iterationsSerial = LeastSquare.solve(matrixSerial, bSerial, xSerial, maxIter, tol,
-                serialBuffers[0], serialBuffers[1]);
+        int iterationsSerial = 0;
+        for (int i = 0; i < 10; i++) {
+            xSerial.clear();
+            iterationsSerial += LeastSquare.solve(matrixSerial, bSerial, xSerial, maxIter, tol,
+                    serialBuffers[0], serialBuffers[1]);
+        }
         end = System.nanoTime();
 
-        System.out.println("serial took " + (end - start) / rows + "ns/row");
+        System.out.println("serial took " + (end - start) / rows / 10+ "ns/row");
         System.out.println("serial took " + (end - start) / rows / iterationsSerial + "ns/row");
 
         // Same system, same starting conditions - both paths should land on

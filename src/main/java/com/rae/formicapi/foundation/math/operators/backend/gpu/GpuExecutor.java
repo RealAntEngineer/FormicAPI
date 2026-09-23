@@ -55,6 +55,8 @@ public interface GpuExecutor {
     void fillIntBuffer(GpuResource buffer, int value, int length);
     void fillByteBuffer(GpuResource buffer, byte value, int length);
 
+    boolean supports(Kernel kernel);
+
     /** This context's actual max work-group size, for callers sizing local/reduction work-groups instead of guessing a constant. */
     long maxWorkGroupSize();
 

@@ -8,9 +8,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public abstract class GpuExecutable {
 
-    protected @Nullable OpenCLGpuExecutor executor;
+    protected @Nullable GpuExecutor executor;
 
-    public @Nullable OpenCLGpuExecutor getExecutor() {
+    public @Nullable GpuExecutor getExecutor() {
         return executor;
     }
 
@@ -20,7 +20,7 @@ public abstract class GpuExecutable {
      * can dispatch straight away with no first-use compile stall and no
      * per-call binding to worry about.
      */
-    public void setExecutor(@Nullable OpenCLGpuExecutor executor) {
+    public void setExecutor(@Nullable GpuExecutor executor) {
         this.executor = executor;
         if (executor != null)
             bindKernels(executor);
@@ -39,7 +39,7 @@ public abstract class GpuExecutable {
     protected void bindKernels(GpuExecutor executor) {
     }
 
-    protected OpenCLGpuExecutor requireExecutor() {
+    protected GpuExecutor requireExecutor() {
         if (executor == null)
             throw new IllegalStateException(
                     getClass().getSimpleName() + " has no GpuExecutor attached - call setExecutor(...) before use");

@@ -1,12 +1,12 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu.opencl;
 
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.Kernel;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuResource;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.Kernel;
 import org.jetbrains.annotations.Nullable;
 import org.jocl.*;
 
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.jocl.CL.*;
@@ -17,19 +17,22 @@ import static org.jocl.CL.*;
  * {@link #bind}, read directly (no map, no lookup) by every {@link #use}
  * call afterwards.
  *
- * <p><b>One bound device at a time.</b> Since {@code id`}/{@code queue}
- * are plain mutable fields rather than a per-device map, a kernel that has
+ * <p><b>One bound device at a time.</b> Since {@code id}/{@code queue} are
+ * plain mutable fields rather than a per-device map, a kernel that has
  * been {@code bind()}ed is only valid against the device it was last bound
- * to. This is fine for the common case -- one {@code GpuExecutor} open at
- * a time, every {@code Gpu*Vector} sharing its static kernel constants --
- * but rebinding the same kernel to a second, different executor while the
- * first is still in use would make both silently race over the same
- * {@code id}/{@code queue} fields. If you need two executors genuinely
- * live at once, this needs a per-context registry again.
+ * to. Fine for one {@code GpuExecutor} open at a time; rebinding to a
+ * second, different executor while the first is still in use would make
+ * both race over the same fields.
  *
- * <p>Self-registers into {@link #kernels} purely so {@link OpenCLGpuExecutor#close}
- * can release whichever kernels happen to be bound to its queue -- that
- * registry is never consulted on the dispatch path, only at shutdown.
+ * <p><b>Dispatch never blocks the host unless asked to.</b> {@link #use}
+ * collects each touched buffer's currently pending events and passes them
+ * as this dispatch's {@code event_wait_list} -- a device-side wait the
+ * driver resolves itself -- rather than blocking the calling thread on
+ * them first. The dispatch's own resulting event is then recorded onto
+ * every buffer it touched, so whatever touches those buffers next
+ * (another kernel, or a buffer transfer) picks up the dependency the same
+ * way. {@link #useBlocking} does the same, then additionally waits on this
+ * one dispatch's event and settles the touched buffers.
  */
 public class OpenCLKernel implements Kernel {
 
@@ -93,39 +96,58 @@ public class OpenCLKernel implements Kernel {
 
     @Override
     public void use(int globalSize, GpuResource... args) {
-        dispatch(globalSize, args);
+        dispatch(globalSize, args, false);
     }
 
     @Override
     public void useBlocking(int globalSize, GpuResource... args) {
-        dispatch(globalSize, args);
+        dispatch(globalSize, args, true);
     }
 
-    private void dispatch(int globalSize, GpuResource[] args) {
+    private void dispatch(int globalSize, GpuResource[] args, boolean blocking) {
         if (globalSize <= 0) return;
 
         cl_kernel        kernelId = requireId();
         cl_command_queue q        = requireQueue();
 
         synchronized (q) {
-            cl_event event = new cl_event();
+            List<OpenCLResource> touched = new ArrayList<>(args.length);
+            Set<cl_event> waitSet = new LinkedHashSet<>();
+
             for (int i = 0; i < args.length; i++) {
-                if (args[i] instanceof OpenCLResource clArg) {
-                    clArg.waitForEventsAndClean();
-                    clArg.add(new OpenCLEvent(event));//this is kinda ugly, but that works.
-                    clSetKernelArg(kernelId, i, clArg.size, Pointer.to(clArg.pointer));
-                } else if (args[i] == null) {
-                    clReleaseEvent(event);
-                    throw new NullPointerException("Kernel Arg was null at index : "+ i);
-                } else {
-                    args[i].waitForEventsAndClean();
-                    clReleaseEvent(event);
-                    throw new RuntimeException("Invalid Implementation of a Kernel Arg for OpenCL : "+ args[i].getClass());
+                if (args[i] == null)
+                    throw new NullPointerException("Kernel arg was null at index: " + i);
+                if (!(args[i] instanceof OpenCLResource clArg))
+                    throw new RuntimeException("Invalid GpuResource implementation for OpenCL: " + args[i].getClass());
+
+                clSetKernelArg(kernelId, i, clArg.size, clArg.pointer);
+
+                if (clArg.isBuffer()) {
+                    touched.add(clArg);
+                    Collections.addAll(waitSet, clArg.rawEvents());
                 }
             }
 
-            clEnqueueNDRangeKernel(q, kernelId, 1, null, new long[]{globalSize}, null, 0, null, event);
+            cl_event[] waitList = waitSet.isEmpty() ? null : waitSet.toArray(new cl_event[0]);
+            int        count    = waitList == null ? 0 : waitList.length;
 
+            cl_event completion = new cl_event();
+            clEnqueueNDRangeKernel(q, kernelId, 1, null, new long[]{globalSize},
+                    null, count, waitList, completion);
+
+            for (OpenCLResource buf : touched) {
+                //why is it needed ?
+                clRetainEvent(completion); // each touched buffer holds its own independent reference
+                buf.recordEvent(new OpenCLEvent(completion));
+            }
+
+            if (blocking) {
+                clWaitForEvents(1, new cl_event[]{completion});
+                for (OpenCLResource buf : touched)
+                    buf.settle();
+            }
+            // drop the creation-time reference; touched buffers now own the rest. Resources owns the same one no ?
+            clReleaseEvent(completion);
         }
     }
 

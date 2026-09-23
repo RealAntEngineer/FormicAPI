@@ -1,5 +1,10 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
+
 import java.util.Arrays;
 
 /**
@@ -221,17 +226,27 @@ public class PaddedCSRMatrix implements MutableMatrix {
         }
     }
 
-    public void transposeMultiply(double[] x, double[] result) {
-        Arrays.fill(result, 0.0);
+    @Override
+    public void transposeApply(RealVector x, RealVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
+            double[] resArr = resCpu.array();
+            double[] xArr = xCpu.array();
+            Arrays.fill(resArr, 0.0);
 
-        for (int r = 0; r < rows; r++) {
+            for (int r = 0; r < rows; r++) {
 
-            int base = r * nnzPerRow;
+                int base = r * nnzPerRow;
 
-            for (int i = 0; i < nnzPerRow; i++) {
-                result[colIndex[base + i]] += values[base + i] * x[r];
+                for (int i = 0; i < nnzPerRow; i++) {
+                    resArr[colIndex[base + i]] += values[base + i] * xArr[r];
+                }
             }
+        } else {
+            throw new UnsupportedOperationException(
+                    "Matrix.transposeApply(...) PaddedCSRMatrix only supports CpuDoubleVector operands; got x="
+                            + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName());
         }
+
     }
 
     @Override
@@ -255,6 +270,24 @@ public class PaddedCSRMatrix implements MutableMatrix {
         }
 
         return 0.0;
+    }
+
+    @Override
+    public RealVector getValues(IntegerVector r, IntegerVector c) {
+        if (r instanceof CpuIntegerVector rCpu && c instanceof CpuIntegerVector cCpu) {
+            int[] rArr = rCpu.array();
+            int[] cArr = cCpu.array();
+
+            double[] values = new double[rCpu.size()];
+            for (int i = 0; i < rCpu.size(); i++) {
+                values[i] = get(rArr[i], cArr[i]);
+            }
+
+            return new CpuDoubleVector(values);
+
+        } else {
+            throw new UnsupportedOperationException();
+        }
     }
 
     public double[] getRowValues(int r) {

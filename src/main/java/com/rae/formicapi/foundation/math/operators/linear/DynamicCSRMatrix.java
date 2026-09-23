@@ -1,5 +1,9 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
@@ -141,6 +145,24 @@ public class DynamicCSRMatrix implements MutableMatrix {
     @Override
     public double get(int r, int c) {
         return buffer.get(r, c);
+    }
+
+    @Override
+    public RealVector getValues(IntegerVector r, IntegerVector c) {
+        if (r instanceof CpuIntegerVector rCpu && c instanceof CpuIntegerVector cCpu) {
+            int[] rArr = rCpu.array();
+            int[] cArr = cCpu.array();
+
+            double[] values = new double[rCpu.size()];
+            for (int i = 0; i < rCpu.size(); i++) {
+                values[i] = get(rArr[i], cArr[i]);
+            }
+
+            return new CpuDoubleVector(values);
+
+        } else {
+            throw new UnsupportedOperationException();
+        }
     }
 
     // ------------------------------------------------

@@ -2,30 +2,68 @@ package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3Tensor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLKernel;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLResource;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jetbrains.annotations.Nullable;
-import org.jocl.cl_mem;
 
 import java.util.Arrays;
 
 /**
- * GPU backend for {@code PaddedCSR2Tensor} / {@link CpuPaddedCSR3Tensor}.
- *
- * <p>Fixed-structure sparse quadratic tensor:
- *
- * <pre>
- * F_i(x) = sum(c[i,j,k] * x[j] * x[k])
- * </pre>
- *
- * <p>Follows {@link GpuPaddedCSRMatrix}'s pattern rather than the older
- * device-only {@code Gpu*Vector} one: {@code values}/{@code var1Index}/
- * {@code var2Index} are kept as host-side mirrors that {@link #add},
- *  and structural queries read/search directly (fast, no
- * device round-trip), while {@link #setExecutor}, {@link #setRow} and
- * {@link #resize} keep a same-shaped device buffer in sync for
- * {@link #apply}/{@link #applyJacobian} to run kernels against.
+ * GPU backend for {@code PaddedCSR2Tensor} / {@link CpuPaddedCSR3Tensor}:
+ * {@code F_i(x) = sum(c[i,j,k] * x[j] * x[k])}. Kernels are static
+ * constants defined right here (see {@link OpenCLKernel}'s class doc),
+ * bound once in {@link #bindKernels}, dispatched via {@code .use()} --
+ * replacing the {@code executor.launchCsr2Apply(...)}-style calls that no
+ * longer exist on the executor itself.
  */
 public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable {
+
+    private static final OpenCLKernel APPLY = new OpenCLKernel("csr2_apply", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void csr2_apply(__global const double* values, __global const int* var1Index,
+                                      __global const int* var2Index, const int termsPerEquation,
+                                      __global const double* x, __global double* result, const int equations) {
+                int row = get_global_id(0);
+                if (row >= equations) return;
+                double sum = 0.0;
+                int base = row * termsPerEquation;
+                for (int i = 0; i < termsPerEquation; i++) {
+                    int idx = base + i;
+                    sum += values[idx] * x[var1Index[idx]] * x[var2Index[idx]];
+                }
+                result[row] = sum;
+            }
+            """, "cl_khr_fp64");
+
+    private static final OpenCLKernel APPLY_JACOBIAN = new OpenCLKernel("csr2_apply_jacobian", """
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void csr2_apply_jacobian(__global const double* values, __global const int* var1Index,
+                                               __global const int* var2Index, const int termsPerEquation,
+                                               __global const double* x, __global const double* direction,
+                                               __global double* result, const int equations) {
+                int row = get_global_id(0);
+                if (row >= equations) return;
+                double sum = 0.0;
+                int base = row * termsPerEquation;
+                for (int i = 0; i < termsPerEquation; i++) {
+                    int idx = base + i;
+                    double c = values[idx];
+                    int j = var1Index[idx];
+                    int k = var2Index[idx];
+                    // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k);
+                    // reduces to 2*c*x_j*dx_j automatically when j == k.
+                    sum += c * (direction[j] * x[k] + x[j] * direction[k]);
+                }
+                result[row] = sum;
+            }
+            """, "cl_khr_fp64");
+
+    @Override
+    protected void bindKernels(GpuExecutor executor) {
+        APPLY.bind(executor);
+        APPLY_JACOBIAN.bind(executor);
+    }
 
     private final int termsPerEquation;
     private       int equations;
@@ -56,8 +94,8 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
     }
 
     @Override
-    public void setExecutor(@Nullable OpenCLGpuExecutor executor) {
-        OpenCLGpuExecutor previous = getExecutor();
+    public void setExecutor(@Nullable GpuExecutor executor) {
+        GpuExecutor previous = getExecutor();
         super.setExecutor(executor);
 
         if (previous != null) {
@@ -109,18 +147,16 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
             var2Index[base + i] = newVar2Index[i];
         }
 
-        // Disable unused terms - zero value, index 0 (always in-bounds).
         for (int i = count; i < termsPerEquation; i++) {
             values[base + i] = 0.0;
             var1Index[base + i] = 0;
             var2Index[base + i] = 0;
         }
 
-        OpenCLGpuExecutor executor = requireExecutor();
+        GpuExecutor executor = requireExecutor();
         executor.uploadDoubles(dValues, base, values, base, termsPerEquation);
         executor.uploadInts(dVar1Index, base, var1Index, base, termsPerEquation);
         executor.uploadInts(dVar2Index, base, var2Index, base, termsPerEquation);
-        //requireExecutor().finish();
     }
 
     /**
@@ -138,7 +174,6 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
         values[index] += value;
 
         requireExecutor().uploadDoubleAt(dValues, index, values[index]);
-        //requireExecutor().finish();
     }
 
     private int findIndex(int equation, int var1, int var2) {
@@ -152,17 +187,11 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
                 return idx;
         }
 
-        throw new IllegalStateException(
-                "Tensor entry does not exist: (" + equation + "," + var1 + "," + var2 + ")");
+        throw new IllegalStateException("Tensor entry does not exist: (" + equation + "," + var1 + "," + var2 + ")");
     }
 
-    /**
-     * Evaluates {@code result = F(x)} on the device. {@code result} is
-     * resized to {@link #equations()} first, same as {@link GpuPaddedCSRMatrix#apply}.
-     */
+    /** Evaluates {@code result = F(x)} on the device. {@code result} is resized to {@link #equations()} first. */
     public void apply(Vector x, Vector result) {
-        OpenCLGpuExecutor executor = requireExecutor();
-
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -171,9 +200,9 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
 
         result.resize(equations);
 
-        executor.launchCsr2Apply(dValues, dVar1Index, dVar2Index, termsPerEquation,
-                gpuX.buffer(), gpuResult.buffer(), equations);
-        //requireExecutor().finish();
+        APPLY.use(equations,
+                dValues, dVar1Index, dVar2Index, OpenCLResource.of(termsPerEquation),
+                gpuX.buffer(), gpuResult.buffer(), OpenCLResource.of(equations));
     }
 
     /**
@@ -182,8 +211,6 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
      * math (handles {@code j == k} correctly without a special case).
      */
     public void applyJacobian(Vector x, Vector direction, Vector result) {
-        OpenCLGpuExecutor executor = requireExecutor();
-
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -195,9 +222,9 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
 
         result.resize(equations);
 
-        executor.launchCsr2ApplyJacobian(dValues, dVar1Index, dVar2Index, termsPerEquation,
-                gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), equations);
-        //requireExecutor().finish();
+        APPLY_JACOBIAN.use(equations,
+                dValues, dVar1Index, dVar2Index, OpenCLResource.of(termsPerEquation),
+                gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), OpenCLResource.of(equations));
     }
 
     public void multiply(double[] x, double[] result) {
@@ -218,8 +245,7 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
 
     /**
      * Grows this tensor's equation count in-place, reallocating and
-     * re-uploading the device buffers to match - same always-reallocate
-     * style as {@link GpuPaddedCSRMatrix#resize}, no capacity headroom kept
+     * re-uploading the device buffers to match - no capacity headroom kept
      * between calls.
      */
     public void resize(int newEquations) {
@@ -234,7 +260,7 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
 
         equations = newEquations;
 
-        OpenCLGpuExecutor executor = requireExecutor();
+        GpuExecutor executor = requireExecutor();
 
         GpuResource newValuesBuf = executor.allocateDoubleBuffer(Math.max(newLength, 1));
         GpuResource newVar1Buf = executor.allocateIntBuffer(Math.max(newLength, 1));
@@ -288,10 +314,6 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
     }
 
     public void close() {
-        OpenCLGpuExecutor executor = getExecutor();
-        if (executor == null)
-            return;
-
         if (dValues != null) {
             dValues.release();
             dValues = null;

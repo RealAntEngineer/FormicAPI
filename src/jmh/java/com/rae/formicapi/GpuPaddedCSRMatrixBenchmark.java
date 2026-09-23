@@ -65,7 +65,7 @@ public class GpuPaddedCSRMatrixBenchmark {
      * unlike the CPU benchmark no row count is included specifically to
      * demonstrate one.
      */
-    @Param({"16", "64", "256"})
+    @Param({"16", "64", "256", "1024"})
     public int blocks;
 
     private OpenCLGpuExecutor  executor;
@@ -79,12 +79,12 @@ public class GpuPaddedCSRMatrixBenchmark {
 
         executor = new OpenCLGpuExecutor();
 
-        if (!executor.supportsScatterAtomics())
+        /*if (!executor.supportsScatterAtomics())
             throw new IllegalStateException(
                     "Selected OpenCL device lacks cl_khr_int64_base_atomics; "
                             + "GpuPaddedCSRMatrix.transposeApply(...) cannot run on it. "
                             + "Run this benchmark on a device that supports it, "
-                            + "or comment out the transposeApply benchmark method.");
+                            + "or comment out the transposeApply benchmark method.");*/
 
         int rows = blocks * 4096;
         matrix = createPaddedMatrix(rnd, rows, executor);
@@ -95,6 +95,7 @@ public class GpuPaddedCSRMatrixBenchmark {
 
         x = new GpuDoubleVector(executor, xArr);
         result = new GpuDoubleVector(executor, rows);
+        executor.finish();
     }
 
     @TearDown(Level.Trial)
@@ -108,7 +109,7 @@ public class GpuPaddedCSRMatrixBenchmark {
         for (int i = 0; i < 1000; i++) {
             matrix.apply(x, result);
         }
-        //executor.finish();
+        executor.finish();
         bh.consume(result);
     }
 

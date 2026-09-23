@@ -173,8 +173,6 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void transposeApplyMatchesExpected() {
-        assumeTrue(executor.supportsScatterAtomics(),
-                "test device lacks cl_khr_int64_base_atomics; transposeApply is unsupported here");
 
         GpuPaddedCSRMatrix matrix = createRectangularMatrix();
 

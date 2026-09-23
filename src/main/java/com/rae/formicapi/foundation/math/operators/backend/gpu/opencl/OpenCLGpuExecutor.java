@@ -2,7 +2,12 @@ package com.rae.formicapi.foundation.math.operators.backend.gpu.opencl;
 
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuResource;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.Kernel;
 import org.jocl.*;
+
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import static org.jocl.CL.*;
 
@@ -11,21 +16,26 @@ import static org.jocl.CL.*;
  * implements the full buffer lifecycle. Deliberately owns no kernel source
  * and no launch methods -- those live as {@link OpenCLKernel} constants
  * defined next to whatever {@code Gpu*Vector}/{@code Gpu*Matrix} class uses
- * them, compiled lazily via {@link OpenCLKernel#bind}. Adding a new GPU
- * operation means adding a new {@code Kernel} constant at its point of
- * use; this class never needs to change for it.
+ * them.
  *
- * <p>Methods beyond the {@link GpuExecutor} contract ({@link #device()},
- * {@link #context()}, {@link #queue()}, {@link #supports(OpenCLKernel)})
- * are OpenCL-specific and only ever called by {@link OpenCLKernel} itself,
- * which already knows it's OpenCL-only -- nothing in the
- * {@code Gpu*Vector}/{@code Gpu*Matrix} layer above should reference this
- * class by name at all, only {@link GpuExecutor}.
+ * <p><b>Locking.</b> Every method here synchronizes on {@code queue}, the
+ * same monitor {@link OpenCLKernel#use} synchronizes on -- both sides
+ * touch the same buffers' event state, so they need to share one lock, not
+ * two different ones (an executor-instance lock here vs. a queue lock
+ * there would let a buffer transfer and a kernel dispatch race on the same
+ * buffer's pending-events list).
  *
- * <p><b>Thread-safety.</b> Buffer operations here are {@code synchronized}
- * for the same reason kernel dispatch is: a single {@code cl_command_queue}
- * is not designed for concurrent multithreaded dispatch from several Java
- * threads at once.
+ * <p><b>Events, not blocking waits.</b> Every method that touches a buffer
+ * builds a wait list from that buffer's currently pending events and
+ * passes it to the OpenCL call itself (a device-side wait), instead of
+ * calling a blocking host-side wait first -- that would serialize the host
+ * thread on every single call regardless of whether the two operations
+ * actually depend on each other. Methods that block by nature (the
+ * {@code CL_TRUE} reads/writes) call {@link GpuResource#settle()}
+ * afterwards, since by then they're genuinely done; methods that don't
+ * block (fill, copy) get a real output event and call
+ * {@link GpuResource#recordEvent}, staying pending like a kernel dispatch
+ * would.
  *
  * <p><b>Precision.</b> Requires a device supporting {@code cl_khr_fp64}
  * (double precision). Selection fails fast with a clear message if none is
@@ -33,7 +43,6 @@ import static org.jocl.CL.*;
  */
 public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
 
-    //TODO remove some of the useless blocks
     private final cl_platform_id   platform;
     private final cl_device_id     device;
     private final cl_context       context;
@@ -57,12 +66,9 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
 
         this.context = clCreateContext(props, 1, new cl_device_id[]{device}, null, null, null);
         this.queue = clCreateCommandQueue(context, device, 0, null);
-        // Kernels are no longer pre-compiled here -- each OpenCLKernel
-        // compiles itself lazily, the first time it's bind()ed against
-        // this executor. See OpenCLKernel's class doc.
     }
 
-    // Package-private, OpenCL-specific: only OpenCLKernel needs these, and only it should ever reference this class instead of GpuContext.
+    // Package-private, OpenCL-specific: only OpenCLKernel should ever reference this class instead of GpuExecutor.
     cl_device_id device() { return device; }
     cl_context context() { return context; }
     cl_command_queue queue() { return queue; }
@@ -134,9 +140,10 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
         return new String(buffer).trim();
     }
 
-    /** True if this device supports a given kernel's required extensions -- check before relying on an optional kernel (e.g. atomic scatter-add). OpenCL-specific, see class doc. */
-    public boolean supports(OpenCLKernel kernel) {
-        return kernel.isSupported(device);
+    /** True if this device supports a given kernel's required extensions. OpenCL-specific, see class doc. */
+    @Override
+    public boolean supports(Kernel kernel) {
+        return kernel instanceof OpenCLKernel clKernel && clKernel.isSupported(device);
     }
 
     @Override
@@ -146,238 +153,279 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
         return out[0];
     }
 
-    // ---------------------------------------------------------------- buffer lifecycle
+    // ---------------------------------------------------------------- allocation
 
     @Override
     public GpuResource allocateDoubleBuffer(int length) {
-        return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_double,
-                null, null));
+        return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_double, null, null));
     }
 
     @Override
     public GpuResource allocateIntBuffer(int length) {
-        return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_int,
-                null, null));
+        return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_int, null, null));
     }
 
     @Override
     public GpuResource allocateByteBuffer(int length) {
-
-        return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_char,
-                null, null));
+        return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_char, null, null));
     }
 
+    // ---------------------------------------------------------------- wait-list / event-recording helpers
+
+    private static cl_event[] waitList(GpuResource... resources) {
+        Set<cl_event> set = new LinkedHashSet<>();
+        for (GpuResource r : resources)
+            if (r instanceof OpenCLResource clr)
+                Collections.addAll(set, clr.rawEvents());
+        return set.isEmpty() ? null : set.toArray(new cl_event[0]);
+    }
+
+    private static int waitCount(cl_event[] list) {
+        return list == null ? 0 : list.length;
+    }
+
+    /** For non-blocking ops (fill, copy): record {@code event} on every touched resource, each holding its own independent reference. */
+    private static void record(cl_event event, GpuResource... resources) {
+        for (GpuResource r : resources) {
+            clRetainEvent(event);
+            r.recordEvent(new OpenCLEvent(event));
+        }
+        clReleaseEvent(event); // drop the creation-time reference
+    }
+
+    /** For genuinely blocking ops (CL_TRUE reads/writes): mark every touched resource fully settled. */
+    private static void settle(GpuResource... resources) {
+        for (GpuResource r : resources)
+            r.settle();
+    }
+
+    private static cl_mem mem(GpuResource buffer) {
+        return ((OpenCLResource) buffer).mem();
+    }
+
+    // ---------------------------------------------------------------- double transfers (blocking)
+
     @Override
-    public synchronized void uploadDoubles(GpuResource buffer, double[] host, int length) {
+    public void uploadDoubles(GpuResource buffer, double[] host, int length) {
         uploadDoubles(buffer, 0, host, 0, length);
     }
 
     @Override
-    public synchronized void uploadDoubles(GpuResource buffer, int elementOffset, double[] host, int hostOffset, int length) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
-                (long) length * Sizeof.cl_double, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_double),
-                0, null, event);
+    public void uploadDoubles(GpuResource buffer, int elementOffset, double[] host, int hostOffset, int length) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
+                    (long) length * Sizeof.cl_double, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_double),
+                    waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized void downloadDoubles(GpuResource buffer, double[] host, int length) {
+    public void downloadDoubles(GpuResource buffer, double[] host, int length) {
         downloadDoubles(buffer, 0, host, length);
     }
 
     @Override
-    public synchronized void downloadDoubles(GpuResource buffer, int elementOffset, double[] host, int length) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
-                (long) length * Sizeof.cl_double, Pointer.to(host), 0, null, event);
+    public void downloadDoubles(GpuResource buffer, int elementOffset, double[] host, int length) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
+                    (long) length * Sizeof.cl_double, Pointer.to(host), waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized void uploadInts(GpuResource buffer, int[] host, int length) {
+    public void uploadDoubleAt(GpuResource buffer, int elementOffset, double value) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
+                    Sizeof.cl_double, Pointer.to(new double[]{value}), waitCount(wait), wait, null);
+            settle(buffer);
+        }
+    }
+
+    @Override
+    public double downloadDoubleAt(GpuResource buffer, int elementOffset) {
+        synchronized (queue) {
+            double[] out = new double[1];
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
+                    Sizeof.cl_double, Pointer.to(out), waitCount(wait), wait, null);
+            settle(buffer);
+            return out[0];
+        }
+    }
+
+    // ---------------------------------------------------------------- int transfers (blocking)
+
+    @Override
+    public void uploadInts(GpuResource buffer, int[] host, int length) {
         uploadInts(buffer, 0, host, 0, length);
     }
 
     @Override
-    public synchronized void uploadInts(GpuResource buffer, int elementOffset, int[] host, int hostOffset, int length) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
-                (long) length * Sizeof.cl_int, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_int),
-                0, null, event);
+    public void uploadInts(GpuResource buffer, int elementOffset, int[] host, int hostOffset, int length) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
+                    (long) length * Sizeof.cl_int, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_int),
+                    waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized void downloadInts(GpuResource buffer, int[] host, int length) {
+    public void downloadInts(GpuResource buffer, int[] host, int length) {
         downloadInts(buffer, 0, host, length);
     }
 
     @Override
-    public synchronized void downloadInts(GpuResource buffer, int elementOffset, int[] host, int length) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
-                (long) length * Sizeof.cl_int, Pointer.to(host), 0, null, event);
+    public void downloadInts(GpuResource buffer, int elementOffset, int[] host, int length) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
+                    (long) length * Sizeof.cl_int, Pointer.to(host), waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized void uploadDoubleAt(GpuResource buffer, int elementOffset, double value) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
-                Sizeof.cl_double, Pointer.to(new double[]{value}), 0, null, event);
+    public void uploadIntAt(GpuResource buffer, int elementOffset, int value) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
+                    Sizeof.cl_int, Pointer.to(new int[]{value}), waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized double downloadDoubleAt(GpuResource buffer, int elementOffset) {
-        double[] out = new double[1];
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
-                Sizeof.cl_double, Pointer.to(out), 0, null, event);
-        return out[0];
+    public int downloadIntAt(GpuResource buffer, int elementOffset) {
+        synchronized (queue) {
+            int[] out = new int[1];
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
+                    Sizeof.cl_int, Pointer.to(out), waitCount(wait), wait, null);
+            settle(buffer);
+            return out[0];
+        }
+    }
+
+    // ---------------------------------------------------------------- byte transfers (blocking)
+
+    @Override
+    public void uploadBytes(GpuResource buffer, byte[] host, int length) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, 0, length, Pointer.to(host), waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized void uploadIntAt(GpuResource buffer, int elementOffset, int value) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
-                Sizeof.cl_int, Pointer.to(new int[]{value}), 0, null, event);
+    public void downloadBytes(GpuResource buffer, byte[] host, int length) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, 0, length, Pointer.to(host), waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized int downloadIntAt(GpuResource buffer, int elementOffset) {
-        int[] out = new int[1];
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_int,
-                Sizeof.cl_int, Pointer.to(out), 0, null, event);
-        return out[0];
+    public void uploadByteAt(GpuResource buffer, int elementOffset, byte value) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, elementOffset, 1, Pointer.to(new byte[]{value}), waitCount(wait), wait, null);
+            settle(buffer);
+        }
     }
 
     @Override
-    public synchronized void uploadBytes(GpuResource buffer, byte[] host, int length) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, 0, length, Pointer.to(host),
-                0, null, event);
+    public byte downloadByteAt(GpuResource buffer, int elementOffset) {
+        synchronized (queue) {
+            byte[] out = new byte[1];
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, elementOffset, 1, Pointer.to(out), waitCount(wait), wait, null);
+            settle(buffer);
+            return out[0];
+        }
     }
 
-    @Override
-    public synchronized void downloadBytes(GpuResource buffer, byte[] host, int length) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, 0, length, Pointer.to(host),
-                0, null, event);
-    }
+    // ---------------------------------------------------------------- copy / fill (non-blocking)
 
     @Override
-    public synchronized void uploadByteAt(GpuResource buffer, int elementOffset, byte value) {
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, elementOffset, 1, Pointer.to(new byte[]{value}),
-                0, null, event);
-    }
-
-    @Override
-    public synchronized byte downloadByteAt(GpuResource buffer, int elementOffset) {
-        byte[] out = new byte[1];
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, elementOffset, 1, Pointer.to(out),
-                0, null, event);
-        return out[0];
-    }
-
-    @Override
-    public synchronized void copyDoubleBuffer(GpuResource src, GpuResource dst, int length) {
+    public void copyDoubleBuffer(GpuResource src, GpuResource dst, int length) {
         if (length <= 0) return;
-        src.waitForEventsAndClean();
-        dst.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        src.add(new OpenCLEvent(event));
-        dst.add(new OpenCLEvent(event));
-        clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, (long) length * Sizeof.cl_double,
-                0, null, event);
-        //clFinish(queue);
+        synchronized (queue) {
+            cl_event[] wait = waitList(src, dst);
+            cl_event event = new cl_event();
+            clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, (long) length * Sizeof.cl_double, waitCount(wait), wait, event);
+            record(event, src, dst);
+        }
     }
 
     @Override
-    public synchronized void copyIntBuffer(GpuResource src, GpuResource dst, int length) {
+    public void copyIntBuffer(GpuResource src, GpuResource dst, int length) {
         if (length <= 0) return;
-        src.waitForEventsAndClean();
-        dst.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        src.add(new OpenCLEvent(event));
-        dst.add(new OpenCLEvent(event));
-        clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, (long) length * Sizeof.cl_int,
-                0, null, event);
-        //clFinish(queue);
+        synchronized (queue) {
+            cl_event[] wait = waitList(src, dst);
+            cl_event event = new cl_event();
+            clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, (long) length * Sizeof.cl_int, waitCount(wait), wait, event);
+            record(event, src, dst);
+        }
     }
 
     @Override
-    public synchronized void copyByteBuffer(GpuResource src, GpuResource dst, int length) {
-        if (length <= 0) return;        src.waitForEventsAndClean();
-        dst.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        src.add(new OpenCLEvent(event));
-        dst.add(new OpenCLEvent(event));
-        clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, length,
-                0, null, null);
-        //clFinish(queue);
-    }
-
-    @Override
-    public synchronized void fillDoubleBuffer(GpuResource buffer, double value, int length) {
+    public void copyByteBuffer(GpuResource src, GpuResource dst, int length) {
         if (length <= 0) return;
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new double[]{value}), Sizeof.cl_double,
-                0,(long) length * Sizeof.cl_double, 0, null, null);
+        synchronized (queue) {
+            cl_event[] wait = waitList(src, dst);
+            cl_event event = new cl_event();
+            clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, length, waitCount(wait), wait, event);
+            record(event, src, dst);
+        }
     }
 
     @Override
-    public synchronized void fillIntBuffer(GpuResource buffer, int value, int length) {
+    public void fillDoubleBuffer(GpuResource buffer, double value, int length) {
         if (length <= 0) return;
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new int[]{value}), Sizeof.cl_int,
-                0,(long) length * Sizeof.cl_int, 0, null, null);
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            cl_event event = new cl_event();
+            clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new double[]{value}), Sizeof.cl_double,
+                    0, (long) length * Sizeof.cl_double, waitCount(wait), wait, event);
+            record(event, buffer);
+        }
     }
 
     @Override
-    public synchronized void fillByteBuffer(GpuResource buffer, byte value, int length) {
+    public void fillIntBuffer(GpuResource buffer, int value, int length) {
         if (length <= 0) return;
-        buffer.waitForEventsAndClean();
-        cl_event event = new cl_event();
-        buffer.add(new OpenCLEvent(event));
-        clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new byte[]{value}), Sizeof.cl_char,
-                0, length, 0, null, null);
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            cl_event event = new cl_event();
+            clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new int[]{value}), Sizeof.cl_int,
+                    0, (long) length * Sizeof.cl_int, waitCount(wait), wait, event);
+            record(event, buffer);
+        }
     }
-
-    private static cl_mem mem(GpuResource buffer) {
-        return ((OpenCLResource) buffer).pointer;
-    }
-
 
     @Override
-    @Deprecated//rely on the resource aware system instead.
+    public void fillByteBuffer(GpuResource buffer, byte value, int length) {
+        if (length <= 0) return;
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            cl_event event = new cl_event();
+            clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new byte[]{value}), Sizeof.cl_char,
+                    0, length, waitCount(wait), wait, event);
+            record(event, buffer);
+        }
+    }
+
+    /** Full-queue barrier -- prefer letting the event graph handle dependencies; only reach for this for genuine external interop / debugging. */
+    @Override
     public void finish() {
         clFinish(queue);
     }
@@ -386,7 +434,7 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     public synchronized void close() {
         if (closed) return;
         closed = true;
-        OpenCLKernel.releaseAll(queue); // only kernels currently bound to this executor's queue
+        OpenCLKernel.releaseAll(queue);
         clReleaseCommandQueue(queue);
         clReleaseContext(context);
     }

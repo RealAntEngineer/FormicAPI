@@ -23,13 +23,13 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
     private           int       size;
     private           int       capacity;
 
-    public GpuIntegerVector(OpenCLGpuExecutor executor, int[] hostData) {
+    public GpuIntegerVector(GpuExecutor executor, int[] hostData) {
         this(executor, hostData.length);
         upload(hostData);
         //requireExecutor().finish();
     }
 
-    public GpuIntegerVector(OpenCLGpuExecutor executor, int size) {
+    public GpuIntegerVector(GpuExecutor executor, int size) {
         setExecutor(executor);
         this.capacity = size;
         this.size = size;
@@ -62,7 +62,7 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
 
     @Override
     public IntegerVector resize(int newSize) {
-        OpenCLGpuExecutor ctx = requireExecutor();
+        GpuExecutor ctx = requireExecutor();
 
         if (newSize >= capacity) {
             GpuResource newBuffer = ctx.allocateIntBuffer(Math.max(newSize, 1));
