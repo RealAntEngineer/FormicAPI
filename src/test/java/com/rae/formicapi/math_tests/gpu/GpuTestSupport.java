@@ -32,13 +32,10 @@ public abstract class GpuTestSupport {
     @BeforeEach
     protected void setUpExecutor() {
         try {
-            executor = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
-                OpenCLGpuExecutor e = new OpenCLGpuExecutor();
-                profiler = new GpuProfiler();
-                e.setProfiler(profiler);
-                return e;
-            });
-        } catch (RuntimeException | AssertionError e) {
+            executor = new OpenCLGpuExecutor();
+            profiler = new GpuProfiler();
+            executor.setProfiler(profiler);
+        } catch (Throwable e) {
             executor = null;
             profiler = null;
             Assumptions.assumeTrue(false, "Skipping GPU tests: no fp64-capable OpenCL device available (" + e.getMessage() + ")");
