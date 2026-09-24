@@ -1,5 +1,6 @@
 package com.rae.formicapi.math_tests.solvers;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.DynamicCSRMatrix;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
 import org.junit.jupiter.api.Test;
@@ -28,11 +29,11 @@ public class LeastSquareTest {
                 {0, 1, 0},
                 {0, 0, 1}
         };
-        double[] b = {3, 7, 2};
+        CpuDoubleVector b = new CpuDoubleVector(new double[]{3, 7, 2});
         double[] expected = {3, 7, 2};
-        double[] x = new double[3];
+        CpuDoubleVector x = new CpuDoubleVector(new double[3]);
         LeastSquare.solve(denseToSparce(A),b,  x, MAX_ITER, TOL);
-        assertVectorEquals(expected, x, 1e-6, "identity system");
+        assertVectorEquals(expected, x.array(), 1e-6, "identity system");
     }
 
     /**
@@ -65,11 +66,11 @@ public class LeastSquareTest {
                 {0, 4, 0},
                 {0, 0, 8}
         };
-        double[] b = {4, 8, 16};
+        CpuDoubleVector b = new CpuDoubleVector(new double[]{4, 8, 16});
         double[] expected = {2, 2, 2};
-        double[] x = new double[3];
+        CpuDoubleVector x = new CpuDoubleVector(new double[3]);
         LeastSquare.solve(denseToSparce(A), b, x, MAX_ITER, TOL);
-        assertVectorEquals(expected, x, 1e-6, "diagonal system");
+        assertVectorEquals(expected, x.array(), 1e-6, "diagonal system");
     }
 
     // ------------------------------------------------
@@ -85,10 +86,10 @@ public class LeastSquareTest {
                 {0, -1, 4}
         };
         double[] x_exact = {1, 2, 3};
-        double[] b = multiply(A, x_exact);
-        double[] x =new double[3];
+        CpuDoubleVector b = new CpuDoubleVector(multiply(A, x_exact));
+        CpuDoubleVector x = new CpuDoubleVector(new double[3]);
         LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
-        assertVectorEquals(x_exact, x, 1e-6, "SPD system");
+        assertVectorEquals(x_exact, x.array(), 1e-6, "SPD system");
     }
 
     /**
@@ -112,10 +113,10 @@ public class LeastSquareTest {
                 {-2, 1, 2}
         };
         double[] x_exact = {1, 2, 3};
-        double[] b = multiply(A, x_exact);
-        double[] x = new double[3];
-        LeastSquare.solve(denseToSparce(A), b,new double[3],  MAX_ITER, TOL);
-        assertVectorEquals(x_exact, x, 1e-6, "general square system");
+        CpuDoubleVector b = new CpuDoubleVector(multiply(A, x_exact));
+        CpuDoubleVector x = new CpuDoubleVector(new double[3]);
+        LeastSquare.solve(denseToSparce(A), b,x,  MAX_ITER, TOL);
+        assertVectorEquals(x_exact, x.array(), 1e-6, "general square system");
     }
 
     @Test
@@ -127,10 +128,10 @@ public class LeastSquareTest {
                 {1, 1}
         };
         double[] x_exact = {3, 5};
-        double[] b = multiply(A, x_exact);
-        double[] x = new double[2];
-LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
-        assertVectorEquals(x_exact, x, 1e-6, "overdetermined consistent");
+        CpuDoubleVector b = new CpuDoubleVector(multiply(A, x_exact));
+        CpuDoubleVector x = new CpuDoubleVector(new double[2]);
+        LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
+        assertVectorEquals(x_exact, x.array(), 1e-6, "overdetermined consistent");
     }
 
     // ------------------------------------------------
@@ -145,20 +146,20 @@ LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
                 { 1, 3 },
                 { 1, 4 }
         };
-        double[] b = { 6, 5, 7, 10 };
-        double[] x = new double[2];
+        CpuDoubleVector b = new CpuDoubleVector(new double[]{ 6, 5, 7, 10 });
+        CpuDoubleVector x = new CpuDoubleVector(new double[2]);
         LeastSquare.solve(denseToSparce(A), b, x, MAX_ITER, TOL);
 
-        double residual = residualNorm(A, x, b);
+        double residual = residualNorm(A, x.array(), b.array());
 
         // Verify optimality: perturbing the solution in any direction should not reduce the residual
         Random rng = new Random(42);
         for (int trial = 0; trial < 100; trial++) {
-            double[] perturbed = x.clone();
+            double[] perturbed = x.array().clone();
             for (int i = 0; i < perturbed.length; i++)
                 perturbed[i] += (rng.nextDouble() - 0.5) * 0.1;
 
-            double perturbedResidual = residualNorm(A, perturbed, b);
+            double perturbedResidual = residualNorm(A, perturbed, b.array());
             assertTrue(residual <= perturbedResidual + 1e-6,
                     "least-squares solution should be optimal — perturbation trial " + trial);
         }
@@ -187,12 +188,12 @@ LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
                 {1.0 / 3, 1.0 / 4, 1.0 / 5}
         };
         double[] x_exact = {1, 1, 1};
-        double[] b = multiply(A, x_exact);
-        double[] x = new double[3];
+        CpuDoubleVector b = new CpuDoubleVector(multiply(A, x_exact));
+        CpuDoubleVector x = new CpuDoubleVector(new double[3]);
         LeastSquare.solve(denseToSparce(A), b, x, MAX_ITER, TOL);
 
         // Loose tolerance — Hilbert matrices amplify errors
-        assertVectorEquals(x_exact, x, 1e-4, "Hilbert 3x3");
+        assertVectorEquals(x_exact, x.array(), 1e-4, "Hilbert 3x3");
     }
 
     // ------------------------------------------------
@@ -202,11 +203,11 @@ LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
     @Test
     public void testSingleElement() {
         double[][] A = {{5.0}};
-        double[] b = {15.0};
+        CpuDoubleVector b = new CpuDoubleVector(new double[]{15.0});
 
-        double[] x = new double[1];
+        CpuDoubleVector x = new CpuDoubleVector(new double[1]);
         LeastSquare.solve(denseToSparce(A), b, x, MAX_ITER, TOL);
-        assertVectorEquals(new double[]{3.0}, x, 1e-9, "single element");
+        assertVectorEquals(new double[]{3.0}, x.array(), 1e-9, "single element");
     }
 
     @Test
@@ -245,7 +246,7 @@ LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
         double[] b = {1, 2, 3}; // wrong length
 
         assertThrows(IllegalArgumentException.class,
-                () -> LeastSquare.solve(denseToSparce(A), new double[2], b, MAX_ITER, TOL),
+                () -> LeastSquare.solve(denseToSparce(A),  b,new double[2], MAX_ITER, TOL),
                 "should throw on RHS length mismatch");
     }
 
