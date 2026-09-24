@@ -36,7 +36,29 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build
-        run: ./gradlew build
+        run: |
+          ./gradlew build --stacktrace &
+          GRADLE_PID=$!
+
+          TIMEOUT=900   # 15 minutes
+          INTERVAL=10
+          ELAPSED=0
+
+          while kill -0 $GRADLE_PID 2>/dev/null; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "=== Build timed out after ${TIMEOUT}s, dumping thread stacks ==="
+              for pid in $(jps -q); do
+                echo "--- jstack $pid ---"
+                jstack "$pid" || true
+              done
+              kill -9 $GRADLE_PID
+              exit 1
+            fi
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          wait $GRADLE_PID
 
       - name: Configure Git
         run: |
