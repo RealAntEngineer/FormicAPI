@@ -3,6 +3,7 @@ package com.rae.formicapi.math_tests.gpu;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.GpuProfiler;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 
