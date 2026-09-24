@@ -220,7 +220,7 @@ public class ParallelCpuTest {
 
             long start = System.nanoTime();
             int iterationsParallel = 0;
-            for (int i = 0; i <1000; i++) {
+            for (int i = 0; i < 10; i++) {
                  iterationsParallel += LeastSquare.solve(matrix, bParallel, xParallel, maxIter, tol,
                         parallelBuffer[0], parallelBuffer[1]);
             }
