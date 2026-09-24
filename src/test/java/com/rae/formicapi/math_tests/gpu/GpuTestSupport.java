@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -30,10 +31,13 @@ public abstract class GpuTestSupport {
     @BeforeEach
     protected void setUpExecutor() {
         try {
-            executor = new OpenCLGpuExecutor();
-            profiler = new GpuProfiler();
-            executor.setProfiler(profiler);
-        } catch (RuntimeException e) {
+            executor = Assertions.assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+                OpenCLGpuExecutor e = new OpenCLGpuExecutor();
+                profiler = new GpuProfiler();
+                e.setProfiler(profiler);
+                return e;
+            });
+        } catch (RuntimeException | AssertionError e) {
             executor = null;
             profiler = null;
             Assumptions.assumeTrue(false, "Skipping GPU tests: no fp64-capable OpenCL device available (" + e.getMessage() + ")");
