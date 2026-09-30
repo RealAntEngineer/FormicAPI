@@ -49,7 +49,7 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
 
     @Override
     public RealVector resize(int size) {
-        if (size >= data.length)
+        if (size > data.length)
             data = Arrays.copyOf(data, size);
         this.size = size;
         return this;

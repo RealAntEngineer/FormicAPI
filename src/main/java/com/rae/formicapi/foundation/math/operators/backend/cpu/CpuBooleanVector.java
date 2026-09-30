@@ -112,7 +112,7 @@ public final class CpuBooleanVector extends CpuExecutable implements BooleanVect
 
     @Override
     public BooleanVector resize(int size) {
-        if (size >= data.length)
+        if (size > data.length)
             data = Arrays.copyOf(data, size);
         this.size = size;
         return this;

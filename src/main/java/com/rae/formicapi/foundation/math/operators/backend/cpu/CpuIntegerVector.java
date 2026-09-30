@@ -27,7 +27,7 @@ public final class CpuIntegerVector extends CpuExecutable implements IntegerVect
 
     @Override
     public IntegerVector resize(int size) {
-        if (size >= data.length)
+        if (size > data.length)
             data = Arrays.copyOf(data, size);
         this.size = size;
         return this;
