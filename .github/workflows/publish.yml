@@ -40,7 +40,7 @@ jobs:
                 | sed 's/.*=\s*//' | tr -d '[:space:]')
           echo "mc=$MC"   >> "$GITHUB_OUTPUT"
           echo "mod=$MOD" >> "$GITHUB_OUTPUT"
-          # CurseForge groups versions by family, e.g. 1.21.1 -> "Minecraft 1.21"
+          # CurseForge groups versions by family, e.g. 1.20.1 -> "Minecraft 1.20"
           echo "mc_family=$(echo "$MC" | cut -d. -f1,2)" >> "$GITHUB_OUTPUT"
 
       # Release for v<mc>-<mod>; if it doesn't exist, use the latest release.
@@ -139,4 +139,4 @@ jobs:
           release_type: ${{ inputs.channel }}
           changelog: ${{ needs.prepare.outputs.changelog }}
           changelog_type: markdown
-          game_versions: "Minecraft ${{ needs.prepare.outputs.mc_family }}:${{ needs.prepare.outputs.mc }},Java 20,Forge"
+          game_versions: "Minecraft ${{ needs.prepare.outputs.mc_family }}:${{ needs.prepare.outputs.mc }},Java 20,Forge,Client,Serve"
