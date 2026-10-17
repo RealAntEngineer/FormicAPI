@@ -15,7 +15,6 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -42,7 +41,7 @@ public class FullTableBased {
         return isentropicPressureChange(initial.pressure(), initial.specificEntropy(), initial.pressure() / expansionFactor);
     }
 
-    private static @NotNull SpecificRealGasState isentropicPressureChange(float P1, float sTarget, float finalPressure) {
+    private static SpecificRealGasState isentropicPressureChange(float P1, float sTarget, float finalPressure) {
 
         // Initial guess from table interpolation
         float h = getH(finalPressure, sTarget);
@@ -214,7 +213,7 @@ public class FullTableBased {
         public ClearTablesPacket() {
         }
 
-        public ClearTablesPacket(@NotNull FriendlyByteBuf buffer) {
+        public ClearTablesPacket(FriendlyByteBuf buffer) {
         }
 
         public void write(FriendlyByteBuf buffer) {
@@ -239,13 +238,13 @@ public class FullTableBased {
 
 
         // Construct from server data
-        public SynchTablesPacket(@NotNull CompoundTag nbt, @NotNull TableType type) {
+        public SynchTablesPacket(CompoundTag nbt, TableType type) {
             this.nbt = nbt;
             this.type = type;
         }
 
         // Construct from network buffer
-        public SynchTablesPacket(@NotNull FriendlyByteBuf buffer) {
+        public SynchTablesPacket(FriendlyByteBuf buffer) {
             this.nbt = buffer.readNbt();
             this.type = buffer.readEnum(TableType.class);
         }
