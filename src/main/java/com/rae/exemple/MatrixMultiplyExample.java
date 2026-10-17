@@ -60,7 +60,7 @@ public final class MatrixMultiplyExample {
         double[] values  = new double[ENTRIES_PER_ROW];
         int[]    indices = new int[ENTRIES_PER_ROW];
 
-        generateMatrix(n, n, n, indices, values, random, matrix, ENTRIES_PER_ROW, matrixSerial);
+        generateMatrix(n, n, n, indices, values, random, matrix, matrixSerial);
 
         CpuDoubleVector x = new CpuDoubleVector(rows);
         for (int i = 0; i < rows; i++)
@@ -114,7 +114,7 @@ public final class MatrixMultiplyExample {
         System.out.printf("[%s] best: %.2f us/apply%n", label, best);
     }
 
-    private static void generateMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random, CpuPaddedCSRMatrix matrix, int entriesPerRow, PaddedCSRMatrix matrixSerial) {
+    private static void generateMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random, CpuPaddedCSRMatrix matrix, PaddedCSRMatrix matrixSerial) {
         for (int z = 0; z < nz; z++) {
             for (int y = 0; y < ny; y++) {
                 for (int x = 0; x < nx; x++) {
@@ -188,8 +188,8 @@ public final class MatrixMultiplyExample {
                     }
 
 
-                    matrix.setRow(row, values, indices, entriesPerRow);
-                    matrixSerial.setRow(row, values, indices, entriesPerRow);
+                    matrix.setRow(row, values, indices, MatrixMultiplyExample.ENTRIES_PER_ROW);
+                    matrixSerial.setRow(row, values, indices, MatrixMultiplyExample.ENTRIES_PER_ROW);
                 }
             }
         }
