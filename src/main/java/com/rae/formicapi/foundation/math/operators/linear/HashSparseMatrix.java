@@ -25,6 +25,7 @@ import java.util.Map;
  * @see DynamicCSRMatrix
  * @see MutableMatrix
  */
+@Deprecated
 public class HashSparseMatrix implements MutableMatrix {
 
     private final int rows;
@@ -35,6 +36,11 @@ public class HashSparseMatrix implements MutableMatrix {
     public HashSparseMatrix(int rows, int cols) {
         this.rows = rows;
         this.cols = cols;
+    }
+
+    @Override
+    public void resize(int newRows) {
+
     }
 
     @Override
@@ -53,6 +59,23 @@ public class HashSparseMatrix implements MutableMatrix {
         }
         data.computeIfAbsent(r, k -> new HashMap<>())
                 .put(c, v);
+    }
+
+    @Override
+    public void setRow(int row, double[] rowValues, int[] rowCols, int count) {
+        for (int i = 0; i < count; i++){
+            set(row, rowCols[i], rowValues[i]);
+        }
+    }
+
+    @Override
+    public int[] getRowCols(int r) {
+        return new int[0];
+    }
+
+    @Override
+    public double[] getRowValues(int r) {
+        return new double[0];
     }
 
     @Override

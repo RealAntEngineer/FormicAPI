@@ -148,4 +148,10 @@ public final class CpuBooleanVector extends CpuExecutable implements BooleanVect
         Arrays.fill(data, false);
         return this;
     }
+
+    @Override
+    public Vector internalCopy(int srcStart, int dstStart, int count) {
+        System.arraycopy(data, srcStart, data, dstStart, count);
+        return this;
+    }
 }

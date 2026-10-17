@@ -10,7 +10,8 @@ package com.rae.formicapi.foundation.math.operators.vectors;
 public interface Vector {
 
     /**
-     * Returns the number of elements.
+     * logical size, not the size of the underlying array (lazy allocation)
+     * @return the number of elements
      */
     int size();
 
@@ -21,21 +22,34 @@ public interface Vector {
      * Existing values are preserved when possible.
      *
      * @param size new vector length
+     * @return self
      */
     Vector resize(int size);
 
     /**
      * this = x
+     * @return self
      */
     Vector copy(Vector x);
 
     /**
      * create a new vector object with the same values
+     * @return self
      */
     Vector copy();
 
     /**
      * Sets all elements to zero.
+     * @return self
      */
     Vector clear();
+
+    /**
+     * internal copy of section from [srcStart, srcStart + count] to [dstStart, dstStart + count]
+     * @param srcStart the source index
+     * @param dstStart the destination index
+     * @param count the size of the section to copy
+     * @return self
+     */
+    Vector internalCopy(int srcStart, int dstStart, int count);
 }

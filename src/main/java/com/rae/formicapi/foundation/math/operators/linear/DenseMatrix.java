@@ -14,6 +14,11 @@ public class DenseMatrix implements MutableMatrix {
     }
 
     @Override
+    public void resize(int newRows) {
+
+    }
+
+    @Override
     public void add(int r, int c, double v) {
         data[r][c] += v;
     }
@@ -21,6 +26,28 @@ public class DenseMatrix implements MutableMatrix {
     @Override
     public void set(int r, int c, double v) {
         data[r][c] = v;
+    }
+
+    @Override
+    public void setRow(int row, double[] rowValues, int[] rowCols, int count) {
+        for (int i = 0; i < count; i++){
+            set(row, rowCols[i], rowValues[i]);
+        }
+    }
+
+    @Override
+    public int[] getRowCols(int r) {
+        int[] cols = new int[data.length];
+        for (int i = 0; i < cols.length; i++) {
+            cols[i] = i;
+        }
+        return cols;
+    }
+
+    @Override
+    public double[] getRowValues(int r) {
+
+        return data[r];
     }
 
     @Override

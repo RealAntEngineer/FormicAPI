@@ -8,6 +8,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public abstract class GpuExecutable {
 
+    //TODO merge both CPU and GPU executable class
+
     protected @Nullable GpuExecutor executor;
 
     public @Nullable GpuExecutor getExecutor() {

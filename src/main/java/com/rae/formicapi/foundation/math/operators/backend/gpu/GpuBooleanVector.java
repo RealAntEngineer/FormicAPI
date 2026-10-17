@@ -132,6 +132,11 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
         return this;
     }
 
+    @Override
+    public Vector internalCopy(int srcStart, int dstStart, int count) {
+        return null;
+    }
+
     public void release() {
         buffer.release();
         buffer = null;

@@ -28,3 +28,8 @@ side="BOTH"
 
 [[mixins]]
 config = "formicapi.mixins.json"
+
+[[accessTransformers]]
+## The file is relative to the output directory of the resources, or the root path inside the jar when compiled
+## The 'resources' directory represents the root output directory of the resources
+file="META-INF/accesstransformer.cfg"

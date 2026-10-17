@@ -131,6 +131,13 @@ public interface RealVector extends Vector {
 
     RealVector skippedDivide(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip);
 
+
+    RealVector set(double value, int idx);
+
+    RealVector setAdd(double value, int idx);
+
+    double get(int idx);
+
     /**
      * {@code this[i] += a}, for every element (uniform scalar add).
      *

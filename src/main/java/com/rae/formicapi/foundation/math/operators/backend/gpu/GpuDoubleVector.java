@@ -279,6 +279,24 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
     }
 
     @Override
+    public RealVector set(double value, int idx) {
+        requireExecutor().uploadDoubleAt(buffer, idx, value);
+        return this;
+    }
+
+    /** Single-element read - a device round-trip. Fine for setup/debugging; use {@link #download()} for bulk data. */
+    @Override
+    public double get(int idx) {
+        return requireExecutor().downloadDoubleAt(buffer, idx);
+    }
+
+    @Override
+    public RealVector setAdd(double value, int idx) {
+        return set(this.get(idx), idx);//TODO need to do better than this
+        //throw new UnsupportedOperationException();
+    }
+
+    @Override
     public RealVector add(double a) {
         ADD_SCALAR.use(size, buffer, OpenCLResource.of(a));
         return this;
@@ -364,6 +382,12 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
         requireExecutor().fillDoubleBuffer(buffer, 0.0, size);
         //requireExecutor().finish();
         return this;
+    }
+
+    @Override
+    public Vector internalCopy(int srcStart, int dstStart, int count) {
+        throw new UnsupportedOperationException();
+
     }
 
     /** Releases the underlying device buffer. The vector is unusable afterwards. */

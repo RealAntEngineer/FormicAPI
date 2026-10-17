@@ -1,7 +1,7 @@
 package com.rae.formicapi.content.thermal_utilities;
 
 import com.rae.formicapi.FormicAPI;
-import com.rae.formicapi.content.data.managers.TwoDSparceTabulatedFunctionLoader;
+import com.rae.formicapi.content.data.managers.TwoDSparceTabulatedFunctionJsonLoader;
 import com.rae.formicapi.init.PacketInit;
 import net.createmod.catnip.net.base.ClientboundPacketPayload;
 import net.minecraft.client.player.LocalPlayer;
@@ -25,10 +25,10 @@ import static com.rae.formicapi.content.thermal_utilities.SpecificRealGasState.D
 
 public class FullTableBased {
 
-    private static final TwoDSparceTabulatedFunctionLoader WATER_HP_T = new TwoDSparceTabulatedFunctionLoader(FormicAPI.MODID, "water/hp_to_t");
-    private static final TwoDSparceTabulatedFunctionLoader WATER_HP_S = new TwoDSparceTabulatedFunctionLoader(FormicAPI.MODID, "water/hp_to_s");
-    private static final TwoDSparceTabulatedFunctionLoader WATER_HP_X = new TwoDSparceTabulatedFunctionLoader(FormicAPI.MODID, "water/hp_to_x");
-    private static final TwoDSparceTabulatedFunctionLoader WATER_SP_H = new TwoDSparceTabulatedFunctionLoader(FormicAPI.MODID, "water/sp_to_h");
+    private static final TwoDSparceTabulatedFunctionJsonLoader WATER_HP_T = new TwoDSparceTabulatedFunctionJsonLoader(FormicAPI.MODID, "water/hp_to_t");
+    private static final TwoDSparceTabulatedFunctionJsonLoader WATER_HP_S = new TwoDSparceTabulatedFunctionJsonLoader(FormicAPI.MODID, "water/hp_to_s");
+    private static final TwoDSparceTabulatedFunctionJsonLoader WATER_HP_X = new TwoDSparceTabulatedFunctionJsonLoader(FormicAPI.MODID, "water/hp_to_x");
+    private static final TwoDSparceTabulatedFunctionJsonLoader WATER_SP_H = new TwoDSparceTabulatedFunctionJsonLoader(FormicAPI.MODID, "water/sp_to_h");
 
     /**
      * adiabatic reversible expansion

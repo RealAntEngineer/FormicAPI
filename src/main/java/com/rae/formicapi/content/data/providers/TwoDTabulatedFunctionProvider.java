@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
-import static com.rae.formicapi.content.data.managers.TwoDTabulatedFunctionLoader.CODEC;
+import static com.rae.formicapi.content.data.managers.TwoDTabulatedFunctionJsonLoader.CODEC;
 
 public class TwoDTabulatedFunctionProvider implements DataProvider {
 

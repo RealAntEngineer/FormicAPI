@@ -80,5 +80,10 @@ public final class CpuIntegerVector extends CpuExecutable implements IntegerVect
         return data[idx];
     }
 
+    @Override
+    public Vector internalCopy(int srcStart, int dstStart, int count) {
+        System.arraycopy(data, srcStart, data, dstStart, count);
+        return this;
+    }
 
 }

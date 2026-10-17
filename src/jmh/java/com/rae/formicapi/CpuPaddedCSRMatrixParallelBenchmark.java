@@ -53,11 +53,11 @@ public class CpuPaddedCSRMatrixParallelBenchmark {
      * {@link CpuExecutor#DEFAULT_PARALLEL_THRESHOLD} (4096) to exercise the
      * serial-fallback path.
      */
-    @Param({"256"})
+    @Param({"16", "256"})
     public int blocks;
 
     /** CpuExecutor worker thread count. Tune to the target machine's core count. */
-    @Param({"4"})
+    @Param({"4", "6", "8"})
     public int threads;
 
     private CpuExecutor executor;
@@ -88,6 +88,7 @@ public class CpuPaddedCSRMatrixParallelBenchmark {
     }
 
     @Benchmark
+    @OperationsPerInvocation(1000)
     public void apply(Blackhole bh) {
         for (int i = 0; i < 1000; i++) {
             matrix.apply(x, result);

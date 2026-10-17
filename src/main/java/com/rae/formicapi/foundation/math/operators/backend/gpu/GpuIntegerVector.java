@@ -104,6 +104,12 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
         return this;
     }
 
+    @Override
+    public Vector internalCopy(int srcStart, int dstStart, int count) {
+        throw new UnsupportedOperationException();
+    }
+
+
     /** Single-element write - a device round-trip. Fine for setup/debugging; use {@link #upload(int[])} for bulk data. */
     @Override
     public IntegerVector set(int value, int idx) {

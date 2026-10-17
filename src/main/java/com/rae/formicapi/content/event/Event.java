@@ -1,7 +1,7 @@
 package com.rae.formicapi.content.event;
 
 import com.rae.formicapi.init.CommandsInit;
-import com.rae.formicapi.content.data.managers.FloatMapDataLoader;
+import com.rae.formicapi.content.data.managers.FloatMapDataJsonLoader;
 import com.rae.formicapi.content.thermal_utilities.FullTableBased;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
@@ -16,8 +16,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
-
 @EventBusSubscriber()
 public class Event {
     private static final    Logger                LOGGER         = LogManager.getLogger();
@@ -27,7 +25,7 @@ public class Event {
     public static void onServerStarted(ServerStartedEvent event) {
         LOGGER.info("Getting the server registry access");
         registryAccess = event.getServer().registryAccess();
-        FloatMapDataLoader.reloadRegistry();
+        FloatMapDataJsonLoader.reloadRegistry();
     }
 
     @SubscribeEvent

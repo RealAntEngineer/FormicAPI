@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.LockSupport;
 
 public final class CpuExecutor implements AutoCloseable {
@@ -26,6 +27,16 @@ public final class CpuExecutor implements AutoCloseable {
             256, 512, 1_024, 2_048, 4_096, 8_192, 16_384,
             32_768, 65_536, 131_072, 262_144, 524_288, 1_048_576
     };
+    /**
+     * How long an idle thread busy-spins before it parks. Back-to-back
+     * dispatches (the common case in an iterative solver) land well inside
+     * this window, so they never pay for an OS wakeup; a genuinely idle
+     * executor stops burning cores after this long. Tunable at runtime via
+     * {@link #setSpinNanos(long)}.
+     */
+    public static final     long              DEFAULT_SPIN_NANOS         = 20_000L;
+    // Only call System.nanoTime() every (mask + 1) spins - it costs ~20ns itself.
+    private static final    int               SPIN_CHECK_MASK            = 0xF;
     private static final    int               WARMUP_TRIALS              = 3;
     private static final    int               TIMED_TRIALS               = 7;
     // Prevents the JIT from optimizing away the benchmarked work as dead code.
@@ -33,7 +44,14 @@ public final class CpuExecutor implements AutoCloseable {
     private final           int               threads;
     private final           CpuWorkerThread[] workers;
     private final           AtomicInteger     generation                 = new AtomicInteger();
-    private final           int[]             completedGeneration;
+    // 1 while the worker is parked (or about to park). Padded by STRIDE like
+    // completedGeneration. Volatile semantics are required: see the
+    // park/wake handshake in awaitGeneration() / wakeParkedWorkers().
+    private final           AtomicIntegerArray workerParked;
+    // Worker -> dispatcher completion flags, padded by STRIDE. Written with
+    // lazySet (release) after a worker's results, read with get (acquire) in
+    // waitForWorkers, so the results are visible to combine().
+    private final           AtomicIntegerArray completedGeneration;
     private final           double[]          doubleResults;
     private final           float[]           floatResults;
 
@@ -66,10 +84,11 @@ public final class CpuExecutor implements AutoCloseable {
      * so any number of caller threads can share one {@code CpuExecutor}
      * safely; they just queue up.
      *
-     * <p>{@link ConcurrentLinkedQueue}, not a blocking queue: both the
-     * dequeue side ({@link #dispatcherLoop}) and each job's completion
-     * signal ({@link Job#await()}) spin instead of parking, matching the
-     * worker barrier's existing {@link Thread#onSpinWait()} approach. A
+     * <p>{@link ConcurrentLinkedQueue}, not a blocking queue: the dequeue
+     * side ({@link #nextJob}), each job's completion signal
+     * ({@link Job#await()}) and the worker barrier all spin first and only
+     * park after {@link #spinNanos} without work, with an explicit
+     * unpark from the producing side (see {@link #wakeParkedWorkers}). A
      * blocking queue + {@code CountDownLatch} pairing was tried first and
      * measured noticeably less consistent timings - every dispatch was
      * paying for two OS-scheduled thread wakeups (dispatcher off
@@ -83,6 +102,10 @@ public final class CpuExecutor implements AutoCloseable {
      * Owned exclusively by dispatcherThread. Workers only ever read it, guarded by the generation counter's happens-before edge.
      */
     private volatile @Nullable Job<?> currentJob;
+
+    // Same handshake as workerParked, for the dispatcher thread waiting on jobQueue.
+    private volatile boolean dispatcherParked = false;
+    private volatile long    spinNanos         = DEFAULT_SPIN_NANOS;
 
     private          int     accumOutputSize = -1;
     private volatile int     parallelThreshold;
@@ -102,7 +125,8 @@ public final class CpuExecutor implements AutoCloseable {
         this.threads = threads;
         this.parallelThreshold = parallelThreshold;
         this.workers = new CpuWorkerThread[threads];
-        this.completedGeneration = new int[threads * STRIDE];
+        this.completedGeneration = new AtomicIntegerArray(threads * STRIDE);
+        this.workerParked = new AtomicIntegerArray(threads * STRIDE);
         this.doubleResults = new double[threads];
         this.floatResults = new float[threads];
         this.accumBuffersD = new double[threads][];
@@ -123,20 +147,52 @@ public final class CpuExecutor implements AutoCloseable {
      */
     private void dispatcherLoop() {
         while (!shutdown) {
-            Job<?> job = jobQueue.poll();
-
-            if (job == null) {
-                Thread.onSpinWait();
-                continue;
-            }
+            Job<?> job = nextJob();
+            if (job == null)
+                break; // shutdown
 
             job.execute();
         }
 
-        // Unblock anyone still queued rather than leaving them spinning forever.
+        // Unblock anyone still queued rather than leaving them waiting forever.
         Job<?> leftover;
         while ((leftover = jobQueue.poll()) != null)
             leftover.fail(new IllegalStateException("CpuExecutor was shut down"));
+    }
+
+    /**
+     * Two-phase wait for the next job: spin for {@link #spinNanos} (a
+     * follow-up dispatch usually arrives within that), then park until
+     * {@link #submitAndAwait} unparks us. Returns {@code null} on shutdown.
+     */
+    private @Nullable Job<?> nextJob() {
+        Job<?> job;
+
+        // Phase 1: spin.
+        long deadline = System.nanoTime() + spinNanos;
+        int  spins    = 0;
+        while ((job = jobQueue.poll()) == null) {
+            if (shutdown)
+                return null;
+            if ((++spins & SPIN_CHECK_MASK) == 0 && System.nanoTime() - deadline >= 0)
+                break;
+            Thread.onSpinWait();
+        }
+        if (job != null)
+            return job;
+
+        // Phase 2: park. Publish "parked" BEFORE the final re-check of the
+        // queue; the producer enqueues BEFORE reading the flag. Both sides are
+        // volatile, so at least one of them sees the other's write - no lost wakeup.
+        while ((job = jobQueue.poll()) == null) {
+            if (shutdown)
+                return null;
+            dispatcherParked = true;
+            if (jobQueue.isEmpty() && !shutdown)
+                LockSupport.park(this);
+            dispatcherParked = false;
+        }
+        return job;
     }
 
     /**
@@ -235,13 +291,13 @@ public final class CpuExecutor implements AutoCloseable {
      * Stops the worker threads. Safe to call once; the executor is unusable
      * afterwards. Mainly needed so short-lived executors (e.g. the ones
      * {@link #calibrateThreshold(int)} spins up internally) don't leak
-     * spinning threads.
+     * threads.
      *
-     * <p><b>Every {@code CpuExecutor} must eventually be shut down.</b> Its
-     * worker threads busy-spin with {@link Thread#onSpinWait()} while idle
-     * rather than blocking, which means an un-shut-down executor doesn't
-     * just leak memory - it permanently pins one CPU core per worker, even
-     * doing nothing. In tests especially, this compounds: each test that
+     * <p><b>Every {@code CpuExecutor} should still be shut down.</b> Idle
+     * threads now park after {@link #spinNanos} instead of spinning forever,
+     * so a forgotten executor no longer pins cores, but it still leaks its
+     * threads, and it keeps spinning while it is being used. In tests
+     * especially, this compounds: each test that
      * creates its own executor and forgets to shut it down leaves its
      * workers spinning for the rest of the JVM's life, so by the Nth test
      * you can have N x threads worth of cores oversubscribed, and parallel
@@ -253,6 +309,11 @@ public final class CpuExecutor implements AutoCloseable {
     public void shutdown() {
         shutdown = true;
         generation.incrementAndGet();
+
+        // Parked threads won't notice the flag on their own.
+        for (CpuWorkerThread w : workers)
+            LockSupport.unpark(w);
+        LockSupport.unpark(dispatcherThread);
     }
 
     /**
@@ -267,14 +328,17 @@ public final class CpuExecutor implements AutoCloseable {
      * done with this executor - not concurrently with in-flight calls - so
      * this hasn't been hardened further.
      */
-    private <T> T submitAndAwait(Job<T> job) {
+    private <T> @Nullable T submitAndAwait(Job<T> job) {
         if (shutdown)
             throw new IllegalStateException("CpuExecutor is shut down");
 
         jobQueue.add(job);
+        if (dispatcherParked)
+            LockSupport.unpark(dispatcherThread);
         return job.await();
     }
 
+    @SuppressWarnings("DataFlowIssue")
     public double parallelReduceDouble(int size, DoubleRangeTask task) {
         if (size <= 0)
             return 0.0;
@@ -282,6 +346,7 @@ public final class CpuExecutor implements AutoCloseable {
         return submitAndAwait(new ReduceDoubleJob(size, task));
     }
 
+    @SuppressWarnings("DataFlowIssue")
     public float parallelReduceFloat(int size, FloatRangeTask task) {
         if (size <= 0)
             return 0.0f;
@@ -329,12 +394,13 @@ public final class CpuExecutor implements AutoCloseable {
 
     private void waitForWorkers() {
         int job = generation.incrementAndGet();
+        wakeParkedWorkers();
 
         while (true) {
             boolean done = true;
 
             for (int i = 0; i < threads; i++) {
-                if (completedGeneration[i * STRIDE] != job) {
+                if (completedGeneration.get(i * STRIDE) != job) {
                     done = false;
                     break;
                 }
@@ -343,8 +409,62 @@ public final class CpuExecutor implements AutoCloseable {
             if (done)
                 return;
 
+            // Workers exit on shutdown without publishing completion; don't wait on them forever.
+            if (shutdown)
+                throw new IllegalStateException("CpuExecutor was shut down");
+
             Thread.onSpinWait();
         }
+    }
+
+    /**
+     * Must run after the generation bump. Only parked workers pay for an
+     * unpark syscall; workers still in their spin phase see the new
+     * generation on their own.
+     */
+    private void wakeParkedWorkers() {
+        for (int i = 0; i < threads; i++) {
+            if (workerParked.get(i * STRIDE) != 0)
+                LockSupport.unpark(workers[i]);
+        }
+    }
+
+    /**
+     * Idle policy for a worker with nothing to do: spin for
+     * {@link #spinNanos}, then park until {@link #wakeParkedWorkers()} (or
+     * shutdown) unparks it. Returns the new generation; the caller must
+     * re-check {@link #shutdown}.
+     */
+    private int awaitGeneration(int id, int seen) {
+        int gen;
+
+        // Phase 1: spin.
+        long deadline = System.nanoTime() + spinNanos;
+        int  spins    = 0;
+        while ((gen = generation.get()) == seen) {
+            if (shutdown)
+                return gen;
+            if ((++spins & SPIN_CHECK_MASK) == 0 && System.nanoTime() - deadline >= 0)
+                break;
+            Thread.onSpinWait();
+        }
+        if (gen != seen)
+            return gen;
+
+        // Phase 2: park. Publish "parked" BEFORE re-checking the generation;
+        // the dispatcher bumps the generation BEFORE reading the flag. Both
+        // are volatile, so one side always sees the other - no lost wakeup.
+        // Spurious wakeups and stale permits are harmless: we just loop.
+        int slot = id * STRIDE;
+        while ((gen = generation.get()) == seen) {
+            if (shutdown)
+                return gen;
+            workerParked.set(slot, 1);
+            if (generation.get() == seen && !shutdown)
+                LockSupport.park(this);
+            workerParked.set(slot, 0);
+        }
+        return gen;
     }
 
     public int getThreadCount() {
@@ -364,6 +484,21 @@ public final class CpuExecutor implements AutoCloseable {
         this.parallelThreshold = parallelThreshold;
     }
 
+    /**
+     * How long idle threads (workers, dispatcher, waiting callers) busy-spin
+     * before parking. 0 = park immediately (lowest idle CPU, highest wake
+     * latency); large = the old always-spinning behaviour.
+     */
+    public long getSpinNanos() {
+        return spinNanos;
+    }
+
+    public void setSpinNanos(long spinNanos) {
+        if (spinNanos < 0)
+            throw new IllegalArgumentException();
+        this.spinNanos = spinNanos;
+    }
+
     public boolean shouldUseParallel(int size) {
         return size >= parallelThreshold;
     }
@@ -375,26 +510,9 @@ public final class CpuExecutor implements AutoCloseable {
 
     private void workerLoop(int id) {
         int seen = 0;
-        //int spins = 0;
 
         while (true) {
-            int gen;
-
-            //TODO improve spinning/park behavior
-            while ((gen = generation.get()) == seen) {
-                if (shutdown)
-                    return;
-
-                //if (spins++ < 10) {
-                Thread.onSpinWait();
-                //} else {
-                //    LockSupport.parkNanos(100);
-                //    spins = 0;
-                //}
-            }
-
-            //spins = 0;
-            seen = gen;
+            seen = awaitGeneration(id, seen);
 
             if (shutdown)
                 return;
@@ -409,7 +527,7 @@ public final class CpuExecutor implements AutoCloseable {
                     job.runRange(id, start, end);
             }
 
-            completedGeneration[id * STRIDE] = seen;
+            completedGeneration.lazySet(id * STRIDE, seen);
         }
     }
 
@@ -484,8 +602,10 @@ public final class CpuExecutor implements AutoCloseable {
         final int size;
 
         private volatile boolean          done = false;
-        private          T                result;
-        private          RuntimeException error;
+        // Set by await() when it gives up spinning and parks; read by publishDone().
+        private volatile @Nullable Thread           waiter;
+        private          @Nullable T                result;
+        private          @Nullable RuntimeException error;
 
         Job(int size) {
             this.size = size;
@@ -514,7 +634,7 @@ public final class CpuExecutor implements AutoCloseable {
             } catch (RuntimeException e) {
                 error = e;
             } finally {
-                done = true; // publishes result/error - must be the last write
+                publishDone();
             }
         }
 
@@ -531,16 +651,44 @@ public final class CpuExecutor implements AutoCloseable {
         /**
          * Runs once on {@link #dispatcherThread}, after every worker has finished its slice, to produce this job's result.
          */
-        abstract T combine();
+        abstract @Nullable T combine();
 
         final void fail(RuntimeException e) {
             error = e;
-            done = true;
+            publishDone();
         }
 
-        final T await() {
-            while (!done)
-                Thread.onSpinWait();
+        /**
+         * Publishes result/error (the {@code done} write must come before the
+         * {@code waiter} read) and wakes the caller if it parked in {@link #await()}.
+         */
+        private void publishDone() {
+            done = true;
+            Thread w = waiter;
+            if (w != null)
+                LockSupport.unpark(w);
+        }
+
+        final @Nullable T await() {
+            if (!done) {
+                // Phase 1: spin - short jobs finish inside this window.
+                long deadline = System.nanoTime() + spinNanos;
+                int  spins    = 0;
+                while (!done) {
+                    if ((++spins & SPIN_CHECK_MASK) == 0 && System.nanoTime() - deadline >= 0)
+                        break;
+                    Thread.onSpinWait();
+                }
+
+                // Phase 2: park. Register as waiter BEFORE the re-check of
+                // done; publishDone() sets done BEFORE reading waiter.
+                if (!done) {
+                    waiter = Thread.currentThread();
+                    while (!done)
+                        LockSupport.park(this);
+                    waiter = null;
+                }
+            }
 
             if (error != null)
                 throw error;
@@ -563,7 +711,7 @@ public final class CpuExecutor implements AutoCloseable {
         }
 
         @Override
-        Void combine() {
+        @Nullable Void combine() {
             return null;
         }
     }
@@ -629,7 +777,7 @@ public final class CpuExecutor implements AutoCloseable {
         }
 
         @Override
-        Void combine() {
+        @Nullable Void combine() {
             // Second barrier round to fold every thread's private buffer
             // into output. Driven directly via execute(), not through
             // submitAndAwait/jobQueue: we're already running on

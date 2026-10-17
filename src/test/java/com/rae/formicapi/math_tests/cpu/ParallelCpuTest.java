@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ParallelCpuTest {
 
-    //@Test
+    @Test
     void multiplyParallelMatchesSerial() {
 
         int nx = 64;

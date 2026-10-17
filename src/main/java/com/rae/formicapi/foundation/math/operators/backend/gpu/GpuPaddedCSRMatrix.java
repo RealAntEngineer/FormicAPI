@@ -207,7 +207,7 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
 
     @Override
     public RealVector getValues(IntegerVector r, IntegerVector c) {
-        return null;
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     private int findIndex(int row, int col) {
@@ -223,6 +223,7 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         throw new IllegalArgumentException("CSR entry does not exist: (" + row + ", " + col + ")");
     }
 
+    @Override
     public void setRow(int row, double[] rowValues, int[] rowCols, int count) {
         checkRow(row);
 
@@ -254,6 +255,27 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         requireExecutor().uploadInts(dColIndex, base, colIndex, base, nnzPerRow);
     }
 
+    @Override
+    public double[] getRowValues(int r) {
+        int base = r * nnzPerRow;
+
+        double[] out = new double[nnzPerRow];
+        System.arraycopy(values, base, out, 0, nnzPerRow);
+
+        return out;
+    }
+
+    @Override
+    public int[] getRowCols(int r) {
+        int base = r * nnzPerRow;
+
+        int[] out = new int[nnzPerRow];
+        System.arraycopy(colIndex, base, out, 0, nnzPerRow);
+
+        return out;
+    }
+
+    @Override
     public void resize(int newRows) {
         if (newRows < 0)
             throw new IllegalArgumentException("newRows < 0");

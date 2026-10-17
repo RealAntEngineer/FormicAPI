@@ -55,15 +55,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         this.colIndex = colIndex;
     }
 
-    /**
-     * Resizes this matrix in-place.
-     *
-     * <p>If growing, new entries are zero initialized and column indices are
-     * initialized to 0. Caller must populate new rows using {@link #setRow}.
-     * If shrinking, trailing rows are discarded logically.
-     *
-     * @param newRows new row/column count
-     */
+    @Override
     public void resize(int newRows) {
         int requiredLength = newRows * nnzPerRow;
 
@@ -133,39 +125,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         );
     }
 
-    /**
-     * Overwrites an entire row of the matrix, including both its structure
-     * (column indices) and its values.
-     *
-     * <p>This method assumes a fixed row capacity defined by {@code nnzPerRow}.
-     * The provided {@code cols} array defines the column positions for each
-     * entry in the row, and {@code newValues} defines the corresponding
-     * numerical values.
-     *
-     * <p>After this call:
-     * <ul>
-     *     <li>The previous contents of the row are fully replaced</li>
-     *     <li>The column structure of the row is updated to match {@code cols}</li>
-     *     <li>No resizing of the underlying storage occurs</li>
-     * </ul>
-     *
-     * <p><b>Important:</b> This operation modifies the sparsity structure of the row.
-     * All subsequent operations (e.g., multiplication) will use the updated
-     * column layout.
-     *
-     * <p>Constraints:
-     * <ul>
-     *     <li>{@code newValues.length == nnzPerRow}</li>
-     *     <li>{@code cols.length == nnzPerRow}</li>
-     * </ul>
-     *
-     * <p>Performance: O(nnzPerRow)
-     *
-     * @param row       row index to modify
-     * @param newValues new non-zero values for the row
-     * @param newCols   column indices corresponding to each value
-     * @throws IllegalArgumentException if array sizes do not match {@code nnzPerRow}
-     */
+    @Override
     public void setRow(int row, double[] newValues, int[] newCols, int count) {
 
         if (newValues.length > nnzPerRow || newCols.length != newValues.length) {
@@ -310,6 +270,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         return null;
     }
 
+    @Override
     public double[] getRowValues(int r) {
         int base = r * nnzPerRow;
 
@@ -319,6 +280,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         return out;
     }
 
+    @Override
     public int[] getRowCols(int r) {
         int base = r * nnzPerRow;
 

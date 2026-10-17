@@ -27,6 +27,7 @@ import java.util.Arrays;
  * @see MutableMatrix
  * @see HashSparseMatrix
  */
+@Deprecated
 public class DynamicCSRMatrix implements MutableMatrix {
 
     private final          HashSparseMatrix buffer;
@@ -45,6 +46,11 @@ public class DynamicCSRMatrix implements MutableMatrix {
     // ------------------------------------------------
     // MutableMatrix — invalidate CSR on write
     // ------------------------------------------------
+
+    @Override
+    public void resize(int newRows) {
+
+    }
 
     /**
      * Adds {@code value} to the entry at (row, col), accumulating with any existing value.
@@ -81,6 +87,23 @@ public class DynamicCSRMatrix implements MutableMatrix {
         if (buffer.get(row, col) == value) return;
         csr = null;
         buffer.set(row, col, value);
+    }
+
+    @Override
+    public void setRow(int row, double[] rowValues, int[] rowCols, int count) {
+        for (int i = 0; i < count; i++){
+            set(row, rowCols[i], rowValues[i]);
+        }
+    }
+
+    @Override
+    public int[] getRowCols(int r) {
+        return new int[0];
+    }
+
+    @Override
+    public double[] getRowValues(int r) {
+        return new double[0];
     }
 
     // ------------------------------------------------

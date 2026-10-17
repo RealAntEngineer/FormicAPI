@@ -347,6 +347,23 @@ public final class CpuFloatVector extends CpuExecutable implements RealVector {
     }
 
     @Override
+    public RealVector set(double value, int idx) {
+        data[idx] = (float) value;
+        return this;
+    }
+
+    @Override
+    public RealVector setAdd(double value, int idx) {
+        data[idx] += (float) (value);
+        return this;
+    }
+
+    @Override
+    public double get(int idx) {
+        return data[idx];
+    }
+
+    @Override
     public RealVector add(double a) {
         final float[] d = data;
         final float fa = (float) a;
@@ -555,5 +572,11 @@ public final class CpuFloatVector extends CpuExecutable implements RealVector {
 
     public float[] array() {
         return data;
+    }
+
+    @Override
+    public Vector internalCopy(int srcStart, int dstStart, int count) {
+        System.arraycopy(data, srcStart, data, dstStart, count);
+        return this;
     }
 }

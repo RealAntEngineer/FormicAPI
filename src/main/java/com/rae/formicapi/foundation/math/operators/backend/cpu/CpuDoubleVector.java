@@ -84,6 +84,12 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
     }
 
     @Override
+    public Vector internalCopy(int srcStart, int dstStart, int count) {
+        System.arraycopy(data, srcStart, data, dstStart, count);
+        return this;
+    }
+
+    @Override
     public double skippedDot(RealVector other, IntegerVector unknowIdx, boolean thisSkip, boolean otherSkip) {
 
         if (!otherSkip && !thisSkip) {
@@ -103,7 +109,7 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
                         sum += a[unknowIdx.get(i)] * b[i];
                     return sum;
                 });
-            } else if (!thisSkip){
+            } else if (!thisSkip) {
                 return executor.parallelReduceDouble(n, (start, end) -> {
                     double sum = 0.0;
                     for (int i = start; i < end; i++)
@@ -164,9 +170,9 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
             throw new IllegalArgumentException("When calling a skipping method at least one skip should be true");
 
 
-        final double[] a  = data;
+        final double[] a = data;
         final double[] b = vec.data;
-        final int      n  = unknowIdx.size();
+        final int      n = unknowIdx.size();
 
         if (executor != null && executor.shouldUseParallel(size())) {
             if (!otherSkip) {
@@ -174,7 +180,7 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
                     for (int i = start; i < end; i++)
                         a[unknowIdx.get(i)] += alpha * b[i];
                 });
-            } else if (!thisSkip){
+            } else if (!thisSkip) {
                 executor.parallelFor(n, (start, end) -> {
                     for (int i = start; i < end; i++)
                         a[i] += alpha * b[unknowIdx.get(i)];
@@ -224,7 +230,7 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
         if (x.size() < size)
-            throw new UnsupportedOperationException("can't multiply by a vector smaller than us : "+x.size() + " < " +  size);
+            throw new UnsupportedOperationException("can't multiply by a vector smaller than us : " + x.size() + " < " + size);
 
         final double[] d  = data;
         final double[] xd = vec.data;
@@ -345,6 +351,23 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
                 d[unknowIdx.get(i)] /= xd[unknowIdx.get(i)];
         }
         return this;
+    }
+
+    @Override
+    public RealVector set(double value, int idx) {
+        data[idx] = value;
+        return this;
+    }
+
+    @Override
+    public RealVector setAdd(double value, int idx) {
+        data[idx] += value;
+        return this;
+    }
+
+    @Override
+    public double get(int idx) {
+        return data[idx];
     }
 
     @Override
@@ -499,9 +522,9 @@ public final class CpuDoubleVector extends CpuExecutable implements RealVector {
             throw new IllegalArgumentException(
                     "gather target must have >= indices.size() (" + n + ") elements, has " + this.size());
 
-        final double[] xd = vec.data;
-        final int[] id = vecIdx.array();
-        final boolean aliased = (xd == this.data);
+        final double[] xd      = vec.data;
+        final int[]    id      = vecIdx.array();
+        final boolean  aliased = (xd == this.data);
 
         if (!aliased) {
             final double[] d = this.data;

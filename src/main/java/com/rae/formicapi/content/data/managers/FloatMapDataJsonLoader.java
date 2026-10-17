@@ -22,19 +22,19 @@ import java.util.Set;
 
 import static com.rae.formicapi.content.event.Event.getSideAwareRegistry;
 
-public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
+public class FloatMapDataJsonLoader<T> extends SimpleJsonResourceReloadListener {
     public static final  Logger                           LOGGER        = LogUtils.getLogger();
     private static final Gson                             GSON          = new Gson();
-    private static final String                           FOLDER        = "float_map";
-    private static final Set<FloatMapDataLoader<?>>       VALUES        = new HashSet<>();
-    private final        ResourceKey<Registry<T>>         registryKey;
+    private static final String                         FOLDER = "float_map";
+    private static final Set<FloatMapDataJsonLoader<?>> VALUES = new HashSet<>();
+    private final        ResourceKey<Registry<T>>       registryKey;
     private final        ResourceLocation                 FILE_NAME;
     private final        HashMap<ResourceLocation, Float> FLOAT_MAP     = new HashMap<>();
     private final        HashMap<TagKey<T>, Float>        TAG_FLOAT_MAP = new HashMap<>();
     Registry<T> registry = null;
     private boolean tagLoaded = false;
 
-    public FloatMapDataLoader(String modId, String fileName, ResourceKey<Registry<T>> registryKey) {
+    public FloatMapDataJsonLoader(String modId, String fileName, ResourceKey<Registry<T>> registryKey) {
         super(GSON, FOLDER);
         FILE_NAME = ResourceLocation.fromNamespaceAndPath(modId, fileName);
         this.registryKey = registryKey;
@@ -43,9 +43,9 @@ public class FloatMapDataLoader<T> extends SimpleJsonResourceReloadListener {
 
     @SuppressWarnings("unchecked")
     public static void reloadRegistry() {
-        for (FloatMapDataLoader<?> dataLoader : VALUES) {
+        for (FloatMapDataJsonLoader<?> dataLoader : VALUES) {
             // Unsafe cast, but safe in practice if your code is consistent
-            ((FloatMapDataLoader<Object>) dataLoader).registry =
+            ((FloatMapDataJsonLoader<Object>) dataLoader).registry =
                     (Registry<Object>) getSideAwareRegistry(dataLoader.registryKey);
         }
     }
