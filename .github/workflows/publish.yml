@@ -139,4 +139,4 @@ jobs:
           release_type: ${{ inputs.channel }}
           changelog: ${{ needs.prepare.outputs.changelog }}
           changelog_type: markdown
-          game_versions: "Minecraft ${{ needs.prepare.outputs.mc_family }}:${{ needs.prepare.outputs.mc }},Java 20,Forge,Client,Serve"
+          game_versions: "Minecraft ${{ needs.prepare.outputs.mc_family }}:${{ needs.prepare.outputs.mc }},Java 20,Forge,Client,Server"
