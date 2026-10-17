@@ -7,7 +7,12 @@ on:
         description: 'Release channel on Modrinth'
         type: choice
         options: [release, beta, alpha]
-        default: beta
+        default: release
+      changelog:
+        description: 'Changelog (Markdown)'
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -28,37 +33,32 @@ jobs:
                 | sed 's/.*=\s*//' | tr -d '[:space:]')
           echo "mc=$MC"   >> "$GITHUB_OUTPUT"
           echo "mod=$MOD" >> "$GITHUB_OUTPUT"
-          echo "tag=v${MC}-${MOD}-dev" >> "$GITHUB_OUTPUT"
 
-      # Same tag the Release workflow creates
-      - name: Download JAR and changelog from the GitHub release
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.versions.outputs.tag }}
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Build
+        run: ./gradlew build
+
+      # Only the compiled mod JAR: skip -sources / -javadoc / -dev
+      - name: Locate mod JAR
+        id: jar
         run: |
-          mkdir -p dist
-          gh release download "$TAG" --pattern '*.jar' --dir dist
-
-          # Keep only the compiled mod JAR (drop -sources / -javadoc / -dev)
-          find dist -name '*.jar' \
-            \( -name '*-sources.jar' -o -name '*-javadoc.jar' -o -name '*-dev.jar' \) -delete
-
-          COUNT=$(find dist -name '*.jar' | wc -l)
+          JARS=$(find build/libs -maxdepth 1 -name '*.jar' \
+                   ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-dev.jar')
+          COUNT=$(echo "$JARS" | grep -c . || true)
           if [ "$COUNT" -ne 1 ]; then
-            echo "::error::Expected exactly 1 JAR in dist/, found $COUNT"
-            ls -l dist
+            echo "::error::Expected exactly 1 JAR in build/libs, found $COUNT"
+            ls -l build/libs
             exit 1
           fi
-
-          echo "jar=$(find dist -name '*.jar')" >> "$GITHUB_OUTPUT"
-
-          # Release notes -> changelog (multiline-safe output)
-          {
-            echo 'changelog<<EOF'
-            gh release view "$TAG" --json body --jq .body
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
+          echo "path=$JARS" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Modrinth
         uses: cloudnode-pro/modrinth-publish@v2
@@ -68,10 +68,10 @@ jobs:
           name: ${{ steps.versions.outputs.mod }} (MC ${{ steps.versions.outputs.mc }})
           version: ${{ steps.versions.outputs.mod }}
           channel: ${{ inputs.channel }}
-          changelog: ${{ steps.release.outputs.changelog }}
+          changelog: ${{ inputs.changelog }}
           loaders: fabric
           game-versions: ${{ steps.versions.outputs.mc }}
-          files: ${{ steps.release.outputs.jar }}
+          files: ${{ steps.jar.outputs.path }}
           # Uncomment if your mod needs Fabric API (replace with the real project ID):
           # dependencies: |-
           #   [{ "project_id": "P7dR8mSH", "dependency_type": "required" }]

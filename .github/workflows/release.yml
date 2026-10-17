@@ -45,7 +45,7 @@ jobs:
 
       - name: Create or move tag
         run: |
-          TAG="v${{ steps.versions.outputs.mc }}-${{ steps.versions.outputs.mod }}-dev"
+          TAG="v${{ steps.versions.outputs.mc }}-${{ steps.versions.outputs.mod }}"
 
           # Delete local tag if it exists
           git tag -d "$TAG" 2>/dev/null || true
