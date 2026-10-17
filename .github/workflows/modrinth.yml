@@ -66,7 +66,7 @@ jobs:
 
           # Only the compiled mod JAR: skip -sources / -javadoc / -dev
           find dist -name '*.jar' \
-            \( -name '*-sources.jar' -o -name '*-javadoc.jar' -o -name '*-dev.jar' -name '*-slim.jar' \) -delete
+            \( -name '*-sources.jar' -o -name '*-javadoc.jar' -o -name '*-dev.jar' -o -name '*-slim.jar' \) -delete
 
           COUNT=$(find dist -name '*.jar' | wc -l)
           if [ "$COUNT" -ne 1 ]; then
