@@ -1,0 +1,77 @@
+name: Publish to Modrinth
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Release channel on Modrinth'
+        type: choice
+        options: [release, beta, alpha]
+        default: beta
+
+permissions:
+  contents: read
+
+jobs:
+  modrinth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read versions from gradle.properties
+        id: versions
+        run: |
+          MC=$(grep -E '^minecraft_version\s*=' gradle.properties \
+               | sed 's/.*=\s*//' | tr -d '[:space:]')
+          MOD=$(grep -E '^mod_version\s*=' gradle.properties \
+                | sed 's/.*=\s*//' | tr -d '[:space:]')
+          echo "mc=$MC"   >> "$GITHUB_OUTPUT"
+          echo "mod=$MOD" >> "$GITHUB_OUTPUT"
+          echo "tag=v${MC}-${MOD}-dev" >> "$GITHUB_OUTPUT"
+
+      # Same tag the Release workflow creates
+      - name: Download JAR and changelog from the GitHub release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.versions.outputs.tag }}
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --pattern '*.jar' --dir dist
+
+          # Keep only the compiled mod JAR (drop -sources / -javadoc / -dev)
+          find dist -name '*.jar' \
+            \( -name '*-sources.jar' -o -name '*-javadoc.jar' -o -name '*-dev.jar' \) -delete
+
+          COUNT=$(find dist -name '*.jar' | wc -l)
+          if [ "$COUNT" -ne 1 ]; then
+            echo "::error::Expected exactly 1 JAR in dist/, found $COUNT"
+            ls -l dist
+            exit 1
+          fi
+
+          echo "jar=$(find dist -name '*.jar')" >> "$GITHUB_OUTPUT"
+
+          # Release notes -> changelog (multiline-safe output)
+          {
+            echo 'changelog<<EOF'
+            gh release view "$TAG" --json body --jq .body
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Modrinth
+        uses: cloudnode-pro/modrinth-publish@v2
+        with:
+          token: ${{ secrets.MODRINTH_TOKEN }}
+          project: ${{ vars.MODRINTH_ID }}
+          name: ${{ steps.versions.outputs.mod }} (MC ${{ steps.versions.outputs.mc }})
+          version: ${{ steps.versions.outputs.mod }}
+          channel: ${{ inputs.channel }}
+          changelog: ${{ steps.release.outputs.changelog }}
+          loaders: fabric
+          game-versions: ${{ steps.versions.outputs.mc }}
+          files: ${{ steps.release.outputs.jar }}
+          # Uncomment if your mod needs Fabric API (replace with the real project ID):
+          # dependencies: |-
+          #   [{ "project_id": "P7dR8mSH", "dependency_type": "required" }]
