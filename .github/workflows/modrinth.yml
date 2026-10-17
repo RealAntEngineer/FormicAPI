@@ -60,6 +60,29 @@ jobs:
           fi
           echo "path=$JARS" >> "$GITHUB_OUTPUT"
 
+      # Typed changelog wins; otherwise release notes for this tag;
+      # otherwise the latest release; otherwise empty. Never fails.
+      - name: Resolve changelog
+        id: changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.versions.outputs.mc }}-${{ steps.versions.outputs.mod }}
+          INPUT_CHANGELOG: ${{ inputs.changelog }}
+        run: |
+          if [ -n "$INPUT_CHANGELOG" ]; then
+            BODY="$INPUT_CHANGELOG"
+          elif BODY=$(gh release view "$TAG" --json body --jq .body 2>/dev/null); then
+            echo "Using release notes from $TAG"
+          else
+            echo "No release for $TAG, falling back to latest release"
+            BODY=$(gh release view --json body --jq .body 2>/dev/null || true)
+          fi
+          {
+            echo 'body<<CHANGELOG_EOF'
+            echo "$BODY"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Publish to Modrinth
         uses: cloudnode-pro/modrinth-publish@v2
         with:
@@ -68,8 +91,8 @@ jobs:
           name: ${{ steps.versions.outputs.mod }} (MC ${{ steps.versions.outputs.mc }})
           version: ${{ steps.versions.outputs.mod }}
           channel: ${{ inputs.channel }}
-          changelog: ${{ inputs.changelog }}
-          loaders: fabric
+          changelog: ${{ steps.changelog.outputs.body }}
+          loaders: neoforge
           game-versions: ${{ steps.versions.outputs.mc }}
           files: ${{ steps.jar.outputs.path }}
           # Uncomment if your mod needs Fabric API (replace with the real project ID):
