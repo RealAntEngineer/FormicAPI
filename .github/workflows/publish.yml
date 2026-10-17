@@ -1,10 +1,10 @@
-name: Publish to Modrinth
+name: Publish to Modrinth and CurseForge
 
 on:
   workflow_dispatch:
     inputs:
       channel:
-        description: 'Release channel on Modrinth'
+        description: 'Release channel'
         type: choice
         options: [release, beta, alpha]
         default: release
@@ -18,8 +18,15 @@ permissions:
   contents: read
 
 jobs:
-  modrinth:
+  # Resolves versions, downloads the JAR once and shares it with both publish jobs.
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      mc: ${{ steps.versions.outputs.mc }}
+      mc_family: ${{ steps.versions.outputs.mc_family }}
+      mod: ${{ steps.versions.outputs.mod }}
+      jar: ${{ steps.release.outputs.jar }}
+      changelog: ${{ steps.release.outputs.changelog }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,6 +40,8 @@ jobs:
                 | sed 's/.*=\s*//' | tr -d '[:space:]')
           echo "mc=$MC"   >> "$GITHUB_OUTPUT"
           echo "mod=$MOD" >> "$GITHUB_OUTPUT"
+          # CurseForge groups versions by family, e.g. 1.21.1 -> "Minecraft 1.21"
+          echo "mc_family=$(echo "$MC" | cut -d. -f1,2)" >> "$GITHUB_OUTPUT"
 
       # Release for v<mc>-<mod>; if it doesn't exist, use the latest release.
       - name: Download JAR and notes from GitHub release
@@ -57,7 +66,7 @@ jobs:
 
           # Only the compiled mod JAR: skip -sources / -javadoc / -dev
           find dist -name '*.jar' \
-            \( -name '*-sources.jar' -o -name '*-javadoc.jar' -o -name '*-dev.jar' \) -delete
+            \( -name '*-sources.jar' -o -name '*-javadoc.jar' -o -name '*-dev.jar' -o -name '*-slim.jar' \) -delete
 
           COUNT=$(find dist -name '*.jar' | wc -l)
           if [ "$COUNT" -ne 1 ]; then
@@ -79,15 +88,55 @@ jobs:
             echo 'CHANGELOG_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Share JAR with publish jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: mod-jar
+          path: dist/*.jar
+          if-no-files-found: error
+
+  modrinth:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: mod-jar
+          path: dist
+
       - name: Publish to Modrinth
         uses: cloudnode-pro/modrinth-publish@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
           project: ${{ vars.MODRINTH_ID }}
-          name: ${{ steps.versions.outputs.mod }} (MC ${{ steps.versions.outputs.mc }})
-          version: ${{ steps.versions.outputs.mod }}
+          name: ${{ needs.prepare.outputs.mod }} (MC ${{ needs.prepare.outputs.mc }})
+          version: ${{ needs.prepare.outputs.mod }}
           channel: ${{ inputs.channel }}
-          changelog: ${{ steps.release.outputs.changelog }}
+          changelog: ${{ needs.prepare.outputs.changelog }}
           loaders: neoforge
-          game-versions: ${{ steps.versions.outputs.mc }}
-          files: ${{ steps.release.outputs.jar }}
+          game-versions: ${{ needs.prepare.outputs.mc }}
+          files: ${{ needs.prepare.outputs.jar }}
+
+  curseforge:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: mod-jar
+          path: dist
+
+      - name: Publish to CurseForge
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ secrets.CURSEFORGE_TOKEN }}
+          project_id: ${{ vars.CURSEFORGE_ID }}
+          game_endpoint: minecraft
+          file_path: ${{ needs.prepare.outputs.jar }}
+          display_name: ${{ needs.prepare.outputs.mod }} (MC ${{ needs.prepare.outputs.mc }})
+          release_type: ${{ inputs.channel }}
+          changelog: ${{ needs.prepare.outputs.changelog }}
+          changelog_type: markdown
+          game_versions: "Minecraft ${{ needs.prepare.outputs.mc_family }}:${{ needs.prepare.outputs.mc }},Java 21,NeoForge"
