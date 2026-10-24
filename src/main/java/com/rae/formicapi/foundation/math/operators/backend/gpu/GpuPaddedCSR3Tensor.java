@@ -1,9 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3Tensor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLKernel;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLResource;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,14 +9,15 @@ import java.util.Arrays;
 /**
  * GPU backend for {@code PaddedCSR2Tensor} / {@link CpuPaddedCSR3Tensor}:
  * {@code F_i(x) = sum(c[i,j,k] * x[j] * x[k])}. Kernels are static
- * constants defined right here (see {@link OpenCLKernel}'s class doc),
+ * constants defined right here (see {@link PortableKernel}'s class doc),
  * bound once in {@link #bindKernels}, dispatched via {@code .use()} --
  * replacing the {@code executor.launchCsr2Apply(...)}-style calls that no
  * longer exist on the executor itself.
  */
 public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable {
 
-    private static final OpenCLKernel APPLY = new OpenCLKernel("csr2_apply", """
+    private static final PortableKernel APPLY = new PortableKernel("csr2_apply")
+            .opencl("""
             #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             __kernel void csr2_apply(__global const double* values, __global const int* var1Index,
                                       __global const int* var2Index, const int termsPerEquation,
@@ -34,9 +32,29 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
                 }
                 result[row] = sum;
             }
-            """, "cl_khr_fp64");
+            """, "cl_khr_fp64")
+            .glsl("""
+            layout(std430, binding = 0) buffer V { double values[]; };
+            layout(std430, binding = 1) buffer V1 { int var1Index[]; };
+            layout(std430, binding = 2) buffer V2 { int var2Index[]; };
+            layout(std430, binding = 3) buffer X { double x[]; };
+            layout(std430, binding = 4) buffer R { double result[]; };
+            layout(push_constant) uniform PC { int gsz; int termsPerEquation; int equations; } pc;
+            void main() {
+                int row = int(GID);
+                if (row >= pc.equations) return;
+                double sum = 0.0LF;
+                int base = row * pc.termsPerEquation;
+                for (int i = 0; i < pc.termsPerEquation; i++) {
+                    int idx = base + i;
+                    sum += values[idx] * x[var1Index[idx]] * x[var2Index[idx]];
+                }
+                result[row] = sum;
+            }
+            """, "shaderFloat64");
 
-    private static final OpenCLKernel APPLY_JACOBIAN = new OpenCLKernel("csr2_apply_jacobian", """
+    private static final PortableKernel APPLY_JACOBIAN = new PortableKernel("csr2_apply_jacobian")
+            .opencl("""
             #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             __kernel void csr2_apply_jacobian(__global const double* values, __global const int* var1Index,
                                                __global const int* var2Index, const int termsPerEquation,
@@ -57,7 +75,32 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
                 }
                 result[row] = sum;
             }
-            """, "cl_khr_fp64");
+            """, "cl_khr_fp64")
+            .glsl("""
+            layout(std430, binding = 0) buffer V { double values[]; };
+            layout(std430, binding = 1) buffer V1 { int var1Index[]; };
+            layout(std430, binding = 2) buffer V2 { int var2Index[]; };
+            layout(std430, binding = 3) buffer X { double x[]; };
+            layout(std430, binding = 4) buffer Dir { double direction[]; };
+            layout(std430, binding = 5) buffer R { double result[]; };
+            layout(push_constant) uniform PC { int gsz; int termsPerEquation; int equations; } pc;
+            void main() {
+                int row = int(GID);
+                if (row >= pc.equations) return;
+                double sum = 0.0LF;
+                int base = row * pc.termsPerEquation;
+                for (int i = 0; i < pc.termsPerEquation; i++) {
+                    int idx = base + i;
+                    double c = values[idx];
+                    int j = var1Index[idx];
+                    int k = var2Index[idx];
+                    // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k);
+                    // reduces to 2*c*x_j*dx_j automatically when j == k.
+                    sum += c * (direction[j] * x[k] + x[j] * direction[k]);
+                }
+                result[row] = sum;
+            }
+            """, "shaderFloat64");
 
     @Override
     protected void bindKernels(GpuExecutor executor) {
@@ -201,8 +244,8 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
         result.resize(equations);
 
         APPLY.use(equations,
-                dValues, dVar1Index, dVar2Index, OpenCLResource.of(termsPerEquation),
-                gpuX.buffer(), gpuResult.buffer(), OpenCLResource.of(equations));
+                dValues, dVar1Index, dVar2Index, requireExecutor().scalar(termsPerEquation),
+                gpuX.buffer(), gpuResult.buffer(), requireExecutor().scalar(equations));
     }
 
     /**
@@ -223,8 +266,8 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
         result.resize(equations);
 
         APPLY_JACOBIAN.use(equations,
-                dValues, dVar1Index, dVar2Index, OpenCLResource.of(termsPerEquation),
-                gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), OpenCLResource.of(equations));
+                dValues, dVar1Index, dVar2Index, requireExecutor().scalar(termsPerEquation),
+                gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), requireExecutor().scalar(equations));
     }
 
     public void multiply(double[] x, double[] result) {
@@ -327,4 +370,4 @@ public class GpuPaddedCSR3Tensor extends GpuExecutable implements AutoCloseable 
             dVar2Index = null;
         }
     }
-}
+}

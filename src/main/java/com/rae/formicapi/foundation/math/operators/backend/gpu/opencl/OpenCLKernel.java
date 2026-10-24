@@ -61,8 +61,13 @@ public class OpenCLKernel implements Kernel {
 
     /** True if this kernel's required extensions are all present on {@code device}. */
     public boolean isSupported(cl_device_id device) {
+        return hasExtensions(device, requirements);
+    }
+
+    /** True if every extension in {@code required} is reported by {@code device}. */
+    static boolean hasExtensions(cl_device_id device, String[] required) {
         Set<String> supported = Set.of(deviceExtensions(device).split("\\s+"));
-        for (String requirement : requirements)
+        for (String requirement : required)
             if (!supported.contains(requirement))
                 return false;
         return true;
@@ -79,6 +84,7 @@ public class OpenCLKernel implements Kernel {
                                 "], which this device doesn't report support for");
             id = compile(executor.context(), executor.device());
         }
+        kernels.add(this); // re-register if a previous executor's close() dropped us, so this one's close() releases us too
         //this.queue = executor.queue();
         this.executorRef = executor;
         return this;
@@ -97,17 +103,28 @@ public class OpenCLKernel implements Kernel {
     }
 
     @Override
-    public void use(int globalSize, GpuResource... args) {
-        dispatch(globalSize, args, false);
+    public void use(int globalSize, int localSize, GpuResource... args) {
+        dispatch(globalSize, localSize, args, false);
     }
 
     @Override
-    public void useBlocking(int globalSize, GpuResource... args) {
-        dispatch(globalSize, args, true);
+    public void useBlocking(int globalSize, int localSize, GpuResource... args) {
+        dispatch(globalSize, localSize, args, true);
     }
 
-    private void dispatch(int globalSize, GpuResource[] args, boolean blocking) {
+    @Override
+    public synchronized int maxLocalSize() {
+        cl_kernel kernelId = requireId();
+        assert executorRef != null;
+        long[] out = new long[1];
+        clGetKernelWorkGroupInfo(kernelId, executorRef.device(), CL_KERNEL_WORK_GROUP_SIZE, Sizeof.size_t, Pointer.to(out), null);
+        return (int) Math.min(out[0], Integer.MAX_VALUE);
+    }
+
+    private void dispatch(int globalSize, int localSize, GpuResource[] args, boolean blocking) {
         if (globalSize <= 0) return;
+        if (localSize < 0 || (localSize > 0 && globalSize % localSize != 0))
+            throw new IllegalArgumentException("globalSize (" + globalSize + ") must be a multiple of localSize (" + localSize + ")");
 
         cl_kernel        kernelId = requireId();
         cl_command_queue q        = requireQueue();
@@ -139,7 +156,7 @@ public class OpenCLKernel implements Kernel {
 
 
             clEnqueueNDRangeKernel(q, kernelId, 1, null, new long[]{globalSize},
-                    null, count, waitList, completion);
+                    localSize > 0 ? new long[]{localSize} : null, count, waitList, completion);
 
             if (executorRef.profiler()!=null) {
                 executorRef.profiler().record(name, completion);
@@ -198,6 +215,7 @@ public class OpenCLKernel implements Kernel {
         }
         //this.queue = null;
         this.executorRef = null;
+        kernels.remove(this);
     }
 
     /** Called from {@link OpenCLGpuExecutor#close()}: releases every kernel currently bound to that executor's queue, untouched otherwise. */

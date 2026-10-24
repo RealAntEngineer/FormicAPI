@@ -1,9 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRTensor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLKernel;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLResource;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jetbrains.annotations.Nullable;
 
@@ -23,7 +20,8 @@ import java.util.Arrays;
  */
 public class GpuPaddedCSRTensor extends GpuExecutable implements AutoCloseable {
 
-    private static final OpenCLKernel APPLY = new OpenCLKernel("csrn_apply", """
+    private static final PortableKernel APPLY = new PortableKernel("csrn_apply")
+            .opencl("""
             #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             __kernel void csrn_apply(__global const double* values, __global const int* variableIndices,
                                       const int termsPerEquation, const int dims,
@@ -41,9 +39,31 @@ public class GpuPaddedCSRTensor extends GpuExecutable implements AutoCloseable {
                 }
                 result[row] = sum;
             }
-            """, "cl_khr_fp64");
+            """, "cl_khr_fp64")
+            .glsl("""
+            layout(std430, binding = 0) buffer V { double values[]; };
+            layout(std430, binding = 1) buffer I { int variableIndices[]; };
+            layout(std430, binding = 2) buffer X { double x[]; };
+            layout(std430, binding = 3) buffer R { double result[]; };
+            layout(push_constant) uniform PC { int gsz; int termsPerEquation; int dims; int equations; } pc;
+            void main() {
+                int row = int(GID);
+                if (row >= pc.equations) return;
+                double sum = 0.0LF;
+                int base = row * pc.termsPerEquation;
+                for (int i = 0; i < pc.termsPerEquation; i++) {
+                    int idx = base + i;
+                    double p = values[idx];
+                    for (int d = 0; d < pc.dims; d++)
+                        p *= x[variableIndices[idx * pc.dims + d]];
+                    sum += p;
+                }
+                result[row] = sum;
+            }
+            """, "shaderFloat64");
 
-    private static final OpenCLKernel APPLY_JACOBIAN = new OpenCLKernel("csrn_apply_jacobian", """
+    private static final PortableKernel APPLY_JACOBIAN = new PortableKernel("csrn_apply_jacobian")
+            .opencl("""
             #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             __kernel void csrn_apply_jacobian(__global const double* values, __global const int* variableIndices,
                                                const int termsPerEquation, const int dims,
@@ -66,7 +86,33 @@ public class GpuPaddedCSRTensor extends GpuExecutable implements AutoCloseable {
                 }
                 result[row] = sum;
             }
-            """, "cl_khr_fp64");
+            """, "cl_khr_fp64")
+            .glsl("""
+            layout(std430, binding = 0) buffer V { double values[]; };
+            layout(std430, binding = 1) buffer I { int variableIndices[]; };
+            layout(std430, binding = 2) buffer X { double x[]; };
+            layout(std430, binding = 3) buffer Dir { double direction[]; };
+            layout(std430, binding = 4) buffer R { double result[]; };
+            layout(push_constant) uniform PC { int gsz; int termsPerEquation; int dims; int equations; } pc;
+            void main() {
+                int row = int(GID);
+                if (row >= pc.equations) return;
+                double sum = 0.0LF;
+                int base = row * pc.termsPerEquation;
+                for (int i = 0; i < pc.termsPerEquation; i++) {
+                    int idx = base + i;
+                    for (int m = 0; m < pc.dims; m++) {
+                        double term = values[idx];
+                        for (int r = 0; r < pc.dims; r++) {
+                            int v = variableIndices[idx * pc.dims + r];
+                            term *= (r == m) ? direction[v] : x[v];
+                        }
+                        sum += term;
+                    }
+                }
+                result[row] = sum;
+            }
+            """, "shaderFloat64");
 
     @Override
     protected void bindKernels(GpuExecutor executor) {
@@ -209,8 +255,8 @@ public class GpuPaddedCSRTensor extends GpuExecutable implements AutoCloseable {
         result.resize(equations);
 
         APPLY.use(equations,
-                dValues, dVariableIndices, OpenCLResource.of(termsPerEquation), OpenCLResource.of(order - 1),
-                gpuX.buffer(), gpuResult.buffer(), OpenCLResource.of(equations));
+                dValues, dVariableIndices, requireExecutor().scalar(termsPerEquation), requireExecutor().scalar(order - 1),
+                gpuX.buffer(), gpuResult.buffer(), requireExecutor().scalar(equations));
     }
 
     /** Evaluates the Jacobian-vector product {@code result = J(x) * direction} on the device. */
@@ -227,8 +273,8 @@ public class GpuPaddedCSRTensor extends GpuExecutable implements AutoCloseable {
         result.resize(equations);
 
         APPLY_JACOBIAN.use(equations,
-                dValues, dVariableIndices, OpenCLResource.of(termsPerEquation), OpenCLResource.of(order - 1),
-                gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), OpenCLResource.of(equations));
+                dValues, dVariableIndices, requireExecutor().scalar(termsPerEquation), requireExecutor().scalar(order - 1),
+                gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), requireExecutor().scalar(equations));
     }
 
     public void multiply(double[] x, double[] result) {
@@ -323,4 +369,4 @@ public class GpuPaddedCSRTensor extends GpuExecutable implements AutoCloseable {
             dVariableIndices = null;
         }
     }
-}
+}

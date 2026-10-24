@@ -1,5 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
+import com.rae.formicapi.foundation.math.operators.backend.BackendExecutor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
@@ -9,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.LockSupport;
 
-public final class CpuExecutor implements AutoCloseable {
+public final class CpuExecutor implements AutoCloseable, BackendExecutor {
 
     /**
      * Default cutoff below which callers (CpuVector, CpuPaddedCSRMatrix)
@@ -21,7 +22,7 @@ public final class CpuExecutor implements AutoCloseable {
      * the constructor or set it with {@link #setParallelThreshold(int)}.
      */
     public static final     int               DEFAULT_PARALLEL_THRESHOLD = 4096;
-    private static final    int               STRIDE                     = 16;
+    private static final    int               STRIDE                     = 16;//size of a cache line in bytes
     // Candidate sizes to sweep when calibrating, smallest to largest.
     private static final    int[]             DEFAULT_CANDIDATE_SIZES    = {
             256, 512, 1_024, 2_048, 4_096, 8_192, 16_384,
@@ -66,7 +67,7 @@ public final class CpuExecutor implements AutoCloseable {
     // outputSize is much larger than the number of actual writes per call.
     private final double[][] accumBuffersD;
 
-    /*
+    /**
      * Every {@code parallelFor}/{@code parallelReduceDouble}/{@code parallelReduceFloat}/
      * {@code parallelForAccumulate} call wraps its work in a {@link Job} and
      * enqueues it here instead of writing into shared fields directly. A

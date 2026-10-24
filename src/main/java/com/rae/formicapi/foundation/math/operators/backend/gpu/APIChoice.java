@@ -1,6 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.vulkan.VulkanGpuExecutor;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -49,10 +50,12 @@ public final class APIChoice {
 
         return switch (MODE) {
             case OpenCL -> new OpenCLGpuExecutor();
+            case Vulkan -> new VulkanGpuExecutor();
         };
     }
 
     public enum ImplementedAPI {
-        OpenCL
+        OpenCL,
+        Vulkan
     }
 }

@@ -1,8 +1,5 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLKernel;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLResource;
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
@@ -12,14 +9,15 @@ import java.util.Arrays;
 
 /**
  * GPU-backed padded CSR matrix. Kernels are static constants defined right
- * here (see {@link OpenCLKernel}'s class doc for why), bound once in
+ * here (see {@link PortableKernel}'s class doc for why), bound once in
  * {@link #bindKernels}, dispatched via {@code .use()}/{@code .useBlocking()}
  * -- no more {@code executor.launchCsrMatvec(...)}-style methods on the
  * executor itself.
  */
 public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
 
-    private static final OpenCLKernel CSR_MATVEC = new OpenCLKernel("csr_matvec", """
+    private static final PortableKernel CSR_MATVEC = new PortableKernel("csr_matvec")
+            .opencl("""
             #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             __kernel void csr_matvec(__global const double* values, __global const int* colIndex,
                                       const int nnzPerRow, __global const double* x, __global double* result,
@@ -32,13 +30,30 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
                     sum += values[base + i] * x[colIndex[base + i]];
                 result[row] = sum;
             }
-            """, "cl_khr_fp64");
+            """, "cl_khr_fp64")
+            .glsl("""
+            layout(std430, binding = 0) buffer V { double values[]; };
+            layout(std430, binding = 1) buffer C { int colIndex[]; };
+            layout(std430, binding = 2) buffer X { double x[]; };
+            layout(std430, binding = 3) buffer R { double result[]; };
+            layout(push_constant) uniform PC { int gsz; int nnzPerRow; int rows; } pc;
+            void main() {
+                int row = int(GID);
+                if (row >= pc.rows) return;
+                double sum = 0.0LF;
+                int base = row * pc.nnzPerRow;
+                for (int i = 0; i < pc.nnzPerRow; i++)
+                    sum += values[base + i] * x[colIndex[base + i]];
+                result[row] = sum;
+            }
+            """, "shaderFloat64");
 
     // Multiple rows can scatter into the same output column, so this needs
     // an atomic add -- OpenCL has no native fp64 atomic_add, so it's
     // emulated with a compare-and-swap loop over the double's bit pattern
     // (as_ulong/as_double), same trick every OpenCL fp64-atomic-add uses.
-    private static final OpenCLKernel CSR_MATVEC_TRANSPOSE = new OpenCLKernel("csr_matvec_transpose", """
+    private static final PortableKernel CSR_MATVEC_TRANSPOSE = new PortableKernel("csr_matvec_transpose")
+            .opencl("""
             #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             #pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
             __kernel void csr_matvec_transpose(__global const double* values, __global const int* colIndex,
@@ -58,12 +73,37 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
                     } while (atom_cmpxchg(addr, old, as_ulong(as_double(old) + contribution)) != old);
                 }
             }
-            """, "cl_khr_fp64", "cl_khr_int64_base_atomics");
+            """, "cl_khr_fp64", "cl_khr_int64_base_atomics")
+            .glsl("""
+            layout(std430, binding = 0) buffer V { double values[]; };
+            layout(std430, binding = 1) buffer C { int colIndex[]; };
+            layout(std430, binding = 2) buffer X { double x[]; };
+            // result is accumulated into as raw 64-bit patterns so a compare-and-swap
+            // loop can emulate the fp64 atomic add that Vulkan core doesn't have.
+            layout(std430, binding = 3) buffer R { uint64_t result[]; };
+            layout(push_constant) uniform PC { int gsz; int nnzPerRow; int rows; } pc;
+            void main() {
+                int row = int(GID);
+                if (row >= pc.rows) return;
+                double xRow = x[row];
+                int base = row * pc.nnzPerRow;
+                for (int i = 0; i < pc.nnzPerRow; i++) {
+                    int col = colIndex[base + i];
+                    double contribution = values[base + i] * xRow;
+                    uint64_t old = result[col];
+                    for (;;) {
+                        uint64_t seen = atomicCompSwap(result[col], old, doubleBitsToUint64(uint64BitsToDouble(old) + contribution));
+                        if (seen == old) break;
+                        old = seen;
+                    }
+                }
+            }
+            """, "shaderFloat64", "shaderInt64", "shaderBufferInt64Atomics");
 
     @Override
     protected void bindKernels(GpuExecutor executor) {
         CSR_MATVEC.bind(executor);
-        if (executor instanceof OpenCLGpuExecutor cl && cl.supports(CSR_MATVEC_TRANSPOSE))
+        if (executor.supports(CSR_MATVEC_TRANSPOSE))
             CSR_MATVEC_TRANSPOSE.bind(executor);
     }
 
@@ -140,8 +180,8 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         result.resize(rows);
 
         CSR_MATVEC.use(rows,
-                dValues, dColIndex, OpenCLResource.of(nnzPerRow),
-                gpuX.buffer(), gpuResult.buffer(), OpenCLResource.of(rows));
+                dValues, dColIndex, requireExecutor().scalar(nnzPerRow),
+                gpuX.buffer(), gpuResult.buffer(), requireExecutor().scalar(rows));
     }
 
     @Override
@@ -159,8 +199,8 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
 
         if (!executor.supports(CSR_MATVEC_TRANSPOSE))
             throw new UnsupportedOperationException(
-                    "transposeApply(...) requires 64-bit atomic add support (cl_khr_int64_base_atomics), " +
-                            "which this device doesn't report");
+                    "transposeApply(...) requires 64-bit integer atomics on buffers (OpenCL cl_khr_int64_base_atomics / " +
+                            "Vulkan shaderBufferInt64Atomics), which this device doesn't report");
 
         result.resize(cols);
         gpuResult.clear(); // atomically accumulated into below, so it must start at zero
@@ -169,8 +209,8 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         // wait-list building already picks up clear()'s pending event on
         // it -- no explicit ordering needed between the two calls.
         CSR_MATVEC_TRANSPOSE.use(rows,
-                dValues, dColIndex, OpenCLResource.of(nnzPerRow),
-                gpuX.buffer(), gpuResult.buffer(), OpenCLResource.of(rows));
+                dValues, dColIndex, requireExecutor().scalar(nnzPerRow),
+                gpuX.buffer(), gpuResult.buffer(), requireExecutor().scalar(rows));
     }
 
     @Override
@@ -205,9 +245,33 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
         return 0.0;
     }
 
+    /**
+     * Gathers the stored entries {@code A[r[i], c[i]]} into a new device
+     * vector of size {@code r.size()}; positions outside the sparsity
+     * pattern read as {@code 0}, like {@link #get}. Served from the host
+     * mirror of the matrix, so it costs one upload of the result.
+     */
     @Override
     public RealVector getValues(IntegerVector r, IntegerVector c) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (r.size() != c.size())
+            throw new IllegalArgumentException("row and column index vectors differ in size: " + r.size() + " vs " + c.size());
+
+        int[] rows = toArray(r);
+        int[] cols = toArray(c);
+        double[] out = new double[rows.length];
+        for (int i = 0; i < out.length; i++)
+            out[i] = get(rows[i], cols[i]);
+
+        return new GpuDoubleVector(requireExecutor(), out);
+    }
+
+    private static int[] toArray(IntegerVector v) {
+        if (v instanceof GpuIntegerVector gpu)
+            return gpu.download(); // one bulk transfer instead of a device round trip per get(i)
+        int[] out = new int[v.size()];
+        for (int i = 0; i < out.length; i++)
+            out[i] = v.get(i);
+        return out;
     }
 
     private int findIndex(int row, int col) {
@@ -356,4 +420,4 @@ public class GpuPaddedCSRMatrix extends GpuExecutable implements MutableMatrix {
             dColIndex = null;
         }
     }
-}
+}

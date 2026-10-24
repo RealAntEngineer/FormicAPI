@@ -1,7 +1,9 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
+import com.rae.formicapi.foundation.math.operators.backend.BackendExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLKernel;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.vulkan.VulkanGpuExecutor;
 
 /**
  * Everything a {@code Gpu*Vector}/{@code Gpu*Matrix} needs from whatever
@@ -17,10 +19,12 @@ import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLKern
  * same way {@code OpenCLKernelArg} unwraps a {@link GpuResource} down to a
  * {@code cl_mem}). Everything above that layer -- every
  * {@code Gpu*Vector}, {@code Gpu*Matrix}, {@link GpuExecutable} -- is
- * written against this interface only, so none of it needs to change when
- * a Vulkan backend is added (see the package doc).
+ * written against this interface only, so the same classes run unchanged on
+ * {@link OpenCLGpuExecutor} and {@link VulkanGpuExecutor} (see the package
+ * doc). Kernel arguments are created through {@link #scalar} and
+ * {@link #localMemory} for the same reason.
  */
-public interface GpuExecutor {
+public interface GpuExecutor extends BackendExecutor {
 
     GpuResource allocateDoubleBuffer(int length);
     GpuResource allocateIntBuffer(int length);
@@ -47,13 +51,96 @@ public interface GpuExecutor {
     void uploadByteAt(GpuResource buffer, int elementOffset, byte value);
     byte downloadByteAt(GpuResource buffer, int elementOffset);
 
-    void copyDoubleBuffer(GpuResource src, GpuResource dst, int length);
-    void copyIntBuffer(GpuResource src, GpuResource dst, int length);
-    void copyByteBuffer(GpuResource src, GpuResource dst, int length);
+    default void copyDoubleBuffer(GpuResource src, GpuResource dst, int length) { copyDoubleBuffer(src, 0, dst, 0, length); }
+    default void copyIntBuffer(GpuResource src, GpuResource dst, int length)    { copyIntBuffer(src, 0, dst, 0, length); }
+    default void copyByteBuffer(GpuResource src, GpuResource dst, int length)   { copyByteBuffer(src, 0, dst, 0, length); }
 
-    void fillDoubleBuffer(GpuResource buffer, double value, int length);
-    void fillIntBuffer(GpuResource buffer, int value, int length);
-    void fillByteBuffer(GpuResource buffer, byte value, int length);
+    /** Copies {@code length} elements from {@code src[srcOffset..]} to {@code dst[dstOffset..]} (element offsets). {@code src} and {@code dst} may be the same buffer only if the two ranges don't overlap -- see {@link #copyDoubleWithin}. */
+    void copyDoubleBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length);
+    void copyIntBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length);
+    void copyByteBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length);
+
+    /** {@code System.arraycopy}-style move inside one buffer: overlapping ranges are handled through a temporary. */
+    default void copyDoubleWithin(GpuResource buffer, int srcStart, int dstStart, int count) {
+        if (count <= 0 || srcStart == dstStart) return;
+        if (Math.abs((long) srcStart - dstStart) >= count) {
+            copyDoubleBuffer(buffer, srcStart, buffer, dstStart, count);
+            return;
+        }
+        GpuResource tmp = allocateDoubleBuffer(count);
+        try {
+            copyDoubleBuffer(buffer, srcStart, tmp, 0, count);
+            copyDoubleBuffer(tmp, 0, buffer, dstStart, count);
+        } finally {
+            tmp.release();
+        }
+    }
+
+    default void copyIntWithin(GpuResource buffer, int srcStart, int dstStart, int count) {
+        if (count <= 0 || srcStart == dstStart) return;
+        if (Math.abs((long) srcStart - dstStart) >= count) {
+            copyIntBuffer(buffer, srcStart, buffer, dstStart, count);
+            return;
+        }
+        GpuResource tmp = allocateIntBuffer(count);
+        try {
+            copyIntBuffer(buffer, srcStart, tmp, 0, count);
+            copyIntBuffer(tmp, 0, buffer, dstStart, count);
+        } finally {
+            tmp.release();
+        }
+    }
+
+    default void copyByteWithin(GpuResource buffer, int srcStart, int dstStart, int count) {
+        if (count <= 0 || srcStart == dstStart) return;
+        if (Math.abs((long) srcStart - dstStart) >= count) {
+            copyByteBuffer(buffer, srcStart, buffer, dstStart, count);
+            return;
+        }
+        GpuResource tmp = allocateByteBuffer(count);
+        try {
+            copyByteBuffer(buffer, srcStart, tmp, 0, count);
+            copyByteBuffer(tmp, 0, buffer, dstStart, count);
+        } finally {
+            tmp.release();
+        }
+    }
+
+    default void fillDoubleBuffer(GpuResource buffer, double value, int length) { fillDoubleBuffer(buffer, 0, value, length); }
+    default void fillIntBuffer(GpuResource buffer, int value, int length)       { fillIntBuffer(buffer, 0, value, length); }
+
+    /** Fills {@code length} elements starting at element {@code offset}. */
+    void fillDoubleBuffer(GpuResource buffer, int offset, double value, int length);
+    void fillIntBuffer(GpuResource buffer, int offset, int value, int length);
+    default void fillByteBuffer(GpuResource buffer, byte value, int length) { fillByteBuffer(buffer, 0, value, length); }
+
+    /** Fills {@code length} bytes starting at byte {@code offset}. */
+    void fillByteBuffer(GpuResource buffer, int offset, byte value, int length);
+
+    // ---------------------------------------------------------------- kernel arguments / kernels
+
+    /** An immediate {@code int} kernel argument. */
+    GpuResource scalar(int value);
+
+    /** An immediate {@code double} kernel argument. */
+    GpuResource scalar(double value);
+
+    /**
+     * Work-group scratch space of {@code bytes} bytes as a kernel argument.
+     * Backends where scratch is declared inside the shader itself (Vulkan)
+     * ignore it, so always size it as {@code localSize * elementSize} and
+     * declare the shader's shared array with the same extent.
+     */
+    GpuResource localMemory(long bytes);
+
+    /**
+     * Builds this backend's native kernel from {@code definition}'s matching
+     * source. Called by {@link PortableKernel#bind}; not meant for direct use.
+     *
+     * @throws UnsupportedOperationException if the definition has no source
+     *         for this backend, or the device lacks something it requires
+     */
+    Kernel createKernel(PortableKernel definition);
 
     boolean supports(Kernel kernel);
 

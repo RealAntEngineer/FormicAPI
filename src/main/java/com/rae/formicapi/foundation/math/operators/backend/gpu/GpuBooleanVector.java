@@ -4,7 +4,6 @@ import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuE
 import com.rae.formicapi.foundation.math.operators.vectors.BooleanVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
-import org.jocl.cl_mem;
 
 /**
  * GPU backend for {@link BooleanVector}. Stored as one {@code cl_char} per
@@ -16,6 +15,38 @@ import org.jocl.cl_mem;
  * that isn't in a hot loop.
  */
 public final class GpuBooleanVector extends GpuExecutable implements BooleanVector {
+
+    /**
+     * {@code dst[i] = src[idx[i]]} on the one-byte-per-element device layout.
+     * Needs 8-bit buffer access on Vulkan ({@code storageBuffer8BitAccess},
+     * core since Vulkan 1.2); OpenCL's {@code char} needs nothing special.
+     */
+    private static final PortableKernel GATHER = new PortableKernel("gather_byte")
+            .opencl("""
+                    __kernel void gather_byte(__global char* dst, __global const char* src, __global const int* idx) {
+                        int i = get_global_id(0);
+                        dst[i] = src[idx[i]];
+                    }
+                    """)
+            .glsl("""
+                    layout(std430, binding = 0) buffer Dst { uint8_t dst[]; };
+                    layout(std430, binding = 1) buffer Src { uint8_t src[]; };
+                    layout(std430, binding = 2) buffer I   { int idx[]; };
+                    layout(push_constant) uniform PC { int gsz; } pc;
+                    void main() {
+                        uint i = GID;
+                        if (i >= uint(pc.gsz)) return;
+                        dst[i] = src[idx[i]];
+                    }
+                    """, "storageBuffer8BitAccess");
+
+    @Override
+    protected void bindKernels(GpuExecutor executor) {
+        // Only needed by gather(); a device without the capability still gets
+        // every other boolean-vector operation, so don't fail construction.
+        if (executor.supports(GATHER))
+            GATHER.bind(executor);
+    }
 
     private GpuResource buffer;
     private int    size;
@@ -75,12 +106,47 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
 
     @Override
     public BooleanVector fill(boolean value, int fromInclusive, int toExclusive) {
-        throw new UnsupportedOperationException();
+        if (fromInclusive < 0 || toExclusive > size || fromInclusive > toExclusive)
+            throw new IndexOutOfBoundsException("fill range [" + fromInclusive + ", " + toExclusive + ") on a vector of size " + size);
+        requireExecutor().fillByteBuffer(buffer, fromInclusive, (byte) (value ? 1 : 0), toExclusive - fromInclusive);
+        return this;
     }
 
+    /**
+     * {@code this[i] = source[indices[i]]} for {@code i in [0, indices.size())}.
+     * Aliased ({@code source == this}) gathers go through a temporary buffer,
+     * see {@link GpuDoubleVector#gather}.
+     */
     @Override
     public BooleanVector gather(BooleanVector source, IntegerVector indices) {
-        throw new UnsupportedOperationException();
+        if (!(source instanceof GpuBooleanVector src) || src.executor != this.executor)
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + source.getClass());
+        if (!(indices instanceof GpuIntegerVector idx) || idx.executor != this.executor)
+            throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + indices.getClass());
+
+        final int n = idx.size();
+        if (size < n)
+            throw new IllegalArgumentException("gather target must have >= indices.size() (" + n + ") elements, has " + size);
+        if (n == 0)
+            return this;
+
+        GpuExecutor ex = requireExecutor();
+        if (!ex.supports(GATHER))
+            throw new UnsupportedOperationException("BooleanVector.gather needs 8-bit storage buffer access, which this device doesn't report");
+
+        if (src.buffer != buffer) {
+            GATHER.use(n, buffer, src.buffer, idx.buffer());
+            return this;
+        }
+
+        GpuResource tmp = ex.allocateByteBuffer(n);
+        try {
+            GATHER.use(n, tmp, src.buffer, idx.buffer());
+            ex.copyByteBuffer(tmp, buffer, n);
+        } finally {
+            tmp.release();
+        }
+        return this;
     }
 
     @Override
@@ -95,11 +161,14 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
         if (newSize > capacity) {
             GpuResource newBuffer = ctx.allocateByteBuffer(Math.max(newSize, 1));
             ctx.fillByteBuffer(newBuffer, (byte) 0, newSize);
-            if (capacity > 0)
-                ctx.copyByteBuffer(buffer, newBuffer, Math.min(capacity, newSize));
+            if (size > 0) // only the live elements: slots between size and capacity may be stale
+                ctx.copyByteBuffer(buffer, newBuffer, Math.min(size, newSize));
             buffer.release();
             buffer = newBuffer;
             capacity = newSize;
+        } else if (newSize > size) {
+            // growing back inside existing capacity: re-zero slots that may hold stale values
+            ctx.fillByteBuffer(buffer, size, (byte) 0, newSize - size);
         }
 
         size = newSize;
@@ -134,11 +203,14 @@ public final class GpuBooleanVector extends GpuExecutable implements BooleanVect
 
     @Override
     public Vector internalCopy(int srcStart, int dstStart, int count) {
-        return null;
+        if (count < 0 || srcStart < 0 || dstStart < 0 || srcStart + (long) count > size || dstStart + (long) count > size)
+            throw new IndexOutOfBoundsException("internalCopy(" + srcStart + ", " + dstStart + ", " + count + ") on a vector of size " + size);
+        requireExecutor().copyByteWithin(buffer, srcStart, dstStart, count);
+        return this;
     }
 
     public void release() {
         buffer.release();
         buffer = null;
     }
-}
+}

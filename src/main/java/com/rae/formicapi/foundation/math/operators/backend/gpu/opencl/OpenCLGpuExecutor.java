@@ -3,6 +3,7 @@ package com.rae.formicapi.foundation.math.operators.backend.gpu.opencl;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuResource;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.Kernel;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.PortableKernel;
 import org.jocl.*;
 
 import javax.annotation.Nullable;
@@ -163,7 +164,32 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     /** True if this device supports a given kernel's required extensions. OpenCL-specific, see class doc. */
     @Override
     public boolean supports(Kernel kernel) {
+        if (kernel instanceof PortableKernel portable)
+            return portable.openclSource() != null && OpenCLKernel.hasExtensions(device, portable.openclRequirements());
         return kernel instanceof OpenCLKernel clKernel && clKernel.isSupported(device);
+    }
+
+    @Override
+    public Kernel createKernel(PortableKernel definition) {
+        String source = definition.openclSource();
+        if (source == null)
+            throw new UnsupportedOperationException("Kernel '" + definition.name() + "' has no OpenCL source");
+        return new OpenCLKernel(definition.name(), source, definition.openclRequirements());
+    }
+
+    @Override
+    public GpuResource scalar(int value) {
+        return OpenCLResource.of(value);
+    }
+
+    @Override
+    public GpuResource scalar(double value) {
+        return OpenCLResource.of(value);
+    }
+
+    @Override
+    public GpuResource localMemory(long bytes) {
+        return OpenCLResource.local(bytes);
     }
 
     @Override
@@ -376,70 +402,62 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     // ---------------------------------------------------------------- copy / fill (non-blocking)
 
     @Override
-    public void copyDoubleBuffer(GpuResource src, GpuResource dst, int length) {
-        if (length <= 0) return;
+    public void copyDoubleBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
+        copy(src, (long) srcOffset * Sizeof.cl_double, dst, (long) dstOffset * Sizeof.cl_double, (long) length * Sizeof.cl_double);
+    }
+
+    @Override
+    public void copyIntBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
+        copy(src, (long) srcOffset * Sizeof.cl_int, dst, (long) dstOffset * Sizeof.cl_int, (long) length * Sizeof.cl_int);
+    }
+
+    @Override
+    public void copyByteBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
+        copy(src, srcOffset, dst, dstOffset, length);
+    }
+
+    private void copy(GpuResource src, long srcByteOffset, GpuResource dst, long dstByteOffset, long bytes) {
+        if (bytes <= 0) return;
         synchronized (queue) {
             cl_event[] wait = waitList(src, dst);
             cl_event event = new cl_event();
-            clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, (long) length * Sizeof.cl_double, waitCount(wait), wait, event);
+            clEnqueueCopyBuffer(queue, mem(src), mem(dst), srcByteOffset, dstByteOffset, bytes, waitCount(wait), wait, event);
             record(event, src, dst);
         }
     }
 
     @Override
-    public void copyIntBuffer(GpuResource src, GpuResource dst, int length) {
-        if (length <= 0) return;
-        synchronized (queue) {
-            cl_event[] wait = waitList(src, dst);
-            cl_event event = new cl_event();
-            clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, (long) length * Sizeof.cl_int, waitCount(wait), wait, event);
-            record(event, src, dst);
-        }
-    }
-
-    @Override
-    public void copyByteBuffer(GpuResource src, GpuResource dst, int length) {
-        if (length <= 0) return;
-        synchronized (queue) {
-            cl_event[] wait = waitList(src, dst);
-            cl_event event = new cl_event();
-            clEnqueueCopyBuffer(queue, mem(src), mem(dst), 0, 0, length, waitCount(wait), wait, event);
-            record(event, src, dst);
-        }
-    }
-
-    @Override
-    public void fillDoubleBuffer(GpuResource buffer, double value, int length) {
+    public void fillDoubleBuffer(GpuResource buffer, int offset, double value, int length) {
         if (length <= 0) return;
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
             cl_event event = new cl_event();
             clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new double[]{value}), Sizeof.cl_double,
-                    0, (long) length * Sizeof.cl_double, waitCount(wait), wait, event);
+                    (long) offset * Sizeof.cl_double, (long) length * Sizeof.cl_double, waitCount(wait), wait, event);
             record(event, buffer);
         }
     }
 
     @Override
-    public void fillIntBuffer(GpuResource buffer, int value, int length) {
+    public void fillIntBuffer(GpuResource buffer, int offset, int value, int length) {
         if (length <= 0) return;
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
             cl_event event = new cl_event();
             clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new int[]{value}), Sizeof.cl_int,
-                    0, (long) length * Sizeof.cl_int, waitCount(wait), wait, event);
+                    (long) offset * Sizeof.cl_int, (long) length * Sizeof.cl_int, waitCount(wait), wait, event);
             record(event, buffer);
         }
     }
 
     @Override
-    public void fillByteBuffer(GpuResource buffer, byte value, int length) {
+    public void fillByteBuffer(GpuResource buffer, int offset, byte value, int length) {
         if (length <= 0) return;
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
             cl_event event = new cl_event();
             clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new byte[]{value}), Sizeof.cl_char,
-                    0, length, waitCount(wait), wait, event);
+                    offset, length, waitCount(wait), wait, event);
             record(event, buffer);
         }
     }
@@ -454,6 +472,7 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     public synchronized void close() {
         if (closed) return;
         closed = true;
+        PortableKernel.forgetExecutor(this);
         OpenCLKernel.releaseAll(queue);
         clReleaseCommandQueue(queue);
         clReleaseContext(context);

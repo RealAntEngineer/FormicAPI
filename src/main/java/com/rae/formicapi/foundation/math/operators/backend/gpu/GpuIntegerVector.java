@@ -34,8 +34,9 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
         this.capacity = size;
         this.size = size;
         this.buffer = executor.allocateIntBuffer(Math.max(size, 1));
-        // int buffers don't get zero-initialized here since there's currently
-        // no consumer that needs it; callers populate via upload() before use.
+        // Zero-initialized: device memory is not guaranteed to be (Vulkan hands
+        // out undefined contents), and Vector#resize promises zeroed new elements.
+        executor.fillIntBuffer(buffer, 0, size);
     }
 
     public void upload(int[] host) {
@@ -64,13 +65,17 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
     public IntegerVector resize(int newSize) {
         GpuExecutor ctx = requireExecutor();
 
-        if (newSize >= capacity) {
+        if (newSize > capacity) {
             GpuResource newBuffer = ctx.allocateIntBuffer(Math.max(newSize, 1));
-            if (capacity > 0)
-                ctx.copyIntBuffer(buffer, newBuffer, Math.min(capacity, newSize));
+            ctx.fillIntBuffer(newBuffer, 0, newSize);
+            if (size > 0) // only the live elements: slots between size and capacity may be stale
+                ctx.copyIntBuffer(buffer, newBuffer, Math.min(size, newSize));
             buffer.release();
             buffer = newBuffer;
             capacity = newSize;
+        } else if (newSize > size) {
+            // growing back inside existing capacity: re-zero slots that may hold stale values
+            ctx.fillIntBuffer(buffer, size, 0, newSize - size);
         }
 
         size = newSize;
@@ -98,15 +103,16 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
 
     @Override
     public IntegerVector clear() {
-        int[] zeros = new int[size];
-        requireExecutor().uploadInts(buffer, zeros, size);
-        //requireExecutor().finish();
+        requireExecutor().fillIntBuffer(buffer, 0, size);
         return this;
     }
 
     @Override
     public Vector internalCopy(int srcStart, int dstStart, int count) {
-        throw new UnsupportedOperationException();
+        if (count < 0 || srcStart < 0 || dstStart < 0 || srcStart + (long) count > size || dstStart + (long) count > size)
+            throw new IndexOutOfBoundsException("internalCopy(" + srcStart + ", " + dstStart + ", " + count + ") on a vector of size " + size);
+        requireExecutor().copyIntWithin(buffer, srcStart, dstStart, count);
+        return this;
     }
 
 
@@ -130,4 +136,4 @@ public final class GpuIntegerVector extends GpuExecutable implements IntegerVect
             buffer = null;
         }
     }
-}
+}
