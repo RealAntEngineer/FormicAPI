@@ -164,6 +164,7 @@ dependencies {
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 
+    testRuntimeOnly("org.lwjgl:lwjgl:${lwjgl_version}:natives-windows")// todo make it choose the platform so it can work on github
     implementation("org.lwjgl:lwjgl-vulkan:${lwjgl_version}")
     implementation("org.lwjgl:lwjgl-shaderc:${lwjgl_version}")
     // JEI

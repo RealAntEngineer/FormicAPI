@@ -35,8 +35,8 @@ import static org.lwjgl.vulkan.VK10.*;
 public final class VulkanKernel implements Kernel {
 
     /** Push constants are limited to 128 bytes on every conforming device: the implicit {@code gsz} plus up to 124 bytes of scalars. */
-    static final int PUSH_BYTES = 128;
-    static final int MAX_BINDINGS = 8;
+    static final        int PUSH_BYTES   = 128;
+    public static final int MAX_BINDINGS = 8;
 
     private static final Pattern BINDING = Pattern.compile("binding\\s*=\\s*(\\d+)");
 
@@ -105,7 +105,7 @@ public final class VulkanKernel implements Kernel {
      * {@code GROUP_ID} helpers (which fold a 2D dispatch back into one linear
      * index so kernels still work past the device's per-dimension group-count limit).
      */
-    private static String wrap(String body, String[] features) {
+    public static String wrap(String body, String[] features) {
         StringBuilder sb = new StringBuilder("#version 450\n");
         for (String feature : features) {
             switch (feature) {
@@ -124,7 +124,7 @@ public final class VulkanKernel implements Kernel {
         return sb.toString();
     }
 
-    private static ByteBuffer compile(String name, String source) {
+    public static ByteBuffer compile(String name, String source) {
         long compiler = shaderc_compiler_initialize();
         long options = shaderc_compile_options_initialize();
         if (compiler == 0L || options == 0L)
