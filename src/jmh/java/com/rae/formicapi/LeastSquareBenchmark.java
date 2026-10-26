@@ -1,9 +1,8 @@
 package com.rae.formicapi;
 
-import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.DynamicCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.HashSparseMatrix;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -33,7 +32,7 @@ public class LeastSquareBenchmark {
     private int maxIter;
 
     private double[]         b;
-    private PaddedCSRMatrix  paddedCSR;
+    private PaddedCSRMatrixD paddedCSR;
     private HashSparseMatrix hash;
     private DynamicCSRMatrix csr;
 
@@ -132,10 +131,10 @@ public class LeastSquareBenchmark {
         return data;
     }
 
-    private static PaddedCSRMatrix toPaddedCSR(
+    private static PaddedCSRMatrixD toPaddedCSR(
             double[][] raw, int rows, int cols, int nnzPerRow) {
 
-        PaddedCSRMatrix m = new PaddedCSRMatrix(rows, cols, nnzPerRow);
+        PaddedCSRMatrixD m = new PaddedCSRMatrixD(rows, cols, nnzPerRow);
 
         for (int r = 0; r < rows; r++) {
             double[] newValues = new double[nnzPerRow];

@@ -19,7 +19,7 @@ import java.util.Arrays;
  * extends this interface with assembly operations.
  *
  * @see MutableMatrix
- * @see CSRMatrix
+ * @see CSRMatrixD
  * @see HashSparseMatrix
  */
 public interface Matrix extends DifferentiableOperator {

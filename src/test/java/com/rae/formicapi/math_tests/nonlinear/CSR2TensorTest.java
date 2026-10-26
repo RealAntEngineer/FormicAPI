@@ -1,6 +1,6 @@
 package com.rae.formicapi.math_tests.nonlinear;
 
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,7 +11,7 @@ public class CSR2TensorTest {
     @Test
     void multiplyJacobianMatchesFiniteDifference() {
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(2, 2);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(2, 2);
 
         /*
          * F0 = 2*x0² + 3*x0*x1

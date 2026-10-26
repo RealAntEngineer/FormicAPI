@@ -90,9 +90,16 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
     // capabilities (see supportsFeature)
     private final boolean hasInt64;
+    private final boolean hasInt32;
+    private final boolean hasInt16;
+    private final boolean hasInt8;
+    private final boolean hasFloat64;
+    private final boolean hasFloat32;
+    private final boolean hasFloat16;
+    private final boolean hasFloat8;
+
     private final boolean hasInt64Atomics;
     private final boolean has8BitStorage;
-    private final boolean hasInt8;
 
     private final int  maxInvocations;
     private final int  maxGroupSizeX;
@@ -184,10 +191,17 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             if (!supported.features().shaderFloat64())
                 throw new RuntimeException("Vulkan device '" + deviceName + "' doesn't support shaderFloat64 (double precision)");
 
-            this.hasInt64 = supported.features().shaderInt64();
+            //TODO add more, in case we need features in the future (yes I know that this implementation is against SOLID principles)
+            this.hasInt64 = supported.features().shaderInt64();//That's longs -> we use 4 * 8 = 32 bits integers
+            this.hasInt32 = true;
+            this.hasInt16 = supported.features().shaderInt16();
+            this.hasInt8 = supported12.shaderInt8();// single byte ints ? who needs that ??
+            this.hasFloat64 = supported.features().shaderFloat64();
+            this.hasFloat32 = true;
+            this.hasFloat16 = supported12.shaderFloat16();
+            this.hasFloat8  = false;
             this.hasInt64Atomics = hasInt64 && supported12.shaderBufferInt64Atomics();
-            this.has8BitStorage = supported12.storageBuffer8BitAccess();
-            this.hasInt8 = supported12.shaderInt8();
+            this.has8BitStorage = supported12.storageBuffer8BitAccess();// that's for bools ? or directly bit's who needs that ??
 
             // enable exactly what we use and what's available
             VkPhysicalDeviceVulkan12Features enable12 = VkPhysicalDeviceVulkan12Features.calloc(stack)
@@ -198,13 +212,15 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             VkPhysicalDeviceFeatures2 enable = VkPhysicalDeviceFeatures2.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2)
                     .pNext(enable12.address());
-            enable.features().shaderFloat64(true).shaderInt64(hasInt64);
+            enable.features()
+                    .shaderFloat64(hasFloat64)
+                    .shaderInt64(hasInt64)
+                    .shaderInt64(hasInt16);
 
             VkDeviceQueueCreateInfo.Buffer queueInfo = VkDeviceQueueCreateInfo.calloc(1, stack);
             queueInfo.get(0)
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                     .queueFamilyIndex(queueFamily)
-                    //.queueCount(1)
                     .pQueuePriorities(stack.floats(1.0f));
 
             VkDeviceCreateInfo deviceInfo = VkDeviceCreateInfo.calloc(stack)
@@ -501,11 +517,16 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
     private boolean supportsFeature(String feature) {
         return switch (feature) {
-            case "shaderFloat64" -> true; // required at selection
+            case "shaderFloat64" -> hasFloat64;
+            case "shaderFloat32" -> hasFloat32;//Always true
+            case "shaderFloat16" -> hasFloat16;
+            case "shaderFloat8" -> hasFloat8;
             case "shaderInt64" -> hasInt64;
+            case "shaderInt32" -> hasInt32;//Always true
+            case "shaderInt16" -> hasInt16;
+            case "shaderInt8" -> hasInt8;
             case "shaderBufferInt64Atomics" -> hasInt64Atomics;
             case "storageBuffer8BitAccess" -> has8BitStorage;
-            case "shaderInt8" -> hasInt8;
             default -> false;
         };
     }
@@ -547,6 +568,11 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
     @Override
     public GpuResource scalar(double value) {
+        return VulkanResource.of(value);
+    }
+
+    @Override
+    public GpuResource scalar(float value) {
         return VulkanResource.of(value);
     }
 
@@ -611,6 +637,12 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     @Override
     public GpuResource allocateDoubleBuffer(int length) {
         return allocate((long) length * Double.BYTES);
+    }
+
+    @Override
+    public GpuResource allocateFloatBuffer(int length) {
+        return allocate((long) length * Float.BYTES);
+
     }
 
     @Override
@@ -832,7 +864,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                                     + " buffer bindings but was given more buffer arguments");
                         buffers[bufferCount++] = arg.buffer;
                     }
-                    case SCALAR -> {
+                    case IMMEDIATE -> {
                         offset = (offset + arg.width - 1) & -arg.width; // std430 scalar alignment == its size
                         if (offset + arg.width > VulkanKernel.PUSH_BYTES)
                             throw new IllegalArgumentException("Kernel '" + kernel.name() + "': scalar arguments exceed the " + VulkanKernel.PUSH_BYTES + "-byte push-constant limit");
@@ -1018,6 +1050,46 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         return out[0];
     }
 
+    @Override
+    public void uploadFloats(GpuResource buffer, float[] host, int length) {
+        uploadFloats(buffer, 0, host, 0, length);
+    }
+
+    @Override
+    public void uploadFloats(GpuResource buffer, int elementOffset, float[] host, int hostOffset, int length) {
+        write(buffer, (long) elementOffset * Float.BYTES, (long) length * Float.BYTES,
+                (staging, pos, n) -> staging.asFloatBuffer().put(host, hostOffset + (int) (pos / Float.BYTES), n / Float.BYTES));
+
+    }
+
+    @Override
+    public void downloadFloats(GpuResource buffer, float[] host, int length) {
+        downloadFloats(buffer, 0, host, length);
+
+    }
+
+    @Override
+    public void downloadFloats(GpuResource buffer, int elementOffset, float[] host, int length) {
+        read(buffer, (long) elementOffset * Float.BYTES, (long) length * Float.BYTES,
+                (staging, pos, n) -> staging.asFloatBuffer().get(host, (int) (pos / Float.BYTES), n / Float.BYTES));
+
+    }
+
+    @Override
+    public void uploadFloatAt(GpuResource buffer, int elementOffset, float value) {
+        write(buffer, (long) elementOffset * Float.BYTES, Float.BYTES, (staging, pos, n) -> staging.putFloat(0, value));
+
+    }
+
+    @Override
+    public float downloadFloatAt(GpuResource buffer, int elementOffset) {
+        float[] out = new float[1];
+        read(buffer, (long) elementOffset * Float.BYTES, Float.BYTES, (staging, pos, n) -> out[0] = staging.getFloat(0));
+        return out[0];
+    }
+
+    // ---- floats
+
     // ---- ints
 
     @Override
@@ -1086,6 +1158,12 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     }
 
     @Override
+    public void copyFloatBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
+        copy(src, (long) srcOffset * Float.BYTES, dst, (long) dstOffset * Float.BYTES, (long) length * Float.BYTES);
+
+    }
+
+    @Override
     public void copyIntBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
         copy(src, (long) srcOffset * Integer.BYTES, dst, (long) dstOffset * Integer.BYTES, (long) length * Integer.BYTES);
     }
@@ -1121,10 +1199,18 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         int lo = (int) bits;
         int hi = (int) (bits >>> 32);
         if (lo == hi) { // includes 0.0: expressible as a repeated 32-bit pattern
+            //TODO WHY ? is it not possible to fill with 64 ? also it's not used afterward so why the
             fill32(buffer, (long) offset * Double.BYTES, (long) length * Double.BYTES, lo);
             return;
         }
         dispatch(fillDoubleKernel, length, 0, new GpuResource[]{buffer, scalar(offset), scalar(value)}, false);
+    }
+
+    @Override
+    public void fillFloatBuffer(GpuResource buffer, int offset, float value, int length) {
+        if (length <= 0) return;
+        int bits = Float.floatToRawIntBits(value);
+        fill32(buffer, (long) offset * Float.BYTES, (long) length * Float.BYTES, bits);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.rae.formicapi.foundation.math.operators.nonlinear;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 
 import java.util.Arrays;
@@ -15,7 +15,7 @@ import java.util.Arrays;
  *     F_i(x) = sum(c[i,j,k] * x[j] * x[k])
  * </pre>
  *
- * <p>This is the quadratic equivalent of {@link PaddedCSRMatrix}.
+ * <p>This is the quadratic equivalent of {@link PaddedCSRMatrixD}.
  *
  * <p>Storage is padded per equation:
  *
@@ -30,7 +30,7 @@ import java.util.Arrays;
  *
  * <p>The sparsity pattern is fixed after construction.
  */
-public class PaddedCSR3Tensor implements PolynomialOperator {
+public class PaddedCSR3TensorD implements PolynomialOperator {
 
     //TODO since this isn't a general purpose 3rd rank tensor maybe drop the tensor name ?
 
@@ -58,7 +58,7 @@ public class PaddedCSR3Tensor implements PolynomialOperator {
      * @param equations        number of output equations
      * @param termsPerEquation fixed number of quadratic terms per equation
      */
-    public PaddedCSR3Tensor(int equations, int termsPerEquation) {
+    public PaddedCSR3TensorD(int equations, int termsPerEquation) {
         this.equations = equations;
         this.termsPerEquation = termsPerEquation;
 

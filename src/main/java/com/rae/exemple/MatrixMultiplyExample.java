@@ -3,7 +3,7 @@ package com.rae.exemple;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 // TODO: add imports for CpuPaddedCSRMatrix, PaddedCSRMatrix, CpuDoubleVector (packages not visible from here)
 
 import java.io.IOException;
@@ -54,7 +54,7 @@ public final class MatrixMultiplyExample {
 
         // ---- setup (not part of the measured/profiled section) ----
         CpuPaddedCSRMatrix matrix       = new CpuPaddedCSRMatrix(rows, rows, ENTRIES_PER_ROW);
-        PaddedCSRMatrix    matrixSerial = new PaddedCSRMatrix(rows, rows, ENTRIES_PER_ROW);
+        PaddedCSRMatrixD   matrixSerial = new PaddedCSRMatrixD(rows, rows, ENTRIES_PER_ROW);
 
         Random   random  = new Random(42);
         double[] values  = new double[ENTRIES_PER_ROW];
@@ -114,7 +114,7 @@ public final class MatrixMultiplyExample {
         System.out.printf("[%s] best: %.2f us/apply%n", label, best);
     }
 
-    private static void generateMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random, CpuPaddedCSRMatrix matrix, PaddedCSRMatrix matrixSerial) {
+    private static void generateMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random, CpuPaddedCSRMatrix matrix, PaddedCSRMatrixD matrixSerial) {
         for (int z = 0; z < nz; z++) {
             for (int y = 0; y < ny; y++) {
                 for (int x = 0; x < nx; x++) {

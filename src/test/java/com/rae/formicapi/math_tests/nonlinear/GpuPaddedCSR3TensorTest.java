@@ -2,14 +2,14 @@ package com.rae.formicapi.math_tests.nonlinear;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSR3TensorD;
 import com.rae.formicapi.math_tests.backend.gpu.GpuTestSupport;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Correctness tests for {@link GpuPaddedCSR3Tensor} - the fixed-structure
+ * Correctness tests for {@link GpuPaddedCSR3TensorD} - the fixed-structure
  * quadratic tensor {@code F_i(x) = sum(c[i,j,k] * x[j] * x[k])}. Not a
  * benchmark: no timing assertions.
  */
@@ -17,7 +17,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void constructionAndMetadata() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(3, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(3, 2);
         tensor.setExecutor(executor);
 
         assertEquals(3, tensor.equations());
@@ -26,13 +26,13 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void constructionRejectsInvalidDimensions() {
-        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSR3Tensor(-1, 2));
-        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSR3Tensor(2, 0));
+        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSR3TensorD(-1, 2));
+        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSR3TensorD(2, 0));
     }
 
     @Test
     void setRowAndGetRowMatchExpected() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(2, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(2, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0, 3.0}, new int[]{0, 1}, new int[]{1, 1}, 2);
@@ -44,7 +44,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void setRowZeroPadsUnusedEntries() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(1, 3);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(1, 3);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{5.0}, new int[]{0}, new int[]{0}, 1);
@@ -54,7 +54,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void setRowRejectsInvalidCounts() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(1, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(1, 2);
         tensor.setExecutor(executor);
 
         assertThrows(IllegalArgumentException.class,
@@ -66,7 +66,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void addAccumulatesOnExistingTerm() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(1, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(1, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0}, new int[]{0}, new int[]{1}, 1);
@@ -77,7 +77,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void addOnMissingTermThrows() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(1, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(1, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0}, new int[]{0}, new int[]{1}, 1);
@@ -87,7 +87,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void addWithZeroValueOnMissingTermIsANoOp() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(1, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(1, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0}, new int[]{0}, new int[]{1}, 1);
@@ -100,7 +100,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
     void applyMatchesExpected() {
         // eq0: F_0 = 2*x0*x1 + 3*x1*x1
         // eq1: F_1 = 1*x0*x0
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(2, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(2, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0, 3.0}, new int[]{0, 1}, new int[]{1, 1}, 2);
@@ -118,7 +118,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
     @Test
     void applyJacobianMatchesExpected() {
         // Same structure as applyMatchesExpected.
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(2, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(2, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0, 3.0}, new int[]{0, 1}, new int[]{1, 1}, 2);
@@ -136,7 +136,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void applyRejectsWrongVectorType() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(1, 1);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(1, 1);
         tensor.setExecutor(executor);
         tensor.setRow(0, new double[]{1.0}, new int[]{0}, new int[]{0}, 1);
 
@@ -148,7 +148,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void resizeGrowKeepsExistingRowsAndZeroFillsNewOnes() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(2, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(2, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0, 3.0}, new int[]{0, 1}, new int[]{1, 1}, 2);
@@ -169,7 +169,7 @@ class GpuPaddedCSR3TensorTest extends GpuTestSupport {
 
     @Test
     void resizeShrinkTruncatesRows() {
-        GpuPaddedCSR3Tensor tensor = new GpuPaddedCSR3Tensor(2, 2);
+        GpuPaddedCSR3TensorD tensor = new GpuPaddedCSR3TensorD(2, 2);
         tensor.setExecutor(executor);
 
         tensor.setRow(0, new double[]{2.0, 3.0}, new int[]{0, 1}, new int[]{1, 1}, 2);

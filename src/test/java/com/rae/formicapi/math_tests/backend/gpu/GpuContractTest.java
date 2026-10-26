@@ -56,11 +56,19 @@ abstract class GpuContractTest {
     static final int[] SIZES = {1, 3, 255, 256, 257, 1000, 10_000};
 
     /** values in [0.5, 2.5): never zero (safe divisors), never huge. */
-    static double[] random(int n, long seed) {
+    static double[] randomD(int n, long seed) {
         Random r = new Random(seed);
         double[] a = new double[n];
         for (int i = 0; i < n; i++)
             a[i] = 0.5 + 2.0 * r.nextDouble();
+        return a;
+    }
+
+    static float[] randomF(int n, long seed) {
+        Random r = new Random(seed);
+        float[] a = new float[n];
+        for (int i = 0; i < n; i++)
+            a[i] = 0.5f + 2.0f * r.nextFloat();
         return a;
     }
 
@@ -86,13 +94,17 @@ abstract class GpuContractTest {
         return new GpuDoubleVector(ex, data.clone());
     }
 
-    GpuIntegerVector gpuInts(int[] data) {
+    GpuFloatVector gpu(float[] data) {
+        return new GpuFloatVector(ex, data.clone());
+    }
+
+    GpuIntegerVector gpu(int[] data) {
         return new GpuIntegerVector(ex, data.clone());
     }
 
     /** Applies {@code op(this, other)} to a CPU pair and a GPU pair holding the same data and compares the results. */
     void compareBinary(String name, int n, BiConsumer<RealVector, RealVector> op) {
-        double[] a = random(n, 1), b = random(n, 2);
+        double[]        a    = randomD(n, 1), b = randomD(n, 2);
         CpuDoubleVector cpuA = new CpuDoubleVector(a.clone());
         op.accept(cpuA, new CpuDoubleVector(b.clone()));
         GpuDoubleVector gpuA = gpu(a);
@@ -109,8 +121,19 @@ abstract class GpuContractTest {
     @Test
     void uploadDownloadRoundTrip() {
         for (int n : new int[]{0, 1, 7, 1000}) {
-            double[] data = random(n, 3);
+            double[] data = randomD(n, 3);
             try (GpuDoubleVector v = gpu(data)) {
+                assertEquals(n, v.size());
+                assertArrayEquals(data, v.download());
+            }
+        }
+    }
+
+    @Test
+    void uploadDownloadFloatRoundTrip() {
+        for (int n : new int[]{0, 1, 7, 1000}) {
+            float[] data = randomF(n, 3);
+            try (GpuFloatVector v = gpu(data)) {
                 assertEquals(n, v.size());
                 assertArrayEquals(data, v.download());
             }
@@ -133,7 +156,7 @@ abstract class GpuContractTest {
     @Test
     void chainedOpsKeepOrdering() {
         // many dependent non-blocking dispatches on the same buffers: exercises ordering between them
-        double[] a = random(5000, 4), b = random(5000, 5);
+        double[]        a   = randomD(5000, 4), b = randomD(5000, 5);
         CpuDoubleVector cpu = new CpuDoubleVector(a.clone());
         CpuDoubleVector cpuB = new CpuDoubleVector(b.clone());
         GpuDoubleVector g = gpu(a), gb = gpu(b);
@@ -146,7 +169,7 @@ abstract class GpuContractTest {
 
     @Test
     void aliasedOperandIsAllowed() {
-        double[] a = random(300, 6);
+        double[] a = randomD(300, 6);
         GpuDoubleVector v = gpu(a);
         v.add(v);
         double[] expected = Arrays.stream(a).map(x -> 2 * x).toArray();
@@ -166,10 +189,10 @@ abstract class GpuContractTest {
 
     @Test
     void operandsOfWrongKindOrSizeAreRejected() {
-        GpuDoubleVector v = gpu(random(10, 7));
+        GpuDoubleVector v = gpu(randomD(10, 7));
         assertThrows(UnsupportedOperationException.class, () -> v.add(new CpuDoubleVector(10)));
-        assertThrows(IllegalArgumentException.class, () -> v.add(gpu(random(5, 8))));
-        assertThrows(IllegalArgumentException.class, () -> v.dot(gpu(random(5, 8))));
+        assertThrows(IllegalArgumentException.class, () -> v.add(gpu(randomD(5, 8))));
+        assertThrows(IllegalArgumentException.class, () -> v.dot(gpu(randomD(5, 8))));
     }
 
     // ------------------------------------------------------------------ GpuDoubleVector: reductions
@@ -177,8 +200,8 @@ abstract class GpuContractTest {
     @Test
     void dotMatchesCpuAcrossGroupBoundaries() {
         for (int n : new int[]{1, 2, 255, 256, 257, 511, 512, 513, 1000, 100_000}) {
-            double[] a = random(n, 9), b = random(n, 10);
-            double expected = new CpuDoubleVector(a.clone()).dot(new CpuDoubleVector(b.clone()));
+            double[] a        = randomD(n, 9), b = randomD(n, 10);
+            double   expected = new CpuDoubleVector(a.clone()).dot(new CpuDoubleVector(b.clone()));
             double actual = gpu(a).dot(gpu(b));
             assertEquals(expected, actual, 1e-10 * Math.abs(expected), "dot n=" + n);
         }
@@ -186,7 +209,7 @@ abstract class GpuContractTest {
 
     @Test
     void normIsSqrtOfSelfDot() {
-        double[] a = random(777, 11);
+        double[] a = randomD(777, 11);
         assertEquals(new CpuDoubleVector(a.clone()).norm(), gpu(a).norm(), 1e-10);
     }
 
@@ -202,11 +225,11 @@ abstract class GpuContractTest {
         int n = 2000;
         int[] idx = distinctIndices(n, 700, 12); // > one work-group, and a strict subset
         for (boolean[] f : FLAGS) {
-            double[] a = random(n, 13), b = random(n, 14);
+            double[]        a   = randomD(n, 13), b = randomD(n, 14);
             CpuDoubleVector cpu = new CpuDoubleVector(a.clone());
             op.apply(cpu, new CpuDoubleVector(b.clone()), new CpuIntegerVector(idx.clone()), f[0], f[1]);
             GpuDoubleVector g = gpu(a);
-            op.apply(g, gpu(b), gpuInts(idx), f[0], f[1]);
+            op.apply(g, gpu(b), gpu(idx), f[0], f[1]);
             try {
                 assertClose(cpu.array(), g.download());
             } catch (AssertionError e) {
@@ -233,17 +256,17 @@ abstract class GpuContractTest {
         int n = 2000;
         int[] idx = distinctIndices(n, 1000, 15);
         for (boolean[] f : FLAGS) {
-            double[] a = random(n, 16), b = random(n, 17);
-            double expected = new CpuDoubleVector(a.clone()).skippedDot(new CpuDoubleVector(b.clone()), new CpuIntegerVector(idx.clone()), f[0], f[1]);
-            double actual = gpu(a).skippedDot(gpu(b), gpuInts(idx), f[0], f[1]);
+            double[] a        = randomD(n, 16), b = randomD(n, 17);
+            double   expected = new CpuDoubleVector(a.clone()).skippedDot(new CpuDoubleVector(b.clone()), new CpuIntegerVector(idx.clone()), f[0], f[1]);
+            double actual = gpu(a).skippedDot(gpu(b), gpu(idx), f[0], f[1]);
             assertEquals(expected, actual, 1e-10 * Math.abs(expected), "thisSkip=" + f[0] + " otherSkip=" + f[1]);
         }
     }
 
     @Test
     void skippedOpsRequireAtLeastOneSkipFlag() {
-        GpuDoubleVector v = gpu(random(10, 18)), o = gpu(random(10, 19));
-        GpuIntegerVector idx = gpuInts(new int[]{1, 2, 3});
+        GpuDoubleVector  v   = gpu(randomD(10, 18)), o = gpu(randomD(10, 19));
+        GpuIntegerVector idx = gpu(new int[]{1, 2, 3});
         assertThrows(IllegalArgumentException.class, () -> v.skippedAdd(o, idx, false, false));
         assertThrows(IllegalArgumentException.class, () -> v.skippedAxpy(1.0, o, idx, false, false));
         assertThrows(IllegalArgumentException.class, () -> v.skippedDot(o, idx, false, false));
@@ -253,12 +276,12 @@ abstract class GpuContractTest {
 
     @Test
     void gatherFromDistinctSource() {
-        double[] src = random(1000, 20);
+        double[] src = randomD(1000, 20);
         int[] idx = distinctIndices(1000, 400, 21);
         double[] target = new double[1000];
         Arrays.fill(target, -1);
         GpuDoubleVector t = gpu(target);
-        t.gather(gpu(src), gpuInts(idx));
+        t.gather(gpu(src), gpu(idx));
 
         double[] expected = target.clone();
         for (int i = 0; i < idx.length; i++) expected[i] = src[idx[i]];
@@ -268,11 +291,11 @@ abstract class GpuContractTest {
     @Test
     void gatherAliasedAppliesAnyPermutation() {
         int n = 500;
-        double[] a = random(n, 22);
+        double[] a = randomD(n, 22);
         int[] reverse = new int[n];
         for (int i = 0; i < n; i++) reverse[i] = n - 1 - i; // not safe in place on the CPU; must work here
         GpuDoubleVector v = gpu(a);
-        v.gather(v, gpuInts(reverse));
+        v.gather(v, gpu(reverse));
 
         double[] expected = new double[n];
         for (int i = 0; i < n; i++) expected[i] = a[n - 1 - i];
@@ -281,8 +304,8 @@ abstract class GpuContractTest {
 
     @Test
     void gatherValidatesTargetSize() {
-        GpuDoubleVector small = gpu(random(2, 23));
-        assertThrows(IllegalArgumentException.class, () -> small.gather(gpu(random(10, 24)), gpuInts(new int[]{0, 1, 2})));
+        GpuDoubleVector small = gpu(randomD(2, 23));
+        assertThrows(IllegalArgumentException.class, () -> small.gather(gpu(randomD(10, 24)), gpu(new int[]{0, 1, 2})));
     }
 
     @Test
@@ -300,7 +323,7 @@ abstract class GpuContractTest {
 
     @Test
     void copyCloneAndClear() {
-        double[] a = random(321, 25);
+        double[] a = randomD(321, 25);
         GpuDoubleVector src = gpu(a);
 
         GpuDoubleVector dst = new GpuDoubleVector(ex, 3);
@@ -316,7 +339,7 @@ abstract class GpuContractTest {
 
     @Test
     void internalCopyBehavesLikeArraycopyIncludingOverlap() {
-        double[] a = random(100, 26);
+        double[] a = randomD(100, 26);
         int[][] cases = {{0, 50, 30}, {50, 0, 30}, {0, 10, 50}, {10, 0, 50}, {5, 5, 20}, {0, 0, 0}};
         for (int[] c : cases) {
             double[] expected = a.clone();
@@ -334,7 +357,7 @@ abstract class GpuContractTest {
     @Test
     void integerVectorBasics() {
         int[] data = {5, 4, 3, 2, 1, 0};
-        GpuIntegerVector v = gpuInts(data);
+        GpuIntegerVector v = gpu(data);
         assertArrayEquals(data, v.download());
         v.set(42, 2);
         assertEquals(42, v.get(2));
@@ -354,7 +377,7 @@ abstract class GpuContractTest {
         for (int[] c : new int[][]{{0, 3, 5}, {3, 0, 5}, {0, 5, 5}}) {
             int[] expected = a.clone();
             System.arraycopy(expected, c[0], expected, c[1], c[2]);
-            GpuIntegerVector v = gpuInts(a);
+            GpuIntegerVector v = gpu(a);
             v.internalCopy(c[0], c[1], c[2]);
             assertArrayEquals(expected, v.download(), Arrays.toString(c));
         }
@@ -410,14 +433,14 @@ abstract class GpuContractTest {
         int[] idx = {6, 3, 0, 1};
         GpuBooleanVector t = new GpuBooleanVector(ex, 7);
         try {
-            t.gather(new GpuBooleanVector(ex, src), gpuInts(idx));
+            t.gather(new GpuBooleanVector(ex, src), gpu(idx));
         } catch (UnsupportedOperationException e) {
             Assumptions.abort("device lacks 8-bit storage: " + e.getMessage());
         }
         assertArrayEquals(new boolean[]{true, true, true, false, false, false, false}, t.download());
 
         GpuBooleanVector alias = new GpuBooleanVector(ex, src);
-        alias.gather(alias, gpuInts(new int[]{6, 5, 4, 3, 2, 1, 0}));
+        alias.gather(alias, gpu(new int[]{6, 5, 4, 3, 2, 1, 0}));
         assertArrayEquals(new boolean[]{true, false, true, true, false, false, true}, alias.download());
     }
 
@@ -425,7 +448,7 @@ abstract class GpuContractTest {
 
     static final int ROWS = 60, NNZ = 5;
 
-    private void fillMatrices(CpuPaddedCSRMatrix cpu, GpuPaddedCSRMatrix gpuM) {
+    private void fillMatrices(CpuPaddedCSRMatrix cpu, GpuPaddedCSRMatrixD gpuM) {
         Random r = new Random(30);
         for (int row = 0; row < ROWS; row++) {
             int count = 1 + r.nextInt(NNZ); // padded rows too
@@ -441,11 +464,11 @@ abstract class GpuContractTest {
     void csrMatvecMatchesCpu() {
         CpuPaddedCSRMatrix cpu = new CpuPaddedCSRMatrix(ROWS, ROWS, NNZ);
         cpu.setExecutor(cpuEx);
-        GpuPaddedCSRMatrix g = new GpuPaddedCSRMatrix(ROWS, ROWS, NNZ);
+        GpuPaddedCSRMatrixD g = new GpuPaddedCSRMatrixD(ROWS, ROWS, NNZ);
         g.setExecutor(ex);
         fillMatrices(cpu, g);
 
-        double[] x = random(ROWS, 31);
+        double[] x = randomD(ROWS, 31);
         CpuDoubleVector cpuOut = new CpuDoubleVector(ROWS);
         cpu.apply(new CpuDoubleVector(x.clone()), cpuOut);
 
@@ -460,11 +483,11 @@ abstract class GpuContractTest {
     void csrTransposeMatvecMatchesCpu() {
         CpuPaddedCSRMatrix cpu = new CpuPaddedCSRMatrix(ROWS, ROWS, NNZ);
         cpu.setExecutor(cpuEx);
-        GpuPaddedCSRMatrix g = new GpuPaddedCSRMatrix(ROWS, ROWS, NNZ);
+        GpuPaddedCSRMatrixD g = new GpuPaddedCSRMatrixD(ROWS, ROWS, NNZ);
         g.setExecutor(ex);
         fillMatrices(cpu, g);
 
-        double[] x = random(ROWS, 32);
+        double[] x = randomD(ROWS, 32);
         CpuDoubleVector cpuOut = new CpuDoubleVector(ROWS);
         cpu.transposeApply(new CpuDoubleVector(x.clone()), cpuOut);
 
@@ -480,14 +503,14 @@ abstract class GpuContractTest {
 
     @Test
     void csrGetValuesReadsStoredEntries() {
-        GpuPaddedCSRMatrix g = new GpuPaddedCSRMatrix(4, 4, 2);
+        GpuPaddedCSRMatrixD g = new GpuPaddedCSRMatrixD(4, 4, 2);
         g.setExecutor(ex);
         g.setRow(0, new double[]{1.5, 2.5}, new int[]{0, 3}, 2);
         g.setRow(2, new double[]{7.0}, new int[]{2}, 1);
 
-        GpuDoubleVector out = (GpuDoubleVector) g.getValues(gpuInts(new int[]{0, 0, 2, 2, 1}), gpuInts(new int[]{0, 3, 2, 0, 1}));
+        GpuDoubleVector out = (GpuDoubleVector) g.getValues(gpu(new int[]{0, 0, 2, 2, 1}), gpu(new int[]{0, 3, 2, 0, 1}));
         assertArrayEquals(new double[]{1.5, 2.5, 7.0, 0.0, 0.0}, out.download());
-        assertThrows(IllegalArgumentException.class, () -> g.getValues(gpuInts(new int[]{0}), gpuInts(new int[]{0, 1})));
+        assertThrows(IllegalArgumentException.class, () -> g.getValues(gpu(new int[]{0}), gpu(new int[]{0, 1})));
         g.close();
     }
 
@@ -496,7 +519,7 @@ abstract class GpuContractTest {
         final int eq = 40, terms = 4;
         CpuPaddedCSR3Tensor cpu = new CpuPaddedCSR3Tensor(eq, terms);
         cpu.setExecutor(cpuEx);
-        GpuPaddedCSR3Tensor g = new GpuPaddedCSR3Tensor(eq, terms);
+        GpuPaddedCSR3TensorD g = new GpuPaddedCSR3TensorD(eq, terms);
         g.setExecutor(ex);
 
         // add() only updates entries that already exist, so structure is defined row by row with setRow
@@ -514,7 +537,7 @@ abstract class GpuContractTest {
             g.setRow(e, vals, var1, var2, terms);
         }
 
-        double[] x = random(eq, 34), d = random(eq, 35);
+        double[]        x      = randomD(eq, 34), d = randomD(eq, 35);
         CpuDoubleVector cpuOut = new CpuDoubleVector(eq), cpuJ = new CpuDoubleVector(eq);
         cpu.apply(new CpuDoubleVector(x.clone()), cpuOut);
         cpu.multiplyJacobian(new CpuDoubleVector(x.clone()), new CpuDoubleVector(d.clone()), cpuJ);
@@ -532,7 +555,7 @@ abstract class GpuContractTest {
         final int order = 4, eq = 30, terms = 3;
         CpuPaddedCSRTensor cpu = new CpuPaddedCSRTensor(order, eq, terms);
         cpu.setExecutor(cpuEx);
-        GpuPaddedCSRTensor g = new GpuPaddedCSRTensor(order, eq, terms);
+        GpuPaddedCSRTensorD g = new GpuPaddedCSRTensorD(order, eq, terms);
         g.setExecutor(ex);
 
         Random r = new Random(36);
@@ -549,7 +572,7 @@ abstract class GpuContractTest {
             g.setRow(e, vals, vars, count);
         }
 
-        double[] x = random(eq, 37), d = random(eq, 38);
+        double[]        x      = randomD(eq, 37), d = randomD(eq, 38);
         CpuDoubleVector cpuOut = new CpuDoubleVector(eq), cpuJ = new CpuDoubleVector(eq);
         cpu.apply(new CpuDoubleVector(x.clone()), cpuOut);
         cpu.applyJacobian(new CpuDoubleVector(x.clone()), new CpuDoubleVector(d.clone()), cpuJ);

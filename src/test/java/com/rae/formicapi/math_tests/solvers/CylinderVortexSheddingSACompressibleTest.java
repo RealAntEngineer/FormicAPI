@@ -2,8 +2,8 @@ package com.rae.formicapi.math_tests.solvers;
 
 import com.rae.formicapi.foundation.plotting.LiveChartWindow;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
@@ -70,7 +70,7 @@ public class CylinderVortexSheddingSACompressibleTest {
                                       double uInf, double muInf,
                                       double cb1, double cw1, double sigma, double cv,
                                       double rho0, double soundSpeed, double invDt,
-                                      PaddedCSR3Tensor C, PaddedCSRMatrix A, double[] scaling, DofRole[] role,
+                                      PaddedCSR3TensorD C, PaddedCSRMatrixD A, double[] scaling, DofRole[] role,
                                       double[] bcValue, double[] wallDistance) {
 
         double invHx = 1.0 / hx;
@@ -340,8 +340,8 @@ public class CylinderVortexSheddingSACompressibleTest {
         Runtime rt = Runtime.getRuntime();
         System.out.printf("Max heap: %.2f GB%n", rt.maxMemory() / 1024.0 / 1024.0 / 1024.0);
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(n, 13);
-        PaddedCSRMatrix  A = new PaddedCSRMatrix(n, n, 7);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(n, 13);
+        PaddedCSRMatrixD  A = new PaddedCSRMatrixD(n, n, 7);
 
         double[] x = new double[n];
         double[] scaling = new double[n];

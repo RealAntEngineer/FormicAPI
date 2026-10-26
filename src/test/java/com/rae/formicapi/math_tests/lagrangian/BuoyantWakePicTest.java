@@ -6,7 +6,7 @@ import com.rae.formicapi.foundation.math.lagrangian.VelocityResampler;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuBooleanVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
@@ -213,8 +213,8 @@ public class BuoyantWakePicTest {
                     fluidCells.add(new int[]{i, j});
                 }
 
-        PaddedCSRMatrix A = new PaddedCSRMatrix(nFluid, nFluid, 5);
-        double[] rowVals = new double[5];
+        PaddedCSRMatrixD A       = new PaddedCSRMatrixD(nFluid, nFluid, 5);
+        double[]         rowVals = new double[5];
         int[] rowCols = new int[5];
         for (int k = 0; k < nFluid; k++) {
             int i = fluidCells.get(k)[0], j = fluidCells.get(k)[1];

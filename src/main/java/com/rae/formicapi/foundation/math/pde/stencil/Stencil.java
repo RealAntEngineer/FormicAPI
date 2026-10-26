@@ -1,6 +1,6 @@
 package com.rae.formicapi.foundation.math.pde.stencil;
 
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 
 public class Stencil {
 
@@ -9,7 +9,7 @@ public class Stencil {
 
 
     //stamp indices from "from" to "to"
-    void stamp(PaddedCSRMatrix A, double[] b, int from, int to) {
+    void stamp(PaddedCSRMatrixD A, double[] b, int from, int to) {
 
     }
 

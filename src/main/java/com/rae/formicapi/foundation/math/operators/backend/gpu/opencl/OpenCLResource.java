@@ -34,7 +34,6 @@ public final class OpenCLResource implements GpuResource {
 
     private static final cl_event[] NONE = new cl_event[0];
 
-    private enum Kind { BUFFER, IMMEDIATE, LOCAL }
 
     final long size;
     final @Nullable Pointer pointer; // set for BUFFER (points at mem) and IMMEDIATE (points at the value); null for LOCAL
@@ -60,6 +59,10 @@ public final class OpenCLResource implements GpuResource {
 
     public static OpenCLResource of(double value) {
         return new OpenCLResource(Sizeof.cl_double, Kind.IMMEDIATE, null, Pointer.to(new double[]{value}));
+    }
+
+    public static OpenCLResource of(float value) {
+        return new OpenCLResource(Sizeof.cl_float, Kind.IMMEDIATE, null, Pointer.to(new float[]{value}));
     }
 
     /** {@code __local} scratch space, sized in bytes -- no {@code cl_mem}; OpenCL allocates this per work-group at launch, not us. */

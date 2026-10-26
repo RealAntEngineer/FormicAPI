@@ -1,8 +1,8 @@
 package com.rae.formicapi.math_tests.solvers;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 
@@ -21,9 +21,9 @@ class DNSTest {
 
         int cells = nx * ny;
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(cells * 2, 9);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(cells * 2, 9);
 
-        PaddedCSRMatrix A = new PaddedCSRMatrix(cells * 2, cells * 2, 5);
+        PaddedCSRMatrixD A = new PaddedCSRMatrixD(cells * 2, cells * 2, 5);
 
         double[] x = new double[cells * 2];
         double[] b = new double[cells * 2];
@@ -162,8 +162,8 @@ class DNSTest {
         int cells = nx * ny;
         int n = cells * 3;
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(n, 4);
-        PaddedCSRMatrix  A = new PaddedCSRMatrix(n, n, 7);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(n, 4);
+        PaddedCSRMatrixD  A = new PaddedCSRMatrixD(n, n, 7);
 
         double[] x = new double[n];
         double[] b = new double[n];
@@ -372,7 +372,7 @@ class DNSTest {
     }
 
     static void buildNavierStokesOperator(int nx, int ny, double nu, double pressurePenalty,
-                                          double invDt, PaddedCSR3Tensor C, PaddedCSRMatrix A) {
+                                          double invDt, PaddedCSR3TensorD C, PaddedCSRMatrixD A) {
         // invDt = 1/dt for implicit time stepping (added to the u,v diagonal
         // as a mass term), or 0 for a pure steady-state solve.
 

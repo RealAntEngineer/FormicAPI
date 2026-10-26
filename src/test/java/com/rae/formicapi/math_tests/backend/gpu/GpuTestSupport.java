@@ -1,6 +1,6 @@
 package com.rae.formicapi.math_tests.backend.gpu;
 
-import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.GpuProfiler;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuProfiler;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -25,13 +25,13 @@ public abstract class GpuTestSupport {
     protected static final double EPSILON = 1e-9;
 
     protected OpenCLGpuExecutor executor;
-    protected GpuProfiler profiler;
+    protected OpenCLGpuProfiler profiler;
 
     @BeforeEach
     protected void setUpExecutor() {
         try {
             executor = new OpenCLGpuExecutor();
-            profiler = new GpuProfiler();
+            profiler = new OpenCLGpuProfiler();
             executor.setProfiler(profiler);
         } catch (Throwable e) {
             executor = null;
@@ -45,9 +45,9 @@ public abstract class GpuTestSupport {
         if (executor != null)
             executor.close();
         if (profiler!=null){
-            Map<String, GpuProfiler.Stats> stats =  profiler.flush();
+            Map<String, OpenCLGpuProfiler.Stats> stats =  profiler.flush();
             System.out.println("final profiling results :\n");
-            for (GpuProfiler.Stats stat :stats.values()){
+            for (OpenCLGpuProfiler.Stats stat :stats.values()){
                 System.out.println(stat);
             }
         }

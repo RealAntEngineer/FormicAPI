@@ -1,0 +1,279 @@
+package com.rae.formicapi.foundation.math.operators.linear;
+
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
+
+import java.util.Arrays;
+
+/**
+ * Mutable CSR matrix with a fixed sparsity structure.
+ *
+ * <p>This implementation assumes:
+ * <ul>
+ *     <li>The sparsity pattern is known at construction time</li>
+ *     <li>No structural modifications (no insert/delete of non-zeros)</li>
+ *     <li>Only numerical updates are allowed</li>
+ * </ul>
+ *
+ * <p>All (row, col) pairs MUST already exist in the CSR structure.
+ * If a non-existing entry is accessed or modified, the implementation
+ * throws an {@link IllegalStateException}.
+ *
+ * <p>This design is optimized for:
+ * <ul>
+ *     <li>Finite element solvers (FEM)</li>
+ *     <li>Iterative linear solvers (CG, GMRES, etc.)</li>
+ *     <li>Large sparse systems with fixed connectivity</li>
+ * </ul>
+ */
+@SuppressWarnings("unused")
+public class PaddedCSRMatrixD implements MutableMatrix {
+
+    private int rows;
+    private int cols;
+    private final int nnzPerRow;
+
+    /**
+     * CSR values (mutable)
+     */
+    private double[] values;
+
+    /**
+     * CSR column indices
+     */
+    private int[] colIndex;
+
+    /**
+     * Constructs a fully defined CSR matrix.
+     *
+     * <p>The structure MUST already be consistent:
+     * <ul>
+     *     <li>{@code values.length == colIndex.length == nnz}</li>
+     *     <li>{@code rowPtr.length == rows + 1}</li>
+     *     <li>{@code rowPtr[rows] == nnz}</li>
+     * </ul>
+     *
+     * <p>This constructor builds the fast lookup table used for updates.
+     *
+     * @param rows number of rows
+     * @param cols number of columns
+     *
+     */
+    public PaddedCSRMatrixD(int rows, int cols, int nnzPerRow) {
+
+        this.rows = rows;
+        this.cols = cols;
+        this.nnzPerRow = nnzPerRow;
+
+        this.values = new double[rows * nnzPerRow];
+        this.colIndex = new int[rows * nnzPerRow];
+    }
+
+    private PaddedCSRMatrixD(int rows, int cols, int nnzPerRow, double[] values, int[] colIndex) {
+        this.rows = rows;
+        this.cols = cols;
+        this.nnzPerRow = nnzPerRow;
+        this.values = values;
+        this.colIndex = colIndex;
+    }
+
+    /**
+     * Resizes this matrix in-place.
+     *
+     * <p>If growing, new entries are zero initialized and column indices are
+     * initialized to 0. Caller must populate new rows using {@link #setRow}.
+     * If shrinking, trailing rows are discarded logically.
+     *
+     * @param newRows new row/column count
+     */
+    public void resize(int newRows) {
+        int requiredLength = newRows * nnzPerRow;
+
+        if (requiredLength > values.length) {
+            values = Arrays.copyOf(values, requiredLength);
+            colIndex = Arrays.copyOf(colIndex, requiredLength);
+        }
+
+        rows = newRows;
+        cols = newRows;
+    }
+    /**
+     * Adds a value to an existing entry in the CSR structure.
+     *
+     * <p>This method only works if the (row, col) entry already exists.
+     * If it does not exist, an {@link IllegalStateException} is thrown.
+     *
+     * <p>Complexity: O(nnz_per_row) worst case (typically ~7).
+     *
+     * @param row   row index
+     * @param col   column index
+     * @param value value to add
+     */
+    @Override
+    public void add(int row, int col, double value) {
+        if (value == 0.0) return;
+
+        int idx = findIndex(row, col);
+        values[idx] += value;
+    }
+
+    /**
+     * Sets a value in an existing CSR entry.
+     *
+     * <p>If the value is 0, the method simply writes 0 but does not remove
+     * the entry (structure is fixed).
+     *
+     * <p>If the (row, col) entry does not exist, an exception is thrown.
+     *
+     * @param row   row index
+     * @param col   column index
+     * @param value new value
+     */
+    @Override
+    public void set(int row, int col, double value) {
+        int idx = findIndex(row, col);
+        values[idx] = value;
+    }
+
+    /**
+     * Finds CSR index for a (row, col) pair.
+     *
+     * @throws IllegalStateException if entry does not exist
+     */
+    private int findIndex(int row, int col) {
+        int base = row * nnzPerRow;
+
+        for (int i = 0; i < nnzPerRow; i++) {
+            if (colIndex[base + i] == col) {
+                return base + i;
+            }
+        }
+
+        throw new IllegalStateException(
+                "CSR entry does not exist: (" + row + "," + col + ")"
+        );
+    }
+
+
+    @Override
+    public void setRow(int row, double[] newValues, int[] newCols, int count) {
+
+        if (newValues.length > nnzPerRow || newCols.length != newValues.length) {
+            throw new IllegalArgumentException(
+                    "Expected arrays of size " + nnzPerRow +
+                            " but got values=" + newValues.length +
+                            " cols=" + newCols.length
+            );
+        }
+
+        int base = row * nnzPerRow;
+        for (int i = 0; i < count; i++) {
+            colIndex[base + i] = newCols[i];
+            values[base + i] = newValues[i];
+        }
+        // zero out trailing slots — both value AND colIndex set to safe default (diagonal)
+        for (int i = count; i < nnzPerRow; i++) {
+            colIndex[base + i] = row; // points to diagonal — safe for both multiply paths
+            values[base + i] = 0.0;
+        }
+    }
+
+    @Override
+    public void multiply(double[] x, double[] result) {
+        for (int r = 0; r < rows; r++) {
+
+            int    base = r * nnzPerRow;
+            double sum  = 0.0;
+
+            for (int i = 0; i < nnzPerRow; i++) {
+                sum += values[base + i] * x[colIndex[base + i]];
+            }
+
+            result[r] = sum;
+        }
+    }
+
+    @Override
+    public void transposeApply(RealVector x, RealVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
+            double[] resArr = resCpu.array();
+            double[] xArr = xCpu.array();
+            Arrays.fill(resArr, 0.0);
+
+            for (int r = 0; r < rows; r++) {
+
+                int base = r * nnzPerRow;
+
+                for (int i = 0; i < nnzPerRow; i++) {
+                    resArr[colIndex[base + i]] += values[base + i] * xArr[r];
+                }
+            }
+        } else {
+            throw new UnsupportedOperationException(
+                    "Matrix.transposeApply(...) PaddedCSRMatrix only supports CpuDoubleVector operands; got x="
+                            + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName());
+        }
+
+    }
+
+    @Override
+    public int rows() {
+        return rows;
+    }
+
+    @Override
+    public int cols() {
+        return cols;
+    }
+
+    @Override
+    public double get(int r, int c) {
+        int base = r * nnzPerRow;
+
+        for (int i = 0; i < nnzPerRow; i++) {
+            if (colIndex[base + i] == c) {
+                return values[base + i];
+            }
+        }
+
+        return 0.0;
+    }
+
+    @Override
+    public RealVector getValues(IntegerVector r, IntegerVector c) {
+        if (r instanceof CpuIntegerVector rCpu && c instanceof CpuIntegerVector cCpu) {
+            int[] rArr = rCpu.array();
+            int[] cArr = cCpu.array();
+
+            double[] values = new double[rCpu.size()];
+            for (int i = 0; i < rCpu.size(); i++) {
+                values[i] = get(rArr[i], cArr[i]);
+            }
+
+            return new CpuDoubleVector(values);
+
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public double[] getRowValues(int r) {
+        int base = r * nnzPerRow;
+
+        double[] out = new double[nnzPerRow];
+        System.arraycopy(values, base, out, 0, nnzPerRow);
+
+        return out;
+    }
+
+    public int[] getRowCols(int r) {
+        int base = r * nnzPerRow;
+
+        int[] out = new int[nnzPerRow];
+        System.arraycopy(colIndex, base, out, 0, nnzPerRow);
+
+        return out;
+    }
+}

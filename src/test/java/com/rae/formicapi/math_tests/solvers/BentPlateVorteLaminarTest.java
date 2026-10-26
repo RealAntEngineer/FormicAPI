@@ -1,14 +1,13 @@
 package com.rae.formicapi.math_tests.solvers;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import com.rae.formicapi.foundation.plotting.StreamlineRenderer;
 import com.rae.formicapi.foundation.plotting.VectorFieldRenderer;
-import org.junit.jupiter.api.Test;
 
 /**
  * Plain laminar incompressible flow past a flat plate held normal
@@ -94,7 +93,7 @@ public class BentPlateVorteLaminarTest {
                                    double plateCenterX, double plateCenterY, double plateHalfThickness, double plateHalfHeight,
                                    double bendAmount,
                                    double uInf, double pressurePenalty, double invDt,
-                                   PaddedCSR3Tensor C, PaddedCSRMatrix A, double[] scaling, DofRole[] role, double[] bcValue) {
+                                   PaddedCSR3TensorD C, PaddedCSRMatrixD A, double[] scaling, DofRole[] role, double[] bcValue) {
 
         double invHx = 1.0 / hx;
         double invHy = 1.0 / hy;
@@ -329,8 +328,8 @@ public class BentPlateVorteLaminarTest {
         Runtime rt = Runtime.getRuntime();
         System.out.printf("Max heap: %.2f GB%n", rt.maxMemory() / 1024.0 / 1024.0 / 1024.0);
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(n, 4);
-        PaddedCSRMatrix  A = new PaddedCSRMatrix(n, n, 7);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(n, 4);
+        PaddedCSRMatrixD  A = new PaddedCSRMatrixD(n, n, 7);
 
         double[] x = new double[n];
         double[] scaling = new double[n];

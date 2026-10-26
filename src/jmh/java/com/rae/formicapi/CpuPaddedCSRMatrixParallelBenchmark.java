@@ -3,17 +3,10 @@ package com.rae.formicapi;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
-import org.openjdk.jmh.runner.Runner;
-import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.Options;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-import java.util.HashSet;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**

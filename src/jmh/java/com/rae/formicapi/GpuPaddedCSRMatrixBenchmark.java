@@ -3,7 +3,7 @@ package com.rae.formicapi;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutable;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrixD;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -11,9 +11,9 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
- * JMH benchmark for the GPU-backed {@link GpuPaddedCSRMatrix}:
- * {@link GpuPaddedCSRMatrix#apply} (Ax, one work-item per row, the
- * {@code csr_matvec} kernel) and {@link GpuPaddedCSRMatrix#transposeApply}
+ * JMH benchmark for the GPU-backed {@link GpuPaddedCSRMatrixD}:
+ * {@link GpuPaddedCSRMatrixD#apply} (Ax, one work-item per row, the
+ * {@code csr_matvec} kernel) and {@link GpuPaddedCSRMatrixD#transposeApply}
  * (Aᵀx, a scatter-add via {@code csr_matvec_transpose} using a
  * compare-and-swap atomic double-add, since OpenCL has no native one - see
  * {@code GpuExecutor.ATOMIC_KERNEL_SOURCE}).
@@ -68,9 +68,9 @@ public class GpuPaddedCSRMatrixBenchmark {
     @Param({"16", "64", "256", "1024"})
     public int blocks;
 
-    private OpenCLGpuExecutor  executor;
-    private GpuPaddedCSRMatrix matrix;
-    private GpuDoubleVector x;
+    private OpenCLGpuExecutor   executor;
+    private GpuPaddedCSRMatrixD matrix;
+    private GpuDoubleVector     x;
     private GpuDoubleVector result;
 
     @Setup(Level.Trial)
@@ -122,9 +122,9 @@ public class GpuPaddedCSRMatrixBenchmark {
         bh.consume(result);
     }
 
-    private GpuPaddedCSRMatrix createPaddedMatrix(Random random, int rows, OpenCLGpuExecutor executor) {
+    private GpuPaddedCSRMatrixD createPaddedMatrix(Random random, int rows, OpenCLGpuExecutor executor) {
 
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(rows, rows, 7);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(rows, rows, 7);
         matrix.setExecutor(executor);
 
         for (int b = 0; b < blocks; b++) {

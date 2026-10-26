@@ -27,21 +27,30 @@ import com.rae.formicapi.foundation.math.operators.backend.gpu.vulkan.VulkanGpuE
 public interface GpuExecutor extends BackendExecutor {
 
     GpuResource allocateDoubleBuffer(int length);
+    GpuResource allocateFloatBuffer(int length);
     GpuResource allocateIntBuffer(int length);
     GpuResource allocateByteBuffer(int length);
 
     //void release(GpuResource buffer);
 
-    void uploadDoubles(GpuResource buffer, double[] host, int length);
+    void uploadDoubles(GpuResource buffer, double[] host, int length);//TODO could be made default
     void uploadDoubles(GpuResource buffer, int elementOffset, double[] host, int hostOffset, int length);
-    void downloadDoubles(GpuResource buffer, double[] host, int length);
+    void downloadDoubles(GpuResource buffer, double[] host, int length);//TODO could be made default
     void downloadDoubles(GpuResource buffer, int elementOffset, double[] host, int length);
     void uploadDoubleAt(GpuResource buffer, int elementOffset, double value);
     double downloadDoubleAt(GpuResource buffer, int elementOffset);
 
-    void uploadInts(GpuResource buffer, int[] host, int length);
+    void uploadFloats(GpuResource buffer, float[] host, int length);//TODO could be made default
+    void uploadFloats(GpuResource buffer, int elementOffset, float[] host, int hostOffset, int length);
+    void downloadFloats(GpuResource buffer, float[] host, int length);//TODO could be made default
+    void downloadFloats(GpuResource buffer, int elementOffset, float[] host, int length);
+    void uploadFloatAt(GpuResource buffer, int elementOffset, float value);
+    float downloadFloatAt(GpuResource buffer, int elementOffset);
+
+
+    void uploadInts(GpuResource buffer, int[] host, int length);//TODO could be made default
     void uploadInts(GpuResource buffer, int elementOffset, int[] host, int hostOffset, int length);
-    void downloadInts(GpuResource buffer, int[] host, int length);
+    void downloadInts(GpuResource buffer, int[] host, int length);//TODO could be made default
     void downloadInts(GpuResource buffer, int elementOffset, int[] host, int length);
     void uploadIntAt(GpuResource buffer, int elementOffset, int value);
     int downloadIntAt(GpuResource buffer, int elementOffset);
@@ -52,12 +61,21 @@ public interface GpuExecutor extends BackendExecutor {
     byte downloadByteAt(GpuResource buffer, int elementOffset);
 
     default void copyDoubleBuffer(GpuResource src, GpuResource dst, int length) { copyDoubleBuffer(src, 0, dst, 0, length); }
+    default void copyFloatBuffer(GpuResource src, GpuResource dst, int length) { copyFloatBuffer(src, 0, dst, 0, length); }
+
     default void copyIntBuffer(GpuResource src, GpuResource dst, int length)    { copyIntBuffer(src, 0, dst, 0, length); }
     default void copyByteBuffer(GpuResource src, GpuResource dst, int length)   { copyByteBuffer(src, 0, dst, 0, length); }
 
     /** Copies {@code length} elements from {@code src[srcOffset..]} to {@code dst[dstOffset..]} (element offsets). {@code src} and {@code dst} may be the same buffer only if the two ranges don't overlap -- see {@link #copyDoubleWithin}. */
     void copyDoubleBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length);
+
+    /** Copies {@code length} elements from {@code src[srcOffset..]} to {@code dst[dstOffset..]} (element offsets). {@code src} and {@code dst} may be the same buffer only if the two ranges don't overlap -- see {@link #copyFloatWithin}. */
+    void copyFloatBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length);
+
+    /** Copies {@code length} elements from {@code src[srcOffset..]} to {@code dst[dstOffset..]} (element offsets). {@code src} and {@code dst} may be the same buffer only if the two ranges don't overlap -- see {@link #copyIntWithin}. */
     void copyIntBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length);
+
+    /** Copies {@code length} elements from {@code src[srcOffset..]} to {@code dst[dstOffset..]} (element offsets). {@code src} and {@code dst} may be the same buffer only if the two ranges don't overlap -- see {@link #copyByteWithin}. */
     void copyByteBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length);
 
     /** {@code System.arraycopy}-style move inside one buffer: overlapping ranges are handled through a temporary. */
@@ -75,6 +93,22 @@ public interface GpuExecutor extends BackendExecutor {
             tmp.release();
         }
     }
+
+    default void copyFloatWithin(GpuResource buffer, int srcStart, int dstStart, int count) {
+        if (count <= 0 || srcStart == dstStart) return;
+        if (Math.abs((long) srcStart - dstStart) >= count) {
+            copyFloatBuffer(buffer, srcStart, buffer, dstStart, count);
+            return;
+        }
+        GpuResource tmp = allocateFloatBuffer(count);
+        try {
+            copyFloatBuffer(buffer, srcStart, tmp, 0, count);
+            copyFloatBuffer(tmp, 0, buffer, dstStart, count);
+        } finally {
+            tmp.release();
+        }
+    }
+
 
     default void copyIntWithin(GpuResource buffer, int srcStart, int dstStart, int count) {
         if (count <= 0 || srcStart == dstStart) return;
@@ -107,12 +141,22 @@ public interface GpuExecutor extends BackendExecutor {
     }
 
     default void fillDoubleBuffer(GpuResource buffer, double value, int length) { fillDoubleBuffer(buffer, 0, value, length); }
+
+    default void fillFloatBuffer(GpuResource buffer, float value, int length) { fillFloatBuffer(buffer, 0, value, length); }
+
     default void fillIntBuffer(GpuResource buffer, int value, int length)       { fillIntBuffer(buffer, 0, value, length); }
+
+    default void fillByteBuffer(GpuResource buffer, byte value, int length) { fillByteBuffer(buffer, 0, value, length); }
+
 
     /** Fills {@code length} elements starting at element {@code offset}. */
     void fillDoubleBuffer(GpuResource buffer, int offset, double value, int length);
+
+    /** Fills {@code length} elements starting at element {@code offset}. */
+    void fillFloatBuffer(GpuResource buffer, int offset, float value, int length);
+
+    /** Fills {@code length} elements starting at element {@code offset}. */
     void fillIntBuffer(GpuResource buffer, int offset, int value, int length);
-    default void fillByteBuffer(GpuResource buffer, byte value, int length) { fillByteBuffer(buffer, 0, value, length); }
 
     /** Fills {@code length} bytes starting at byte {@code offset}. */
     void fillByteBuffer(GpuResource buffer, int offset, byte value, int length);
@@ -124,6 +168,9 @@ public interface GpuExecutor extends BackendExecutor {
 
     /** An immediate {@code double} kernel argument. */
     GpuResource scalar(double value);
+
+    /** An immediate {@code float} kernel argument. */
+    GpuResource scalar(float value);
 
     /**
      * Work-group scratch space of {@code bytes} bytes as a kernel argument.

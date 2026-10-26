@@ -1,14 +1,14 @@
 package com.rae.formicapi.foundation.math.operators.backend.cpu;
 
 import com.rae.formicapi.foundation.math.operators.GeneralOperator;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 
 import java.util.Arrays;
 
 /**
- * CPU backend for {@link PaddedCSR3Tensor}.
+ * CPU backend for {@link PaddedCSR3TensorD}.
  *
  * <p>Fixed-structure sparse quadratic tensor:
  *

@@ -77,15 +77,15 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
         this.queue = clCreateCommandQueueWithProperties(context, device, properties, null);
     }
 
-    private @Nullable GpuProfiler profiler;
+    private @Nullable OpenCLGpuProfiler profiler;
 
-    /** Attaches a profiler: every kernel dispatch and async buffer op (fill/copy) from now on additionally reports its event here. {@code null} detaches. See {@link GpuProfiler}. */
-    public void setProfiler(@Nullable GpuProfiler profiler) {
+    /** Attaches a profiler: every kernel dispatch and async buffer op (fill/copy) from now on additionally reports its event here. {@code null} detaches. See {@link OpenCLGpuProfiler}. */
+    public void setProfiler(@Nullable OpenCLGpuProfiler profiler) {
         this.profiler = profiler;
     }
 
     @Nullable
-    GpuProfiler profiler() { return profiler; }
+    OpenCLGpuProfiler profiler() { return profiler; }
 
     // Package-private, OpenCL-specific: only OpenCLKernel should ever reference this class instead of GpuExecutor.
     cl_device_id device() { return device; }
@@ -188,6 +188,11 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     }
 
     @Override
+    public GpuResource scalar(float value) {
+        return OpenCLResource.of(value);
+    }
+
+    @Override
     public GpuResource localMemory(long bytes) {
         return OpenCLResource.local(bytes);
     }
@@ -207,6 +212,11 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     }
 
     @Override
+    public GpuResource allocateFloatBuffer(int length) {
+        return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_float, null, null));
+    }
+
+    @Override
     public GpuResource allocateIntBuffer(int length) {
         return OpenCLResource.buffer(clCreateBuffer(context, CL_MEM_READ_WRITE, (long) length * Sizeof.cl_int, null, null));
     }
@@ -218,7 +228,7 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
 
     // ---------------------------------------------------------------- wait-list / event-recording helpers
 
-    private static cl_event[] waitList(GpuResource... resources) {
+    private static @Nullable cl_event[] waitList(GpuResource... resources) {
         Set<cl_event> set = new LinkedHashSet<>();
         for (GpuResource r : resources)
             if (r instanceof OpenCLResource clr)
@@ -226,7 +236,7 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
         return set.isEmpty() ? null : set.toArray(new cl_event[0]);
     }
 
-    private static int waitCount(cl_event[] list) {
+    private static int waitCount(@Nullable cl_event[] list) {
         return list == null ? 0 : list.length;
     }
 
@@ -299,6 +309,59 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
             cl_event[] wait = waitList(buffer);
             clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_double,
                     Sizeof.cl_double, Pointer.to(out), waitCount(wait), wait, null);
+            settle(buffer);
+            return out[0];
+        }
+    }
+
+    @Override
+    public void uploadFloats(GpuResource buffer, float[] host, int length) {
+        uploadFloats(buffer, 0, host, 0, length);
+    }
+
+    @Override
+    public void uploadFloats(GpuResource buffer, int elementOffset, float[] host, int hostOffset, int length) {
+        synchronized (queue) {
+            @Nullable cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_float,
+                    (long) length * Sizeof.cl_float, Pointer.to(host).withByteOffset((long) hostOffset * Sizeof.cl_float),
+                    waitCount(wait), wait, null);
+            settle(buffer);
+        }
+    }
+
+    @Override
+    public void downloadFloats(GpuResource buffer, float[] host, int length) {
+        downloadFloats(buffer, 0, host, length);
+    }
+
+    @Override
+    public void downloadFloats(GpuResource buffer, int elementOffset, float[] host, int length) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_float,
+                    (long) length * Sizeof.cl_float, Pointer.to(host), waitCount(wait), wait, null);
+            settle(buffer);
+        }
+    }
+
+    @Override
+    public void uploadFloatAt(GpuResource buffer, int elementOffset, float value) {
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_float,
+                    Sizeof.cl_float, Pointer.to(new double[]{value}), waitCount(wait), wait, null);
+            settle(buffer);
+        }
+    }
+
+    @Override
+    public float downloadFloatAt(GpuResource buffer, int elementOffset) {
+        synchronized (queue) {
+            float[] out = new float[1];
+            cl_event[] wait = waitList(buffer);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_float,
+                    Sizeof.cl_float, Pointer.to(out), waitCount(wait), wait, null);
             settle(buffer);
             return out[0];
         }
@@ -407,6 +470,11 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     }
 
     @Override
+    public void copyFloatBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
+        copy(src, (long) srcOffset * Sizeof.cl_float, dst, (long) dstOffset * Sizeof.cl_float, (long) length * Sizeof.cl_float);
+    }
+
+    @Override
     public void copyIntBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
         copy(src, (long) srcOffset * Sizeof.cl_int, dst, (long) dstOffset * Sizeof.cl_int, (long) length * Sizeof.cl_int);
     }
@@ -434,6 +502,18 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
             cl_event event = new cl_event();
             clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new double[]{value}), Sizeof.cl_double,
                     (long) offset * Sizeof.cl_double, (long) length * Sizeof.cl_double, waitCount(wait), wait, event);
+            record(event, buffer);
+        }
+    }
+
+    @Override
+    public void fillFloatBuffer(GpuResource buffer, int offset, float value, int length) {
+        if (length <= 0) return;
+        synchronized (queue) {
+            cl_event[] wait = waitList(buffer);
+            cl_event event = new cl_event();
+            clEnqueueFillBuffer(queue, mem(buffer), Pointer.to(new float[]{value}), Sizeof.cl_float,
+                    (long) offset * Sizeof.cl_float, (long) length * Sizeof.cl_float, waitCount(wait), wait, event);
             record(event, buffer);
         }
     }

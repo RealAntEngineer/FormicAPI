@@ -2,9 +2,9 @@ package com.rae.formicapi.math_tests.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrixD;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * attached to a single, short-lived JVM run and see exactly this hot loop,
  * which a forked/forked-many-times JMH run makes far more annoying to do.
  *
- * <p>Every result is checked against {@link PaddedCSRMatrix}, the serial
+ * <p>Every result is checked against {@link PaddedCSRMatrixD}, the serial
  * CPU reference - same role {@code ParallelCpuTest} has {@code
  * CpuPaddedCSRMatrix} play against it, just with the GPU backend standing in
  * for the CPU-parallel one. Unlike that comparison (two CPU implementations
@@ -53,10 +53,10 @@ public class ParallelGpuTest extends GpuTestSupport {
         int rows = nx * ny * nz;
         int entriesPerRow = 7;
 
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(rows, rows, entriesPerRow);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(rows, rows, entriesPerRow);
         matrix.setExecutor(executor); // must happen before setRow - see generateMatrix javadoc
 
-        PaddedCSRMatrix matrixSerial = new PaddedCSRMatrix(rows, rows, entriesPerRow);
+        PaddedCSRMatrixD matrixSerial = new PaddedCSRMatrixD(rows, rows, entriesPerRow);
 
         Random random = new Random(42);
 
@@ -110,10 +110,10 @@ public class ParallelGpuTest extends GpuTestSupport {
         int rows = nx * ny * nz;
         int entriesPerRow = 7;
 
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(rows, rows, entriesPerRow);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(rows, rows, entriesPerRow);
         matrix.setExecutor(executor);
 
-        PaddedCSRMatrix matrixSerial = new PaddedCSRMatrix(rows, rows, entriesPerRow);
+        PaddedCSRMatrixD matrixSerial = new PaddedCSRMatrixD(rows, rows, entriesPerRow);
 
         Random random = new Random(42);
 
@@ -194,10 +194,10 @@ public class ParallelGpuTest extends GpuTestSupport {
         int rows = nx * ny * nz;
         int entriesPerRow = 7;
 
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(rows, rows, entriesPerRow);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(rows, rows, entriesPerRow);
         matrix.setExecutor(executor);
 
-        PaddedCSRMatrix matrixSerial = new PaddedCSRMatrix(rows, rows, entriesPerRow);
+        PaddedCSRMatrixD matrixSerial = new PaddedCSRMatrixD(rows, rows, entriesPerRow);
 
         Random random = new Random(42);
 
@@ -276,7 +276,7 @@ public class ParallelGpuTest extends GpuTestSupport {
 
     /**
      * Identical stencil to {@code ParallelCpuTest#generateMatrix}, just
-     * setting rows on a {@link GpuPaddedCSRMatrix} instead of a {@code
+     * setting rows on a {@link GpuPaddedCSRMatrixD} instead of a {@code
      * CpuPaddedCSRMatrix}.
      *
      * <p><b>{@code matrix.setExecutor(...)} must be called by the caller
@@ -287,7 +287,7 @@ public class ParallelGpuTest extends GpuTestSupport {
      * same trap).
      */
     private static void generateRandomMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random,
-                                             GpuPaddedCSRMatrix matrix, int entriesPerRow, PaddedCSRMatrix matrixSerial) {
+                                             GpuPaddedCSRMatrixD matrix, int entriesPerRow, PaddedCSRMatrixD matrixSerial) {
         for (int z = 0; z < nz; z++) {
             for (int y = 0; y < ny; y++) {
                 for (int x = 0; x < nx; x++) {

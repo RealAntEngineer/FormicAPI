@@ -4,7 +4,7 @@ import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.linear.DenseMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
 import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.NewtonKrylov;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,7 @@ public class NewtonKrylovTest {
     @Test
     void solveSimpleNonlinearSystem() {
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(2, 1);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(2, 1);
 
 
         C.setRow(0,
@@ -50,7 +50,7 @@ public class NewtonKrylovTest {
     @Test
     void solveCoupledQuadraticSystem() {
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(2, 2);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(2, 2);
 
         /*
          * F0 = x0*x0 + x0*x1
@@ -86,7 +86,7 @@ public class NewtonKrylovTest {
     @Test
     void solveWithLinearAndQuadraticCoupling() {
 
-        PaddedCSR3Tensor C = new PaddedCSR3Tensor(2, 1);
+        PaddedCSR3TensorD C = new PaddedCSR3TensorD(2, 1);
 
         /*
          * Quadratic:
@@ -134,7 +134,7 @@ public class NewtonKrylovTest {
     }
 
 
-    private static void solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b) {
+    private static void solve(PaddedCSR3TensorD C, Matrix A, double[] x, double[] b) {
 
         int n = b.length;
         CpuDoubleVector xVec = new CpuDoubleVector(x);

@@ -492,7 +492,7 @@ public final class GpuDoubleVector extends GpuExecutable implements RealVector, 
 
     @Override
     public RealVector divide(RealVector x) {
-        return binary(x, OP_DIV);
+        return binary(x, OP_DIV);//TODO inline, we are creating indirection on something completely trivial.
     }
 
     @Override

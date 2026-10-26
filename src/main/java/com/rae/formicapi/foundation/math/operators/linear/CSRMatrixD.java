@@ -20,7 +20,7 @@ import java.util.*;
  * @see HashSparseMatrix
  * @see DynamicCSRMatrix
  */
-public class CSRMatrix implements Matrix {
+public class CSRMatrixD implements Matrix {
 
     private final int rows;
     private final int cols;
@@ -49,7 +49,7 @@ public class CSRMatrix implements Matrix {
      * @param colIndex column indices parallel to {@code values}
      * @param rowPtr   row pointer array of length {@code rows + 1}
      */
-    public CSRMatrix(int rows, int cols, double[] values, int[] colIndex, int[] rowPtr) {
+    public CSRMatrixD(int rows, int cols, double[] values, int[] colIndex, int[] rowPtr) {
         this.rows = rows;
         this.cols = cols;
         this.values = values;
@@ -58,7 +58,7 @@ public class CSRMatrix implements Matrix {
     }
 
     /**
-     * Builds a {@link CSRMatrix} from a {@link HashSparseMatrix}.
+     * Builds a {@link CSRMatrixD} from a {@link HashSparseMatrix}.
      *
      * <p>Rows are sorted by column index as required by the CSR format.
      * Zero entries are excluded — {@link HashSparseMatrix} already prevents
@@ -67,7 +67,7 @@ public class CSRMatrix implements Matrix {
      * @param hash the source hash matrix
      * @return a compiled CSR representation
      */
-    public static CSRMatrix fromHash(HashSparseMatrix hash) {
+    public static CSRMatrixD fromHash(HashSparseMatrix hash) {
         int rows = hash.rows();
         int cols = hash.cols();
 
@@ -104,7 +104,7 @@ public class CSRMatrix implements Matrix {
             colIndex[i] = colIndexList.get(i);
         }
 
-        return new CSRMatrix(rows, cols, values, colIndex, rowPtr);
+        return new CSRMatrixD(rows, cols, values, colIndex, rowPtr);
     }
 
     /**

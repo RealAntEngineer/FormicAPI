@@ -18,7 +18,7 @@ import java.util.Arrays;
  *
  * <p>The sparsity pattern is fixed after construction.
  */
-public class PaddedCSRTensor implements PolynomialOperator {
+public class PaddedCSRTensorD implements PolynomialOperator {
 
     private final int      termsPerEquation;
     private final int      order;
@@ -41,7 +41,7 @@ public class PaddedCSRTensor implements PolynomialOperator {
     private int[][] variableIndices;
 
 
-    public PaddedCSRTensor(int order, int equations, int termsPerEquation) {
+    public PaddedCSRTensorD(int order, int equations, int termsPerEquation) {
 
         if (order < 2)
             throw new IllegalArgumentException("Order must be > 1");

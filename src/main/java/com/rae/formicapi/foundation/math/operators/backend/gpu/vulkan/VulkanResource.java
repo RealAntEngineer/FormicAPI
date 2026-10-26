@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
  * <ul>
  *   <li>{@link Kind#BUFFER}: a real {@code VkBuffer} plus its
  *       {@code VkDeviceMemory}, created by {@link VulkanGpuExecutor};</li>
- *   <li>{@link Kind#SCALAR}: an immediate {@code int}/{@code double}, delivered to the
+ *   <li>{@link Kind#IMMEDIATE}: an immediate {@code int}/{@code double}/{@code float}, delivered to the
  *       shader through the push-constant block;</li>
  *   <li>{@link Kind#LOCAL}: work-group scratch. Vulkan declares that inside the
  *       shader ({@code shared} arrays), so this kind carries no data and is
@@ -29,8 +29,7 @@ import org.jetbrains.annotations.Nullable;
 public final class VulkanResource implements GpuResource {
 
     private static final ResourceEvent[] NONE = new ResourceEvent[0];
-
-    enum Kind { BUFFER, SCALAR, LOCAL }
+    //TODO Create the events for Vulkan, Vulkan supports it and that's way cleaner than walling it
 
     final Kind kind;
 
@@ -42,7 +41,7 @@ public final class VulkanResource implements GpuResource {
     private boolean released;
 
     // SCALAR
-    final long bits;
+    final long bits;//Don't do that, send everything to a buffer a scalar is a buffer of size 1.
     final int  width; // 4 or 8 bytes
 
     private VulkanResource(Kind kind, long buffer, long memory, long sizeBytes, @Nullable VulkanGpuExecutor owner, long bits, int width) {
@@ -60,11 +59,15 @@ public final class VulkanResource implements GpuResource {
     }
 
     static VulkanResource of(int value) {
-        return new VulkanResource(Kind.SCALAR, 0, 0, 0, null, value, Integer.BYTES);
+        return new VulkanResource(Kind.IMMEDIATE, 0, 0, 0, null, value, Integer.BYTES);
     }
 
     static VulkanResource of(double value) {
-        return new VulkanResource(Kind.SCALAR, 0, 0, 0, null, Double.doubleToRawLongBits(value), Double.BYTES);
+        return new VulkanResource(Kind.IMMEDIATE, 0, 0, 0, null, Double.doubleToRawLongBits(value), Double.BYTES);
+    }
+
+    static VulkanResource of(float value) {
+        return new VulkanResource(Kind.IMMEDIATE, 0, 0, 0, null, Float.floatToRawIntBits(value), Float.BYTES);
     }
 
     static VulkanResource local(long bytes) {
@@ -87,6 +90,7 @@ public final class VulkanResource implements GpuResource {
 
     @Override
     public void settle() {
+
     }
 
     @Override

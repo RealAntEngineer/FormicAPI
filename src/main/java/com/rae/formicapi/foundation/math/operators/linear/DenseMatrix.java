@@ -14,7 +14,7 @@ public class DenseMatrix implements MutableMatrix {
     }
 
     @Override
-    public void resize(int newRows) {
+    public void resize(int newRows, int newCols) {
 
     }
 

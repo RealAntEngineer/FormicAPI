@@ -32,7 +32,7 @@ import static org.jocl.CL.*;
  * reading until you explicitly ask for it rather than trying to read
  * eagerly off some background thread.
  */
-public final class GpuProfiler {
+public final class OpenCLGpuProfiler {
 
     private record Recorded(String label, cl_event event) {
     }

@@ -3,7 +3,7 @@ package com.rae.formicapi.math_tests.backend.cpu;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
-import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.PaddedCSRMatrixD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
 import com.rae.formicapi.foundation.math.solvers.LeastSquare;
@@ -30,8 +30,8 @@ public class ParallelCpuTest {
         CpuPaddedCSRMatrix matrix =
                 new CpuPaddedCSRMatrix(rows, rows, entriesPerRow);
 
-        PaddedCSRMatrix matrixSerial =
-                new PaddedCSRMatrix(rows, rows, entriesPerRow);
+        PaddedCSRMatrixD matrixSerial =
+                new PaddedCSRMatrixD(rows, rows, entriesPerRow);
 
 
         Random random = new Random(42);
@@ -98,8 +98,8 @@ public class ParallelCpuTest {
         CpuPaddedCSRMatrix matrix =
                 new CpuPaddedCSRMatrix(rows, rows, entriesPerRow);
 
-        PaddedCSRMatrix matrixSerial =
-                new PaddedCSRMatrix(rows, rows, entriesPerRow);
+        PaddedCSRMatrixD matrixSerial =
+                new PaddedCSRMatrixD(rows, rows, entriesPerRow);
 
         Random random = new Random(42);
 
@@ -184,8 +184,8 @@ public class ParallelCpuTest {
         CpuPaddedCSRMatrix matrix =
                 new CpuPaddedCSRMatrix(rows, rows, entriesPerRow);
 
-        PaddedCSRMatrix matrixSerial =
-                new PaddedCSRMatrix(rows, rows, entriesPerRow);
+        PaddedCSRMatrixD matrixSerial =
+                new PaddedCSRMatrixD(rows, rows, entriesPerRow);
 
         Random random = new Random(42);
 
@@ -268,7 +268,7 @@ public class ParallelCpuTest {
     }
 
 
-    private static void generateMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random, CpuPaddedCSRMatrix matrix, int entriesPerRow, PaddedCSRMatrix matrixSerial) {
+    private static void generateMatrix(int nz, int ny, int nx, int[] indices, double[] values, Random random, CpuPaddedCSRMatrix matrix, int entriesPerRow, PaddedCSRMatrixD matrixSerial) {
         for (int z = 0; z < nz; z++) {
             for (int y = 0; y < ny; y++) {
                 for (int x = 0; x < nx; x++) {

@@ -19,9 +19,9 @@ import java.util.Map;
  *
  * <p>This implementation is optimized for assembly (random-access writes) rather
  * than repeated multiplication. For solve-phase performance, convert to
- * {@link CSRMatrix} via {@link #toCSR()}, or use {@link DynamicCSRMatrix} directly.
+ * {@link CSRMatrixD} via {@link #toCSR()}, or use {@link DynamicCSRMatrix} directly.
  *
- * @see CSRMatrix
+ * @see CSRMatrixD
  * @see DynamicCSRMatrix
  * @see MutableMatrix
  */
@@ -39,7 +39,7 @@ public class HashSparseMatrix implements MutableMatrix {
     }
 
     @Override
-    public void resize(int newRows) {
+    public void resize(int newRows, int newCols) {
 
     }
 
@@ -144,8 +144,8 @@ public class HashSparseMatrix implements MutableMatrix {
         }
     }
 
-    public CSRMatrix toCSR() {
-        return CSRMatrix.fromHash(this);
+    public CSRMatrixD toCSR() {
+        return CSRMatrixD.fromHash(this);
     }
 
     public @Nullable Map<Integer, Double> getRow(int r) {

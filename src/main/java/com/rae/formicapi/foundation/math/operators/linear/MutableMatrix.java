@@ -12,7 +12,7 @@ public interface MutableMatrix extends Matrix {
      *
      * @param newRows new row/column count
      */
-    void resize(int newRows);
+    void resize(int newRows, int newCols);
 
     void add(int row, int col, double value);
 

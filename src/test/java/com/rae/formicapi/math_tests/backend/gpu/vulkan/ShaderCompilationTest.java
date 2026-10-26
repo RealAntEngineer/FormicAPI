@@ -25,7 +25,7 @@ class ShaderCompilationTest {
     private static List<PortableKernel> allKernels() throws IllegalAccessException {
         List<PortableKernel> out = new ArrayList<>();
         for (Class<?> c : new Class<?>[]{GpuDoubleVector.class, GpuBooleanVector.class, GpuIntegerVector.class,
-                GpuPaddedCSRMatrix.class, GpuPaddedCSRTensor.class, GpuPaddedCSR3Tensor.class}) {
+                GpuPaddedCSRMatrixD.class, GpuPaddedCSRTensorD.class, GpuPaddedCSR3TensorD.class}) {
             for (Field f : c.getDeclaredFields()) {
                 if (f.getType() == PortableKernel.class && Modifier.isStatic(f.getModifiers())) {
                     f.setAccessible(true);

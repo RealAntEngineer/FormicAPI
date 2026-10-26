@@ -1,7 +1,7 @@
 package com.rae.formicapi.math_tests.matrix;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.linear.CSRMatrix;
+import com.rae.formicapi.foundation.math.operators.linear.CSRMatrixD;
 import com.rae.formicapi.foundation.math.operators.linear.DynamicCSRMatrix;
 import com.rae.formicapi.foundation.math.operators.linear.HashSparseMatrix;
 import org.junit.jupiter.api.Test;
@@ -14,7 +14,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Benchmarks {@link CSRMatrix#transposeApply} and {@link CSRMatrix#multiply}
+ * Benchmarks {@link CSRMatrixD#transposeApply} and {@link CSRMatrixD#multiply}
  * scaling with respect to matrix size (n) and non-zeros per row (m).
  *
  * <p>Not a correctness test — validates that wall-clock time grows linearly
@@ -41,8 +41,8 @@ public class CSRMatrixScalingTest {
 
         long prevNs = -1;
         for (int n : sizes) {
-            CSRMatrix A = randomCSR(n, n, nnzPerRow);
-            double[] x = randomVector(n);
+            CSRMatrixD A = randomCSR(n, n, nnzPerRow);
+            double[]   x = randomVector(n);
             double[] result = new double[n];
 
             long ns = benchmark(() -> A.multiply(x, result));
@@ -68,7 +68,7 @@ public class CSRMatrixScalingTest {
         System.out.println("-".repeat(52));
     }
 
-    private static CSRMatrix randomCSR(int rows, int cols, int nnzPerRow) {
+    private static CSRMatrixD randomCSR(int rows, int cols, int nnzPerRow) {
         Random rng = new Random(42);
         DynamicCSRMatrix m = new DynamicCSRMatrix(rows, cols);
 
@@ -133,8 +133,8 @@ public class CSRMatrixScalingTest {
 
         long prevNs = -1;
         for (int n : sizes) {
-            CSRMatrix A = randomCSR(n, n, nnzPerRow);
-            double[] x = randomVector(n);
+            CSRMatrixD A = randomCSR(n, n, nnzPerRow);
+            double[]   x = randomVector(n);
             double[] result = new double[n];
 
             long ns = benchmark(() -> A.transposeApply(new CpuDoubleVector(x), new CpuDoubleVector(result)));
@@ -161,8 +161,8 @@ public class CSRMatrixScalingTest {
 
         long prevNs = -1;
         for (int m : densities) {
-            CSRMatrix A = randomCSR(n, n, m);
-            double[] x = randomVector(n);
+            CSRMatrixD A = randomCSR(n, n, m);
+            double[]   x = randomVector(n);
             double[] result = new double[n];
 
             long ns = benchmark(() -> A.multiply(x, result));
@@ -185,8 +185,8 @@ public class CSRMatrixScalingTest {
 
         long prevNs = -1;
         for (int m : densities) {
-            CSRMatrix A = randomCSR(n, n, m);
-            double[] x = randomVector(n);
+            CSRMatrixD A = randomCSR(n, n, m);
+            double[]   x = randomVector(n);
             double[] result = new double[n];
 
             long ns = benchmark(() -> {
@@ -212,7 +212,7 @@ public class CSRMatrixScalingTest {
         int n = 3000;
         int nnzPerRow = 20;
 
-        CSRMatrix csr = randomCSR(n, n, nnzPerRow);
+        CSRMatrixD       csr  = randomCSR(n, n, nnzPerRow);
         HashSparseMatrix hash = toHash(csr);
         double[] x = randomVector(n);
         double[] result = new double[n];
@@ -228,7 +228,7 @@ public class CSRMatrixScalingTest {
         assertTrue(nsCSR < nsHash, "CSR transposeMultiply should be faster than default");
     }
 
-    private static HashSparseMatrix toHash(CSRMatrix csr) {
+    private static HashSparseMatrix toHash(CSRMatrixD csr) {
         HashSparseMatrix h = new HashSparseMatrix(csr.rows(), csr.cols());
         for (int r = 0; r < csr.rows(); r++)
             for (int c = 0; c < csr.cols(); c++) {

@@ -1,8 +1,8 @@
 package com.rae.formicapi;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSRTensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSRTensorD;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -26,8 +26,8 @@ public class TensorSpecializationBenchmark {
     @Param({"RANDOM", "SEQUENTIAL"})
     public String indexPattern;
 
-    private PaddedCSR3Tensor specialized;
-    private PaddedCSRTensor  generic;
+    private PaddedCSR3TensorD specialized;
+    private PaddedCSRTensorD  generic;
 
     private double[] x;
     private double[] direction;
@@ -41,14 +41,14 @@ public class TensorSpecializationBenchmark {
         Random rnd = new Random(42);
 
         specialized =
-                new PaddedCSR3Tensor(
+                new PaddedCSR3TensorD(
                         equations,
                         termsPerEquation
                 );
 
         // order = 2 => quadratic / 3rd-order tensor
         generic =
-                new PaddedCSRTensor(
+                new PaddedCSRTensorD(
                         2,
                         equations,
                         termsPerEquation

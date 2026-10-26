@@ -1,6 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuFloatVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
@@ -29,7 +29,7 @@ import java.util.Arrays;
  * </ul>
  */
 @SuppressWarnings("unused")
-public class PaddedCSRMatrix implements MutableMatrix {
+public class PaddedCSRMatrixF implements MutableMatrix {
 
     private int rows;
     private int cols;
@@ -38,7 +38,7 @@ public class PaddedCSRMatrix implements MutableMatrix {
     /**
      * CSR values (mutable)
      */
-    private double[] values;
+    private float[] values;
 
     /**
      * CSR column indices
@@ -61,17 +61,17 @@ public class PaddedCSRMatrix implements MutableMatrix {
      * @param cols number of columns
      *
      */
-    public PaddedCSRMatrix(int rows, int cols, int nnzPerRow) {
+    public PaddedCSRMatrixF(int rows, int cols, int nnzPerRow) {
 
         this.rows = rows;
         this.cols = cols;
         this.nnzPerRow = nnzPerRow;
 
-        this.values = new double[rows * nnzPerRow];
+        this.values = new float[rows * nnzPerRow];
         this.colIndex = new int[rows * nnzPerRow];
     }
 
-    private PaddedCSRMatrix(int rows, int cols, int nnzPerRow, double[] values, int[] colIndex) {
+    private PaddedCSRMatrixF(int rows, int cols, int nnzPerRow, float[] values, int[] colIndex) {
         this.rows = rows;
         this.cols = cols;
         this.nnzPerRow = nnzPerRow;
@@ -134,7 +134,7 @@ public class PaddedCSRMatrix implements MutableMatrix {
     @Override
     public void set(int row, int col, double value) {
         int idx = findIndex(row, col);
-        values[idx] = value;
+        values[idx] = (float) value;
     }
 
     /**
@@ -171,12 +171,12 @@ public class PaddedCSRMatrix implements MutableMatrix {
         int base = row * nnzPerRow;
         for (int i = 0; i < count; i++) {
             colIndex[base + i] = newCols[i];
-            values[base + i] = newValues[i];
+            values[base + i] = (float) newValues[i];
         }
         // zero out trailing slots — both value AND colIndex set to safe default (diagonal)
         for (int i = count; i < nnzPerRow; i++) {
             colIndex[base + i] = row; // points to diagonal — safe for both multiply paths
-            values[base + i] = 0.0;
+            values[base + i] = 0.0f;
         }
     }
 
@@ -196,11 +196,36 @@ public class PaddedCSRMatrix implements MutableMatrix {
     }
 
     @Override
+    public void apply(RealVector x, RealVector result) {
+        if (x instanceof CpuFloatVector xCpu && result instanceof CpuFloatVector resCpu) {
+            float[] resArr = resCpu.array();
+            float[] xArr = xCpu.array();
+            Arrays.fill(resArr, 0.0f);
+
+            for (int r = 0; r < rows; r++) {
+
+                int    base = r * nnzPerRow;
+                float sum  = 0.0f;
+
+                for (int i = 0; i < nnzPerRow; i++) {
+                    sum += values[base + i] * xArr[colIndex[base + i]];
+                }
+
+                resArr[r] = sum;
+            }
+        } else {
+            throw new UnsupportedOperationException(
+                    "Matrix.apply(...) PaddedCSRMatrixF only supports CpuFloatVector operands; got x="
+                            + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName());
+        }
+    }
+
+    @Override
     public void transposeApply(RealVector x, RealVector result) {
-        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
-            double[] resArr = resCpu.array();
-            double[] xArr = xCpu.array();
-            Arrays.fill(resArr, 0.0);
+        if (x instanceof CpuFloatVector xCpu && result instanceof CpuFloatVector resCpu) {
+            float[] resArr = resCpu.array();
+            float[] xArr = xCpu.array();
+            Arrays.fill(resArr, 0.0f);
 
             for (int r = 0; r < rows; r++) {
 
@@ -212,7 +237,7 @@ public class PaddedCSRMatrix implements MutableMatrix {
             }
         } else {
             throw new UnsupportedOperationException(
-                    "Matrix.transposeApply(...) PaddedCSRMatrix only supports CpuDoubleVector operands; got x="
+                    "Matrix.transposeApply(...) PaddedCSRMatrixF only supports CpuFloatVector operands; got x="
                             + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName());
         }
 
@@ -247,12 +272,12 @@ public class PaddedCSRMatrix implements MutableMatrix {
             int[] rArr = rCpu.array();
             int[] cArr = cCpu.array();
 
-            double[] values = new double[rCpu.size()];
+            float[] values = new float[rCpu.size()];
             for (int i = 0; i < rCpu.size(); i++) {
-                values[i] = get(rArr[i], cArr[i]);
+                values[i] = (float) get(rArr[i], cArr[i]);
             }
 
-            return new CpuDoubleVector(values);
+            return new CpuFloatVector(values);
 
         } else {
             throw new UnsupportedOperationException();

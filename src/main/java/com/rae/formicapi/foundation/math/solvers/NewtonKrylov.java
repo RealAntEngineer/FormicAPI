@@ -3,7 +3,7 @@ package com.rae.formicapi.foundation.math.solvers;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuIntegerVector;
 import com.rae.formicapi.foundation.math.operators.linear.Matrix;
-import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PaddedCSR3TensorD;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.WorkingBuffer;
@@ -19,7 +19,7 @@ import java.util.List;
  *     C:x:x + A*x - b = 0
  * </pre>
  * <p>
- * where {@code C} is represented by a {@link PaddedCSR3Tensor} and {@code A}
+ * where {@code C} is represented by a {@link PaddedCSR3TensorD} and {@code A}
  * is a linear {@link Matrix}.
  *
  * <p>Each Newton step solves {@code J(x) dx = -F(x)} where
@@ -95,7 +95,7 @@ public class NewtonKrylov {
      * start (x = 0) is rarely a useful Newton iterate for these systems.
      * Callers warm-start from the previous tick's solution.
      */
-    public static double[] solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b,
+    public static double[] solve(PaddedCSR3TensorD C, Matrix A, double[] x, double[] b,
                                  int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol) {
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, null, null);
     }
@@ -104,7 +104,7 @@ public class NewtonKrylov {
     // double[] convenience wrappers
     // =====================================================================
 
-    public static double[] solve(PaddedCSR3Tensor C, Matrix A, double[] x, double[] b,
+    public static double[] solve(PaddedCSR3TensorD C, Matrix A, double[] x, double[] b,
                                  int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
                                  double @Nullable [] scaling, @Nullable Stats stats) {
         RealVector xv       = new CpuDoubleVector(x);
@@ -117,7 +117,7 @@ public class NewtonKrylov {
      * Unconstrained solve, allocating its working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static RealVector solve(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+    public static RealVector solve(PaddedCSR3TensorD C, Matrix A, RealVector x, RealVector b,
                                    int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
                                    @Nullable RealVector scaling, @Nullable Stats stats) {
         int n = A.outputSize();
@@ -140,7 +140,7 @@ public class NewtonKrylov {
      * @param bufferN working buffer providing {@value #BUFFER_COUNT_N} vectors of size {@code n = A.outputSize()}
      * @param bufferM working buffer providing {@value #BUFFER_COUNT_M} vectors of size {@code m = A.inputSize()}
      */
-    public static RealVector solve(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+    public static RealVector solve(PaddedCSR3TensorD C, Matrix A, RealVector x, RealVector b,
                                    int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
                                    @Nullable RealVector scaling, @Nullable Stats stats,
                                    @Nullable IntegerVector unknownIdx, WorkingBuffer<RealVector> bufferN, WorkingBuffer<RealVector> bufferM) {
@@ -215,7 +215,7 @@ public class NewtonKrylov {
      * {@code scaling ⊙ F} — see the scaling section of the class javadoc.
      * Returns {@code ||F||2} (of the possibly-scaled {@code F}).
      */
-    private static double residual(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+    private static double residual(PaddedCSR3TensorD C, Matrix A, RealVector x, RealVector b,
                                    RealVector F, RealVector tmp, @Nullable RealVector scaling) {
         C.apply(x, F);
         A.apply(x, tmp);
@@ -235,7 +235,7 @@ public class NewtonKrylov {
      * {@code BiCGStab}'s {@code x} — it starts at {@code 0} instead of a
      * warm start, so no jacobian call is needed to seed {@code r}.
      */
-    private static int newtonStep(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector F,
+    private static int newtonStep(PaddedCSR3TensorD C, Matrix A, RealVector x, RealVector F,
                                   @Nullable IntegerVector unknownIdx, @Nullable RealVector scaling, RealVector dx,
                                   int maxIter, double tol, WorkingBuffer<RealVector> bufferN, WorkingBuffer<RealVector> bufferM) {
         boolean constrained       = unknownIdx != null;
@@ -339,16 +339,16 @@ public class NewtonKrylov {
      * written into {@code out}. Scaling is applied by the caller, not here —
      * see the scaling section of the class javadoc.
      */
-    private static void jacobian(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector direction,
+    private static void jacobian(PaddedCSR3TensorD C, Matrix A, RealVector x, RealVector direction,
                                  RealVector cTerm, RealVector out) {
         C.multiplyJacobian(x, direction, cTerm);
         A.apply(direction, out);
         out.add(cTerm);
     }
 
-    public static double[] solveConstrained(PaddedCSR3Tensor C, Matrix A, double[] x, boolean[] fixedVariables, double[] b,
+    public static double[] solveConstrained(PaddedCSR3TensorD C, Matrix A, double[] x, boolean[] fixedVariables, double[] b,
                                             int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
-                                             double @Nullable [] scaling) {
+                                            double @Nullable [] scaling) {
         return solveConstrained(C, A, x, fixedVariables, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, scaling, null);
     }
 
@@ -356,9 +356,9 @@ public class NewtonKrylov {
     // Internals
     // =====================================================================
 
-    public static double[] solveConstrained(PaddedCSR3Tensor C, Matrix A, double[] x, boolean[] fixedVariables, double[] b,
+    public static double[] solveConstrained(PaddedCSR3TensorD C, Matrix A, double[] x, boolean[] fixedVariables, double[] b,
                                             int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
-                                             double @Nullable [] scaling, @Nullable Stats stats) {
+                                            double @Nullable [] scaling, @Nullable Stats stats) {
         RealVector xv       = new CpuDoubleVector(x);
         RealVector scalingV = scaling == null ? null : new CpuDoubleVector(scaling);
 
@@ -375,7 +375,7 @@ public class NewtonKrylov {
      * allocating its working buffers internally.
      * Use only outside hot paths — prefer the pre-allocated overload if you will solve repeatedly.
      */
-    public static RealVector solveConstrained(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+    public static RealVector solveConstrained(PaddedCSR3TensorD C, Matrix A, RealVector x, RealVector b,
                                               int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol,
                                               @Nullable RealVector scaling, @Nullable Stats stats, IntegerVector unknownIdx) {
         int n = C.equations();
@@ -385,7 +385,7 @@ public class NewtonKrylov {
                 new WorkingBuffer<>(BUFFER_COUNT_M, () -> new CpuDoubleVector(m)));
     }
 
-    public static RealVector solve(PaddedCSR3Tensor C, Matrix A, RealVector x, RealVector b,
+    public static RealVector solve(PaddedCSR3TensorD C, Matrix A, RealVector x, RealVector b,
                                    int maxNewtonIter, int maxLinearIter, double newtonTol, double linearTol) {
         return solve(C, A, x, b, maxNewtonIter, maxLinearIter, newtonTol, linearTol, null, null);
     }

@@ -106,7 +106,7 @@ public final class PortableKernel implements Kernel {
 
     @Override
     public synchronized Kernel bind(GpuExecutor context) {
-        Kernel native_ = perExecutor.get(context);
+        Kernel native_ = perExecutor.get(context);//Why do we do this ? we use current anyway
         if (native_ == null) {
             native_ = context.createKernel(this);
             perExecutor.put(context, native_);

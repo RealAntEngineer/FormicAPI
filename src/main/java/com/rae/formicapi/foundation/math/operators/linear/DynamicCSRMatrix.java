@@ -31,7 +31,7 @@ import java.util.Arrays;
 public class DynamicCSRMatrix implements MutableMatrix {
 
     private final          HashSparseMatrix buffer;
-    private      @Nullable CSRMatrix        csr = null;
+    private      @Nullable CSRMatrixD       csr = null;
 
     /**
      * Creates a dynamic CSR matrix of the given dimensions.
@@ -48,7 +48,7 @@ public class DynamicCSRMatrix implements MutableMatrix {
     // ------------------------------------------------
 
     @Override
-    public void resize(int newRows) {
+    public void resize(int newRows, int newCols) {
 
     }
 
@@ -192,19 +192,19 @@ public class DynamicCSRMatrix implements MutableMatrix {
     // Internal — lazy CSR compilation
     // ------------------------------------------------
 
-    private CSRMatrix compiled() {
+    private CSRMatrixD compiled() {
         if (csr == null) csr = buffer.toCSR();
         return csr;
     }
 
     /**
-     * Returns the compiled {@link CSRMatrix}, triggering compilation if needed.
+     * Returns the compiled {@link CSRMatrixD}, triggering compilation if needed.
      *
      * <p>Intended for use by benchmarks and tests that need direct CSR access.
      *
      * @return the compiled CSR representation of this matrix
      */
-    public CSRMatrix toCSR() {
+    public CSRMatrixD toCSR() {
         return compiled();
     }
 }

@@ -2,7 +2,7 @@ package com.rae.formicapi.math_tests.matrix;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuPaddedCSRMatrixD;
 import com.rae.formicapi.math_tests.backend.gpu.GpuTestSupport;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Correctness tests for {@link GpuPaddedCSRMatrix}, mirroring
+ * Correctness tests for {@link GpuPaddedCSRMatrixD}, mirroring
  * {@code GpuPaddedCSRTensorTest}'s structure for the linear (order-2)
  * counterpart.
  *
@@ -35,7 +35,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void constructionAndMetadata() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 3, 3);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(3, 3, 3);
         matrix.setExecutor(executor);
 
         assertEquals(3, matrix.rows());
@@ -45,14 +45,14 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void constructionRejectsInvalidDimensions() {
-        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSRMatrix(-1, 3, 3));
-        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSRMatrix(3, -1, 3));
-        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSRMatrix(3, 3, 0));
+        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSRMatrixD(-1, 3, 3));
+        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSRMatrixD(3, -1, 3));
+        assertThrows(IllegalArgumentException.class, () -> new GpuPaddedCSRMatrixD(3, 3, 0));
     }
 
     @Test
     void setRowAndGetMatchExpected() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 3, 2);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(3, 3, 2);
         matrix.setExecutor(executor);
 
         matrix.setRow(0, new double[]{4.0, -1.0}, new int[]{0, 1}, 2);
@@ -64,7 +64,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void setRowZeroPadsUnusedEntries() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 3, 3);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(3, 3, 3);
         matrix.setExecutor(executor);
 
         matrix.setRow(1, new double[]{-1.0}, new int[]{0}, 1);
@@ -86,7 +86,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void setRowRejectsCountOutOfRange() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 3, 2);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(3, 3, 2);
         matrix.setExecutor(executor);
 
         assertThrows(IllegalArgumentException.class,
@@ -95,7 +95,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void addAccumulatesOnExistingEntry() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 2, 1);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(2, 2, 1);
         matrix.setExecutor(executor);
 
         matrix.setRow(0, new double[]{2.0}, new int[]{1}, 1);
@@ -106,7 +106,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void addOnMissingEntryThrows() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 2, 1);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(2, 2, 1);
         matrix.setExecutor(executor);
 
         matrix.setRow(0, new double[]{2.0}, new int[]{1}, 1);
@@ -125,7 +125,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
      */
     @Test
     void applyMatchesExpected() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(3, 3, 3);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(3, 3, 3);
         matrix.setExecutor(executor);
 
         matrix.setRow(0, new double[]{4.0, -1.0}, new int[]{0, 1}, 2);
@@ -148,8 +148,8 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
      * {@code transposeApply} apart from a bugged one that just calls
      * {@code apply} again.
      */
-    private GpuPaddedCSRMatrix createRectangularMatrix() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 3, 2);
+    private GpuPaddedCSRMatrixD createRectangularMatrix() {
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(2, 3, 2);
         matrix.setExecutor(executor);
 
         matrix.setRow(0, new double[]{1.0, 2.0}, new int[]{0, 1}, 2);
@@ -160,7 +160,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void applyMatchesExpectedRectangular() {
-        GpuPaddedCSRMatrix matrix = createRectangularMatrix();
+        GpuPaddedCSRMatrixD matrix = createRectangularMatrix();
 
         GpuDoubleVector x = new GpuDoubleVector(executor, new double[]{1.0, 1.0, 1.0});
         GpuDoubleVector result = new GpuDoubleVector(executor, 0);
@@ -174,7 +174,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
     @Test
     void transposeApplyMatchesExpected() {
 
-        GpuPaddedCSRMatrix matrix = createRectangularMatrix();
+        GpuPaddedCSRMatrixD matrix = createRectangularMatrix();
 
         GpuDoubleVector x = new GpuDoubleVector(executor, new double[]{1.0, 1.0});
         GpuDoubleVector result = new GpuDoubleVector(executor, 0);
@@ -187,7 +187,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void applyRejectsWrongVectorType() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 2, 1);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(2, 2, 1);
         matrix.setExecutor(executor);
         matrix.setRow(0, new double[]{1.0}, new int[]{0}, 1);
         matrix.setRow(1, new double[]{1.0}, new int[]{1}, 1);
@@ -200,7 +200,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void applyRejectsMismatchedSize() {
-        GpuPaddedCSRMatrix matrix = new GpuPaddedCSRMatrix(2, 3, 1);
+        GpuPaddedCSRMatrixD matrix = new GpuPaddedCSRMatrixD(2, 3, 1);
         matrix.setExecutor(executor);
         matrix.setRow(0, new double[]{1.0}, new int[]{0}, 1);
         matrix.setRow(1, new double[]{1.0}, new int[]{1}, 1);
@@ -213,7 +213,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void resizeGrowKeepsExistingRowsAndZeroFillsNewOnes() {
-        GpuPaddedCSRMatrix matrix = createRectangularMatrix(); // 2 rows x 3 cols
+        GpuPaddedCSRMatrixD matrix = createRectangularMatrix(); // 2 rows x 3 cols
 
         matrix.resize(3);
         assertEquals(3, matrix.rows());
@@ -238,7 +238,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
 
     @Test
     void resizeShrinkTruncatesRows() {
-        GpuPaddedCSRMatrix matrix = createRectangularMatrix(); // 2 rows x 3 cols
+        GpuPaddedCSRMatrixD matrix = createRectangularMatrix(); // 2 rows x 3 cols
 
         matrix.resize(1);
 

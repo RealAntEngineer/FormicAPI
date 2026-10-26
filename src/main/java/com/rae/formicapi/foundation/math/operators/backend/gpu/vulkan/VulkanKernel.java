@@ -109,6 +109,7 @@ public final class VulkanKernel implements Kernel {
         StringBuilder sb = new StringBuilder("#version 450\n");
         for (String feature : features) {
             switch (feature) {
+                case "shaderFloat32" -> {/* on by default*/}
                 case "shaderFloat64" -> { /* double is core in GLSL 4.50; the device feature is checked at createKernel */ }
                 case "shaderInt64" -> sb.append("#extension GL_ARB_gpu_shader_int64 : require\n");
                 case "shaderBufferInt64Atomics" -> sb.append("#extension GL_EXT_shader_atomic_int64 : require\n");
@@ -186,11 +187,7 @@ public final class VulkanKernel implements Kernel {
 
             VkSpecializationInfo spec = VkSpecializationInfo.calloc(stack)
                     .pMapEntries(entries)
-                    //.mapEntryCount(1)
-                    .pData(data)
-                    ;
-            System.out.println(" " + spec.dataSize() + " " + spec.mapEntryCount());//it should be set automaticly
-                    //.dataSize(Integer.BYTES);
+                    .pData(data);
 
             VkComputePipelineCreateInfo.Buffer info = VkComputePipelineCreateInfo.calloc(1, stack);
             info.get(0)

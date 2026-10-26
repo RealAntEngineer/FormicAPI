@@ -21,6 +21,8 @@ package com.rae.formicapi.foundation.math.operators.backend.gpu;
  */
 public interface GpuResource {
 
+    enum Kind { BUFFER, IMMEDIATE, LOCAL }
+
     /** Events representing operations still outstanding against this resource. Empty if there's nothing to depend on. */
     ResourceEvent[] pendingEvents();
 
