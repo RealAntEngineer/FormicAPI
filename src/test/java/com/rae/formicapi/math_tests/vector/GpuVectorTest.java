@@ -4,7 +4,7 @@ import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuBooleanVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.opencl.OpenCLGpuExecutor;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuIntegerVector;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuTestSupport;
+import com.rae.formicapi.math_tests.backend.gpu.GpuTestSupport;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

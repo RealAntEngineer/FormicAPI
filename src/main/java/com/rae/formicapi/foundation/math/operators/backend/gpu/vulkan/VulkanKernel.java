@@ -35,7 +35,7 @@ import static org.lwjgl.vulkan.VK10.*;
 public final class VulkanKernel implements Kernel {
 
     /** Push constants are limited to 128 bytes on every conforming device: the implicit {@code gsz} plus up to 124 bytes of scalars. */
-    static final        int PUSH_BYTES   = 128;
+    static final int PUSH_BYTES = 128;
     public static final int MAX_BINDINGS = 8;
 
     private static final Pattern BINDING = Pattern.compile("binding\\s*=\\s*(\\d+)");
@@ -186,7 +186,11 @@ public final class VulkanKernel implements Kernel {
 
             VkSpecializationInfo spec = VkSpecializationInfo.calloc(stack)
                     .pMapEntries(entries)
-                    .pData(data);
+                    //.mapEntryCount(1)
+                    .pData(data)
+                    ;
+            System.out.println(" " + spec.dataSize() + " " + spec.mapEntryCount());//it should be set automaticly
+                    //.dataSize(Integer.BYTES);
 
             VkComputePipelineCreateInfo.Buffer info = VkComputePipelineCreateInfo.calloc(1, stack);
             info.get(0)

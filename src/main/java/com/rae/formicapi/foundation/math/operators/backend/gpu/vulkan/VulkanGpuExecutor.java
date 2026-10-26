@@ -16,6 +16,7 @@ import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
@@ -132,8 +133,13 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
     private final List<VulkanKernel> kernels = new ArrayList<>();
     private final VulkanKernel fillDoubleKernel;
+    private final VulkanKernel selfTestKernel;
 
     private volatile boolean closed = false;
+
+    // optional validation-layer output (-Dformicapi.vulkan.validation=true)
+    private @Nullable VkDebugUtilsMessengerCallbackEXT debugCallback;
+    private long debugMessenger = VK_NULL_HANDLE;
 
     /** Opens a device on the best Vulkan 1.2 GPU with fp64 support (discrete &gt; integrated &gt; virtual &gt; CPU). */
     public VulkanGpuExecutor() {
@@ -146,7 +152,10 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
      */
     public VulkanGpuExecutor(int deviceIndex) {
         try (MemoryStack stack = stackPush()) {
-            this.instance = createInstance(stack);
+            final boolean validation = Boolean.getBoolean("formicapi.vulkan.validation");
+            this.instance = createInstance(stack, validation);
+            if (validation)
+                installDebugMessenger(stack);
 
             VkPhysicalDevice[] all = enumerate(stack, instance);
             if (all.length == 0)
@@ -195,6 +204,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             queueInfo.get(0)
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                     .queueFamilyIndex(queueFamily)
+                    //.queueCount(1)
                     .pQueuePriorities(stack.floats(1.0f));
 
             VkDeviceCreateInfo deviceInfo = VkDeviceCreateInfo.calloc(stack)
@@ -250,6 +260,55 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     d[uint(pc.offset) + i] = pc.value;
                 }
                 """, "shaderFloat64");
+
+        // Prove compute actually works on this device before anyone relies on it: a wrong-but-silent
+        // driver/setup problem otherwise surfaces much later as garbage results or VK_ERROR_DEVICE_LOST.
+        this.selfTestKernel = registerKernel("selftest", """
+                layout(std430, binding = 0) buffer O { double o[]; };
+                layout(std430, binding = 1) buffer I { double src[]; };
+                layout(std430, binding = 2) buffer X { int idx[]; };
+                layout(push_constant) uniform PC { int gsz; int n; double a; } pc;
+                void main() {
+                    uint i = GID;
+                    if (i >= uint(pc.gsz)) return;
+                    o[i] = src[idx[i]] * pc.a + double(pc.n);
+                }
+                """, "shaderFloat64");
+        try {
+            selfTest();
+        } catch (RuntimeException e) {
+            try {
+                close();
+            } catch (RuntimeException ignored) {
+                // already failing; the original problem is the one worth reporting
+            }
+            throw e instanceof IllegalStateException ? e
+                    : new IllegalStateException("Vulkan compute self-test failed on '" + deviceName + "': " + e.getMessage()
+                    + " (re-run with -Dformicapi.vulkan.validation=true for validation-layer output)", e);
+        }
+    }
+
+    private void selfTest() {
+        GpuResource in = allocateDoubleBuffer(4), idx = allocateIntBuffer(4), out = allocateDoubleBuffer(4);
+        try {
+            uploadDoubles(in, new double[]{10, 20, 30, 40}, 4);
+            uploadInts(idx, new int[]{3, 2, 1, 0}, 4);
+            fillDoubleBuffer(out, 0.0, 4);
+            // three buffers + an int and a double push constant + an indexed read: the shape of every real kernel
+            dispatch(selfTestKernel, 4, 0, new GpuResource[]{out, in, idx, scalar(7), scalar(0.5)}, true);
+
+            double[] got = new double[4];
+            downloadDoubles(out, got, 4);
+            double[] expected = {40 * 0.5 + 7, 30 * 0.5 + 7, 20 * 0.5 + 7, 10 * 0.5 + 7};
+            if (!Arrays.equals(got, expected))
+                throw new IllegalStateException("Vulkan compute self-test failed on '" + deviceName + "': expected "
+                        + Arrays.toString(expected) + " but got " + Arrays.toString(got)
+                        + " (re-run with -Dformicapi.vulkan.validation=true for validation-layer output)");
+        } finally {
+            in.release();
+            idx.release();
+            out.release();
+        }
     }
 
     /** Human-readable name of the selected physical device. */
@@ -260,7 +319,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     /** Names of every Vulkan physical device the driver exposes, in the order {@link #VulkanGpuExecutor(int)} indexes them. */
     public static List<String> deviceNames() {
         try (MemoryStack stack = stackPush()) {
-            VkInstance inst = createInstance(stack);
+            VkInstance inst = createInstance(stack, false);
             try {
                 List<String> names = new ArrayList<>();
                 for (VkPhysicalDevice pd : enumerate(stack, inst)) {
@@ -277,7 +336,27 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
     // ---------------------------------------------------------------- instance / device selection
 
-    private static VkInstance createInstance(MemoryStack stack) {
+    /** Routes validation-layer warnings/errors to {@code System.err}, so they show up in test and game logs. */
+    private void installDebugMessenger(MemoryStack stack) {
+        debugCallback = VkDebugUtilsMessengerCallbackEXT.create((severity, types, pCallbackData, pUserData) -> {
+            VkDebugUtilsMessengerCallbackDataEXT data = VkDebugUtilsMessengerCallbackDataEXT.create(pCallbackData);
+            System.err.println("[vulkan validation] " + data.pMessageString());
+            return VK_FALSE;
+        });
+        VkDebugUtilsMessengerCreateInfoEXT info = VkDebugUtilsMessengerCreateInfoEXT.calloc(stack)
+                .sType(EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT)
+                .messageSeverity(EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                        | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+                .messageType(EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                        | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                        | EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+                .pfnUserCallback(debugCallback);
+        LongBuffer pMessenger = stack.mallocLong(1);
+        check(EXTDebugUtils.vkCreateDebugUtilsMessengerEXT(instance, info, null, pMessenger), "vkCreateDebugUtilsMessengerEXT");
+        debugMessenger = pMessenger.get(0);
+    }
+
+    private static VkInstance createInstance(MemoryStack stack, boolean validation) {
         VkApplicationInfo app = VkApplicationInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 .pApplicationName(stack.UTF8("formicapi"))
@@ -290,8 +369,10 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                 .sType(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
                 .pApplicationInfo(app);
 
-        if (Boolean.getBoolean("formicapi.vulkan.validation"))
+        if (validation) {
             info.ppEnabledLayerNames(stack.pointers(stack.UTF8("VK_LAYER_KHRONOS_validation")));
+            info.ppEnabledExtensionNames(stack.pointers(stack.UTF8(EXTDebugUtils.VK_EXT_DEBUG_UTILS_EXTENSION_NAME)));
+        }
 
         PointerBuffer pInstance = stack.mallocPointer(1);
         check(vkCreateInstance(info, null, pInstance), "vkCreateInstance (is a Vulkan 1.2 loader/driver installed?)");
@@ -792,7 +873,8 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                                 .dstBinding(i)
                                 .dstArrayElement(0)
                                 .descriptorType(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-                                .pBufferInfo(infos.slice(i, 1));
+                                .pBufferInfo(infos.slice(i, 1))
+                                .descriptorCount(1); // set explicitly: never rely on the auto-sized count shared by three pointer members
                     }
                     vkUpdateDescriptorSets(device, writes, null);
                 }
@@ -815,6 +897,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                     .descriptorPool(descriptorPool)
                     .pSetLayouts(stack.longs(layout));
+                    //.descriptorSetCount(1);
             LongBuffer pSet = stack.mallocLong(1);
 
             int r = vkAllocateDescriptorSets(device, info, pSet);
@@ -1121,7 +1204,11 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             vkDestroyCommandPool(device, commandPool, null); // frees its command buffers
             memoryProperties.free();
             vkDestroyDevice(device, null);
+            if (debugMessenger != VK_NULL_HANDLE)
+                EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, null);
             vkDestroyInstance(instance, null);
+            if (debugCallback != null)
+                debugCallback.free();
         }
     }
 }

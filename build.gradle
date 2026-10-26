@@ -157,6 +157,14 @@ repositories {
 
 }
 
+def lwjglNatives = System.getProperty("os.name").toLowerCase().with {
+    if (contains("win")) return "natives-windows"
+    if (contains("linux")) return "natives-linux"
+    if (contains("mac")) return "natives-macos"
+    throw new GradleException("Unsupported OS: $it")
+}
+
+
 dependencies {
     implementation("com.simibubi.create:create-${minecraft_version}:${create_version}:slim"){ transitive = false }
     implementation("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
@@ -164,7 +172,9 @@ dependencies {
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 
-    testRuntimeOnly("org.lwjgl:lwjgl:${lwjgl_version}:natives-windows")// todo make it choose the platform so it can work on github
+    testRuntimeOnly("org.lwjgl:lwjgl:${lwjgl_version}:${lwjglNatives}")
+    runtimeOnly("org.lwjgl:lwjgl-shaderc:${lwjgl_version}:${lwjglNatives}")
+
     implementation("org.lwjgl:lwjgl-vulkan:${lwjgl_version}")
     implementation("org.lwjgl:lwjgl-shaderc:${lwjgl_version}")
     // JEI
