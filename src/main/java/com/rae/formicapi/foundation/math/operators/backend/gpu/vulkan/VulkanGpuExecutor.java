@@ -65,9 +65,11 @@ import static org.lwjgl.vulkan.VK12.*;
  * </ul>
  *
  * <h3>Requirements and limits</h3>
- * Vulkan 1.2 with the {@code shaderFloat64} and {@code timelineSemaphore}
- * features (selection fails fast otherwise, mirroring the OpenCL backend's
- * fp64 requirement). 64-bit buffer
+ * Vulkan 1.2 with the {@code timelineSemaphore} feature (selection fails
+ * fast otherwise). {@code shaderFloat64} is <em>optional</em>: devices without
+ * it work for the float/int API, and only double-precision kernels are
+ * refused (see {@link #supportsFeature}); the double helpers throw
+ * {@link UnsupportedOperationException} there. 64-bit buffer
  * atomics ({@code shaderBufferInt64Atomics}, needed by
  * {@code GpuPaddedCSRMatrix.transposeApply}) and 8-bit storage (needed by
  * {@code GpuBooleanVector.gather}) are enabled when present and reported
@@ -159,7 +161,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     private long stagingLive = 0;
 
     private final List<VulkanKernel> kernels = new ArrayList<>();
-    private final VulkanKernel fillDoubleKernel;
+    private final @Nullable VulkanKernel fillDoubleKernel; // null without shaderFloat64
     private final VulkanKernel selfTestKernel;
 
     private volatile boolean closed = false;
@@ -208,8 +210,6 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     .pNext(supported12.address());
             vkGetPhysicalDeviceFeatures2(chosen, supported);
 
-            if (!supported.features().shaderFloat64())
-                throw new RuntimeException("Vulkan device '" + deviceName + "' doesn't support shaderFloat64 (double precision)");
 
             if (!supported12.timelineSemaphore())
                 throw new RuntimeException("Vulkan device '" + deviceName + "' doesn't support timelineSemaphore (Vulkan 1.2 feature, needed for non-blocking resource dependencies)");
@@ -302,7 +302,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         }
 
         // internal helper kernel: a 64-bit fill pattern can't be expressed with vkCmdFillBuffer (32-bit only)
-        this.fillDoubleKernel = registerKernel("fill_double", """
+        this.fillDoubleKernel = !hasFloat64 ? null : registerKernel("fill_double", """
                 layout(std430, binding = 0) buffer D { double d[]; };
                 layout(push_constant) uniform PC { int gsz; int offset; double value; } pc;
                 void main() {
@@ -315,16 +315,16 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         // Prove compute actually works on this device before anyone relies on it: a wrong-but-silent
         // driver/setup problem otherwise surfaces much later as garbage results or VK_ERROR_DEVICE_LOST.
         this.selfTestKernel = registerKernel("selftest", """
-                layout(std430, binding = 0) buffer O { double o[]; };
-                layout(std430, binding = 1) buffer I { double src[]; };
+                layout(std430, binding = 0) buffer O { float o[]; };
+                layout(std430, binding = 1) buffer I { float src[]; };
                 layout(std430, binding = 2) buffer X { int idx[]; };
-                layout(push_constant) uniform PC { int gsz; int n; double a; } pc;
+                layout(push_constant) uniform PC { int gsz; int n; float a; } pc;
                 void main() {
                     uint i = GID;
                     if (i >= uint(pc.gsz)) return;
-                    o[i] = src[idx[i]] * pc.a + double(pc.n);
+                    o[i] = src[idx[i]] * pc.a + float(pc.n);
                 }
-                """, "shaderFloat64");
+                """);
         try {
             selfTest();
         } catch (RuntimeException e) {
@@ -340,18 +340,17 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     }
 
     private void selfTest() {
-        GpuResource in = allocateDoubleBuffer(4), idx = allocateIntBuffer(4), out = allocateDoubleBuffer(4);
+        GpuResource in = allocateFloatBuffer(4), idx = allocateIntBuffer(4), out = allocateFloatBuffer(4);
         try {
-            uploadDoubles(in, new double[]{10, 20, 30, 40}, 4);
+            uploadFloats(in, new float[]{10, 20, 30, 40}, 4);
             uploadInts(idx, new int[]{3, 2, 1, 0}, 4);
-            fillDoubleBuffer(out, 0.0, 4);
-            // three buffers + an int and a double push constant + an indexed read: the shape of every real kernel
-            dispatch(selfTestKernel, 4, 0, new GpuResource[]{out, in, idx, scalar(7), scalar(0.5)}, true);
+            fillFloatBuffer(out, 0f, 4);
+            // three buffers + an int and a float push constant + an indexed read: the shape of every real kernel
+            dispatch(selfTestKernel, 4, 0, new GpuResource[]{out, in, idx, scalar(7), scalar(0.5f)}, true);
 
-
-            double[] got = new double[4];
-            downloadDoubles(out, got, 4);
-            double[] expected = {40 * 0.5 + 7, 30 * 0.5 + 7, 20 * 0.5 + 7, 10 * 0.5 + 7};
+            float[] got = new float[4];
+            downloadFloats(out, got, 4);
+            float[] expected = {40 * 0.5f + 7, 30 * 0.5f + 7, 20 * 0.5f + 7, 10 * 0.5f + 7};
             if (!Arrays.equals(got, expected))
                 throw new IllegalStateException("Vulkan compute self-test failed on '" + deviceName + "': expected "
                         + Arrays.toString(expected) + " but got " + Arrays.toString(got)
@@ -471,8 +470,6 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2)
                     .pNext(f12.address());
             vkGetPhysicalDeviceFeatures2(pd, f);
-            if (!f.features().shaderFloat64())
-                return "doesn't support shaderFloat64 (double precision)";
             if (!f12.timelineSemaphore())
                 return "doesn't support timelineSemaphore";
             return null;
@@ -496,7 +493,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             }
         }
         if (best == null)
-            throw new RuntimeException("No Vulkan 1.2 device with compute, shaderFloat64 (double precision) and timelineSemaphore support found");
+            throw new RuntimeException("No Vulkan 1.2 device with compute and timelineSemaphore support found");
         return best;
     }
 
@@ -1052,7 +1049,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                     .descriptorPool(descriptorPool)
                     .pSetLayouts(stack.longs(layout));
-                    //.descriptorSetCount(1);
+            //.descriptorSetCount(1);
             LongBuffer pSet = stack.mallocLong(1);
 
             int r = vkAllocateDescriptorSets(device, info, pSet);
@@ -1320,6 +1317,8 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     @Override
     public void fillDoubleBuffer(GpuResource buffer, int offset, double value, int length) {
         if (length <= 0) return;
+        if (fillDoubleKernel == null && !hasFloat64)
+            throw new UnsupportedOperationException("Vulkan device '" + deviceName + "' has no shaderFloat64; double buffers can't be used");
         long bits = Double.doubleToRawLongBits(value);
         int lo = (int) bits;
         int hi = (int) (bits >>> 32);

@@ -5,7 +5,7 @@
  * {@link com.rae.formicapi.foundation.math.operators.backend.gpu.vulkan.VulkanResource}.
  *
  * <p>Built on LWJGL ({@code lwjgl-vulkan}, {@code lwjgl-shaderc}); needs a
- * Vulkan 1.2 device with {@code shaderFloat64} and {@code timelineSemaphore}. Select it with
+ * Vulkan 1.2 device with {@code timelineSemaphore} ({@code shaderFloat64} is optional: only double-precision kernels need it). Select it with
  * {@code APIChoice.setAPI(ImplementedAPI.Vulkan)}.
  */
 @NonnullDefault
