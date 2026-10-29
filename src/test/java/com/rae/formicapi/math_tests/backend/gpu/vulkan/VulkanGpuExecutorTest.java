@@ -2,6 +2,7 @@ package com.rae.formicapi.math_tests.backend.gpu.vulkan;
 
 import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuResource;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.PortableKernel;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.ResourceEvent;
 import com.rae.formicapi.foundation.math.operators.backend.gpu.vulkan.VulkanGpuExecutor;
 import org.junit.jupiter.api.*;
 
@@ -367,8 +368,11 @@ class VulkanGpuExecutorTest {
     }
 
     private static final class ForeignResource implements GpuResource {
-        public com.rae.formicapi.foundation.math.operators.backend.gpu.ResourceEvent[] pendingEvents() { return new com.rae.formicapi.foundation.math.operators.backend.gpu.ResourceEvent[0]; }
-        public void recordEvent(com.rae.formicapi.foundation.math.operators.backend.gpu.ResourceEvent e) { }
+        public ResourceEvent[] pendingEvents() {
+            return new ResourceEvent[0]; }
+        public void recordEvent(ResourceEvent e) {
+
+        }
         public void settle() { }
         public void release() { }
     }

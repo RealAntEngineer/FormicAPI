@@ -88,7 +88,7 @@ public class PaddedCSRMatrixD implements MutableMatrix {
      *
      * @param newRows new row/column count
      */
-    public void resize(int newRows) {
+    public void resize(int newRows, int newCols) {
         int requiredLength = newRows * nnzPerRow;
 
         if (requiredLength > values.length) {
@@ -97,7 +97,7 @@ public class PaddedCSRMatrixD implements MutableMatrix {
         }
 
         rows = newRows;
-        cols = newRows;
+        cols = newCols;
     }
     /**
      * Adds a value to an existing entry in the CSR structure.

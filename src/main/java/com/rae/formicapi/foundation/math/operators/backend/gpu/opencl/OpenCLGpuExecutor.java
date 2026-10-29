@@ -262,11 +262,6 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     // ---------------------------------------------------------------- double transfers (blocking)
 
     @Override
-    public void uploadDoubles(GpuResource buffer, double[] host, int length) {
-        uploadDoubles(buffer, 0, host, 0, length);
-    }
-
-    @Override
     public void uploadDoubles(GpuResource buffer, int elementOffset, double[] host, int hostOffset, int length) {
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
@@ -275,11 +270,6 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
                     waitCount(wait), wait, null);
             settle(buffer);
         }
-    }
-
-    @Override
-    public void downloadDoubles(GpuResource buffer, double[] host, int length) {
-        downloadDoubles(buffer, 0, host, length);
     }
 
     @Override
@@ -315,11 +305,6 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     }
 
     @Override
-    public void uploadFloats(GpuResource buffer, float[] host, int length) {
-        uploadFloats(buffer, 0, host, 0, length);
-    }
-
-    @Override
     public void uploadFloats(GpuResource buffer, int elementOffset, float[] host, int hostOffset, int length) {
         synchronized (queue) {
             @Nullable cl_event[] wait = waitList(buffer);
@@ -328,11 +313,6 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
                     waitCount(wait), wait, null);
             settle(buffer);
         }
-    }
-
-    @Override
-    public void downloadFloats(GpuResource buffer, float[] host, int length) {
-        downloadFloats(buffer, 0, host, length);
     }
 
     @Override
@@ -370,11 +350,6 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     // ---------------------------------------------------------------- int transfers (blocking)
 
     @Override
-    public void uploadInts(GpuResource buffer, int[] host, int length) {
-        uploadInts(buffer, 0, host, 0, length);
-    }
-
-    @Override
     public void uploadInts(GpuResource buffer, int elementOffset, int[] host, int hostOffset, int length) {
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
@@ -383,11 +358,6 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
                     waitCount(wait), wait, null);
             settle(buffer);
         }
-    }
-
-    @Override
-    public void downloadInts(GpuResource buffer, int[] host, int length) {
-        downloadInts(buffer, 0, host, length);
     }
 
     @Override
@@ -425,19 +395,21 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
     // ---------------------------------------------------------------- byte transfers (blocking)
 
     @Override
-    public void uploadBytes(GpuResource buffer, byte[] host, int length) {
+    public void uploadBytes(GpuResource buffer, int elementOffset, byte[] host, int hostOffset, int length) {
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
-            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, 0, length, Pointer.to(host), waitCount(wait), wait, null);
+            clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, elementOffset, length,
+                    Pointer.to(host).withByteOffset(hostOffset), waitCount(wait), wait, null);
             settle(buffer);
         }
     }
 
     @Override
-    public void downloadBytes(GpuResource buffer, byte[] host, int length) {
+    public void downloadBytes(GpuResource buffer, int elementOffset, byte[] host, int hostOffset, int length) {
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
-            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, 0, length, Pointer.to(host), waitCount(wait), wait, null);
+            clEnqueueReadBuffer(queue, mem(buffer), CL_TRUE, elementOffset, length,
+                    Pointer.to(host).withByteOffset(hostOffset), waitCount(wait), wait, null);
             settle(buffer);
         }
     }

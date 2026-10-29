@@ -215,7 +215,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
     void resizeGrowKeepsExistingRowsAndZeroFillsNewOnes() {
         GpuPaddedCSRMatrixD matrix = createRectangularMatrix(); // 2 rows x 3 cols
 
-        matrix.resize(3);
+        matrix.resize(3, 3);
         assertEquals(3, matrix.rows());
 
         // Old rows preserved.
@@ -240,7 +240,7 @@ class GpuPaddedCSRMatrixTest extends GpuTestSupport {
     void resizeShrinkTruncatesRows() {
         GpuPaddedCSRMatrixD matrix = createRectangularMatrix(); // 2 rows x 3 cols
 
-        matrix.resize(1);
+        matrix.resize(1, 1);
 
         assertEquals(1, matrix.rows());
         assertEquals(1.0, matrix.get(0, 0), EPSILON);

@@ -33,30 +33,32 @@ public interface GpuExecutor extends BackendExecutor {
 
     //void release(GpuResource buffer);
 
-    void uploadDoubles(GpuResource buffer, double[] host, int length);//TODO could be made default
+    default void uploadDoubles(GpuResource buffer, double[] host, int length) {uploadDoubles(buffer, 0, host, 0, length);}
     void uploadDoubles(GpuResource buffer, int elementOffset, double[] host, int hostOffset, int length);
-    void downloadDoubles(GpuResource buffer, double[] host, int length);//TODO could be made default
+    default void downloadDoubles(GpuResource buffer, double[] host, int length) {downloadDoubles(buffer, 0, host, length);}
     void downloadDoubles(GpuResource buffer, int elementOffset, double[] host, int length);
     void uploadDoubleAt(GpuResource buffer, int elementOffset, double value);
     double downloadDoubleAt(GpuResource buffer, int elementOffset);
 
-    void uploadFloats(GpuResource buffer, float[] host, int length);//TODO could be made default
+    default void uploadFloats(GpuResource buffer, float[] host, int length) {uploadFloats(buffer, 0, host, 0, length);}
     void uploadFloats(GpuResource buffer, int elementOffset, float[] host, int hostOffset, int length);
-    void downloadFloats(GpuResource buffer, float[] host, int length);//TODO could be made default
+    default void downloadFloats(GpuResource buffer, float[] host, int length) {downloadFloats(buffer, 0, host, length);}
     void downloadFloats(GpuResource buffer, int elementOffset, float[] host, int length);
     void uploadFloatAt(GpuResource buffer, int elementOffset, float value);
     float downloadFloatAt(GpuResource buffer, int elementOffset);
 
 
-    void uploadInts(GpuResource buffer, int[] host, int length);//TODO could be made default
+    default void uploadInts(GpuResource buffer, int[] host, int length) {uploadInts(buffer, 0, host, 0, length);}
     void uploadInts(GpuResource buffer, int elementOffset, int[] host, int hostOffset, int length);
-    void downloadInts(GpuResource buffer, int[] host, int length);//TODO could be made default
+    default void downloadInts(GpuResource buffer, int[] host, int length) {downloadInts(buffer, 0, host, length);}
     void downloadInts(GpuResource buffer, int elementOffset, int[] host, int length);
     void uploadIntAt(GpuResource buffer, int elementOffset, int value);
     int downloadIntAt(GpuResource buffer, int elementOffset);
 
-    void uploadBytes(GpuResource buffer, byte[] host, int length);
-    void downloadBytes(GpuResource buffer, byte[] host, int length);
+    default void uploadBytes(GpuResource buffer, byte[] host, int length) {uploadBytes(buffer, 0, host, 0, length);}//TODO could be made default
+    void uploadBytes(GpuResource buffer, int elementOffset, byte[] host, int hostOffset, int length);
+    default void downloadBytes(GpuResource buffer, byte[] host, int length) {downloadBytes(buffer, 0, host, 0, length);}
+    void downloadBytes(GpuResource buffer, int elementOffset, byte[] host, int hostOffset, int length);
     void uploadByteAt(GpuResource buffer, int elementOffset, byte value);
     byte downloadByteAt(GpuResource buffer, int elementOffset);
 

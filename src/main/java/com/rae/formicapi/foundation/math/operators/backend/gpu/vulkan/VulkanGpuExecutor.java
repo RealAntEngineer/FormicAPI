@@ -348,6 +348,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             // three buffers + an int and a double push constant + an indexed read: the shape of every real kernel
             dispatch(selfTestKernel, 4, 0, new GpuResource[]{out, in, idx, scalar(7), scalar(0.5)}, true);
 
+
             double[] got = new double[4];
             downloadDoubles(out, got, 4);
             double[] expected = {40 * 0.5 + 7, 30 * 0.5 + 7, 20 * 0.5 + 7, 10 * 0.5 + 7};
@@ -1172,19 +1173,9 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     // ---- doubles
 
     @Override
-    public void uploadDoubles(GpuResource buffer, double[] host, int length) {
-        uploadDoubles(buffer, 0, host, 0, length);
-    }
-
-    @Override
     public void uploadDoubles(GpuResource buffer, int elementOffset, double[] host, int hostOffset, int length) {
         write(buffer, (long) elementOffset * Double.BYTES, (long) length * Double.BYTES,
                 (staging, pos, n) -> staging.asDoubleBuffer().put(host, hostOffset + (int) (pos / Double.BYTES), n / Double.BYTES));
-    }
-
-    @Override
-    public void downloadDoubles(GpuResource buffer, double[] host, int length) {
-        downloadDoubles(buffer, 0, host, length);
     }
 
     @Override
@@ -1205,21 +1196,12 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         return out[0];
     }
 
-    @Override
-    public void uploadFloats(GpuResource buffer, float[] host, int length) {
-        uploadFloats(buffer, 0, host, 0, length);
-    }
+    // ---- floats
 
     @Override
     public void uploadFloats(GpuResource buffer, int elementOffset, float[] host, int hostOffset, int length) {
         write(buffer, (long) elementOffset * Float.BYTES, (long) length * Float.BYTES,
                 (staging, pos, n) -> staging.asFloatBuffer().put(host, hostOffset + (int) (pos / Float.BYTES), n / Float.BYTES));
-
-    }
-
-    @Override
-    public void downloadFloats(GpuResource buffer, float[] host, int length) {
-        downloadFloats(buffer, 0, host, length);
 
     }
 
@@ -1243,24 +1225,12 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         return out[0];
     }
 
-    // ---- floats
-
     // ---- ints
-
-    @Override
-    public void uploadInts(GpuResource buffer, int[] host, int length) {
-        uploadInts(buffer, 0, host, 0, length);
-    }
 
     @Override
     public void uploadInts(GpuResource buffer, int elementOffset, int[] host, int hostOffset, int length) {
         write(buffer, (long) elementOffset * Integer.BYTES, (long) length * Integer.BYTES,
                 (staging, pos, n) -> staging.asIntBuffer().put(host, hostOffset + (int) (pos / Integer.BYTES), n / Integer.BYTES));
-    }
-
-    @Override
-    public void downloadInts(GpuResource buffer, int[] host, int length) {
-        downloadInts(buffer, 0, host, length);
     }
 
     @Override
@@ -1284,13 +1254,13 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     // ---- bytes
 
     @Override
-    public void uploadBytes(GpuResource buffer, byte[] host, int length) {
-        write(buffer, 0, length, (staging, pos, n) -> staging.put(host, (int) pos, n));
+    public void uploadBytes(GpuResource buffer, int elementOffset, byte[] host, int hostOffset, int length) {
+        write(buffer, elementOffset, length, (staging, pos, n) -> staging.put(host, (int) pos+hostOffset, n));
     }
 
     @Override
-    public void downloadBytes(GpuResource buffer, byte[] host, int length) {
-        read(buffer, 0, length, (staging, pos, n) -> staging.get(host, (int) pos, n));
+    public void downloadBytes(GpuResource buffer, int elementOffset, byte[] host, int hostOffset, int length) {
+        read(buffer, elementOffset, length, (staging, pos, n) -> staging.get(host, (int) pos+hostOffset, n));
     }
 
     @Override
