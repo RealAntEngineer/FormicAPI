@@ -6,7 +6,7 @@ import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 
 import java.util.Arrays;
 
-public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
+public class CpuPaddedCSRMatrixD extends CpuExecutable implements MutableMatrix {
 
     private final int      nnzPerRow;
     private       int      rows;
@@ -37,7 +37,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
      * @param cols number of columns
      *
      */
-    public CpuPaddedCSRMatrix(int rows, int cols, int nnzPerRow) {
+    public CpuPaddedCSRMatrixD(int rows, int cols, int nnzPerRow) {
 
         this.rows = rows;
         this.cols = cols;
@@ -47,7 +47,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
         this.colIndex = new int[rows * nnzPerRow];
     }
 
-    private CpuPaddedCSRMatrix(int rows, int cols, int nnzPerRow, double[] values, int[] colIndex) {
+    private CpuPaddedCSRMatrixD(int rows, int cols, int nnzPerRow, double[] values, int[] colIndex) {
         this.rows = rows;
         this.cols = cols;
         this.nnzPerRow = nnzPerRow;
@@ -56,7 +56,7 @@ public class CpuPaddedCSRMatrix extends CpuExecutable implements MutableMatrix {
     }
 
     @Override
-    public void resize(int newRows) {
+    public void resize(int newRows, int newCols) {
         int requiredLength = newRows * nnzPerRow;
 
         if (requiredLength > values.length) {

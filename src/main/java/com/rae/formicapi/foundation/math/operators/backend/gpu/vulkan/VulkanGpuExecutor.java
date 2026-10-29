@@ -33,28 +33,41 @@ import static org.lwjgl.vulkan.VK12.*;
  *
  * <h3>Execution model</h3>
  * <ul>
- *   <li><b>In-order queue.</b> Every operation is its own one-time command
- *       buffer submitted to one queue, and every command buffer begins with a
- *       global memory barrier (compute+transfer writes -&gt; compute+transfer
- *       reads/writes). That reproduces an in-order OpenCL queue: operations
- *       see each other's results in submission order with no per-buffer
- *       bookkeeping. Dispatches, copies and fills return immediately; host
- *       transfers and {@code useBlocking} wait on a fence.</li>
- *   <li><b>Staged transfers.</b> Buffers live in device-local memory; uploads
- *       and downloads go through one persistently mapped host-visible staging
- *       buffer (grown on demand, chunked when a transfer exceeds
- *       {@link #MAX_STAGING_BYTES}).</li>
+ *   <li><b>Serials and a timeline semaphore.</b> Every operation is its own
+ *       one-time command buffer submitted to one queue, and gets the next
+ *       value of a monotonically increasing serial, signalled on a single
+ *       timeline semaphore when it finishes. A serial is this backend's
+ *       {@link VulkanEvent}; the semaphore's counter says exactly which have
+ *       completed, and the host can wait on any of them without a per-submission fence.</li>
+ *   <li><b>Per-resource dependencies, like OpenCL's event wait lists.</b> Each
+ *       buffer remembers the serial of the last operation that touched it
+ *       ({@link VulkanResource#pendingEvents()}). A submission opens with a
+ *       memory barrier <em>only if</em> one of the buffers it touches still has
+ *       unfinished work that no earlier barrier already covers. Operations on
+ *       independent buffers get no barrier at all and may overlap on the
+ *       device; operations sharing a buffer stay ordered. Waiting is always
+ *       device-side -- the host never blocks for a dependency.</li>
+ *   <li><b>Non-blocking transfers in.</b> Uploads copy the host data into a
+ *       pooled, persistently mapped staging block (so the host array is free
+ *       to reuse on return), submit the copy and return. The block is
+ *       recycled when that submission completes. A later dispatch on the
+ *       same buffer is ordered after the upload by the dependency above; a
+ *       dispatch on any other buffer is not delayed by it.</li>
+ *   <li><b>Blocking only where it must.</b> Downloads and {@code useBlocking}
+ *       wait for their own serial (outside the executor lock), nothing more.
+ *       Dispatches, copies, fills and uploads return immediately.</li>
  *   <li><b>Deferred destruction.</b> {@link GpuResource#release()} on a buffer
  *       can't free it while queued work still uses it, so destruction is
- *       queued behind the submissions issued so far and carried out as their
- *       fences complete.</li>
- *   <li><b>Locking.</b> One queue means external synchronization: every public
- *       method locks on the same monitor.</li>
+ *       queued behind that buffer's own last serial and carried out once the
+ *       semaphore reaches it.</li>
+ *   <li><b>Locking.</b> One queue means external synchronization: submission
+ *       and bookkeeping happen under one monitor; host waits happen outside it.</li>
  * </ul>
  *
  * <h3>Requirements and limits</h3>
- * Vulkan 1.2 and the {@code shaderFloat64} feature (selection fails fast
- * otherwise, mirroring the OpenCL backend's fp64 requirement). 64-bit buffer
+ * Vulkan 1.2 with the {@code shaderFloat64} and {@code timelineSemaphore}
+ * features (selection fails fast otherwise, mirroring the OpenCL backend's
+ * fp64 requirement). 64-bit buffer
  * atomics ({@code shaderBufferInt64Atomics}, needed by
  * {@code GpuPaddedCSRMatrix.transposeApply}) and 8-bit storage (needed by
  * {@code GpuBooleanVector.gather}) are enabled when present and reported
@@ -70,8 +83,10 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
     private static final int  DEFAULT_LOCAL_SIZE   = 256;
     private static final long INITIAL_STAGING_BYTES = 1L << 20;
-    /** Transfers larger than this are split into several blocking chunks. Multiple of 8 so a chunk never splits a double. */
+    /** Transfers larger than this are split into several chunks. Multiple of 8 so a chunk never splits a double. */
     static final  long MAX_STAGING_BYTES           = 64L << 20;
+    /** Cap on total staging memory (free + in flight). Past it, an upload waits for earlier ones to drain instead of allocating more. */
+    private static final long MAX_STAGING_TOTAL    = 256L << 20;
     private static final int  MAX_DESCRIPTOR_SETS  = 4096;
 
     private static final int BUFFER_USAGE =
@@ -110,33 +125,38 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     private final long commandPool;
     private final long descriptorPool;
 
-    // submission tracking
+    // submission tracking: one serial per queue submission, signalled on a timeline semaphore
     private static final class Submission {
         final VkCommandBuffer cb;
-        final long fence;
         final List<Long> descriptorSets = new ArrayList<>(2);
+        @Nullable Staging staging; // upload staging block, handed back to the pool once this submission completes
         long serial;
 
-        Submission(VkCommandBuffer cb, long fence) {
+        Submission(VkCommandBuffer cb) {
             this.cb = cb;
-            this.fence = fence;
         }
+    }
+
+    /** One persistently mapped host-visible block used to move bytes to/from the device. */
+    private record Staging(long buffer, long memory, long ptr, long capacity) {
     }
 
     private record Dead(long buffer, long memory, long serial) {
     }
 
+    /** Timeline semaphore: reaching value N means submission N and everything submitted before it has finished. */
+    private long timeline;
     private final ArrayDeque<Submission> inFlight = new ArrayDeque<>();
     private final ArrayDeque<Submission> idle = new ArrayDeque<>();
     private final List<Dead> graveyard = new ArrayList<>();
-    private long submitSerial = 0;
-    private long completedSerial = 0;
+    private long submitSerial = 0;              // guarded by lock
+    private volatile long completedSerial = 0;  // written under lock, readable anywhere
+    /** Serial of the latest submission that opened with a barrier: it covers every submission before it. Guarded by lock. */
+    private long barrierSerial = 0;
 
-    // staging
-    private long stagingBuffer = VK_NULL_HANDLE;
-    private long stagingMemory = VK_NULL_HANDLE;
-    private long stagingPtr = 0;
-    private long stagingCapacity = 0;
+    // staging pool (guarded by lock)
+    private final List<Staging> freeStaging = new ArrayList<>();
+    private long stagingLive = 0;
 
     private final List<VulkanKernel> kernels = new ArrayList<>();
     private final VulkanKernel fillDoubleKernel;
@@ -191,6 +211,9 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             if (!supported.features().shaderFloat64())
                 throw new RuntimeException("Vulkan device '" + deviceName + "' doesn't support shaderFloat64 (double precision)");
 
+            if (!supported12.timelineSemaphore())
+                throw new RuntimeException("Vulkan device '" + deviceName + "' doesn't support timelineSemaphore (Vulkan 1.2 feature, needed for non-blocking resource dependencies)");
+
             //TODO add more, in case we need features in the future (yes I know that this implementation is against SOLID principles)
             this.hasInt64 = supported.features().shaderInt64();//That's longs -> we use 4 * 8 = 32 bits integers
             this.hasInt32 = true;
@@ -208,14 +231,15 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES)
                     .shaderBufferInt64Atomics(hasInt64Atomics)
                     .storageBuffer8BitAccess(has8BitStorage)
-                    .shaderInt8(hasInt8);
+                    .shaderInt8(hasInt8)
+                    .timelineSemaphore(true);
             VkPhysicalDeviceFeatures2 enable = VkPhysicalDeviceFeatures2.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2)
                     .pNext(enable12.address());
             enable.features()
                     .shaderFloat64(hasFloat64)
                     .shaderInt64(hasInt64)
-                    .shaderInt64(hasInt16);
+                    .shaderInt16(hasInt16);
 
             VkDeviceQueueCreateInfo.Buffer queueInfo = VkDeviceQueueCreateInfo.calloc(1, stack);
             queueInfo.get(0)
@@ -259,6 +283,17 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             LongBuffer pDescPool = stack.mallocLong(1);
             check(vkCreateDescriptorPool(device, dpInfo, null, pDescPool), "vkCreateDescriptorPool");
             this.descriptorPool = pDescPool.get(0);
+
+            VkSemaphoreTypeCreateInfo typeInfo = VkSemaphoreTypeCreateInfo.calloc(stack)
+                    .sType(VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO)
+                    .semaphoreType(VK_SEMAPHORE_TYPE_TIMELINE)
+                    .initialValue(0);
+            VkSemaphoreCreateInfo semInfo = VkSemaphoreCreateInfo.calloc(stack)
+                    .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
+                    .pNext(typeInfo.address());
+            LongBuffer pSem = stack.mallocLong(1);
+            check(vkCreateSemaphore(device, semInfo, null, pSem), "vkCreateSemaphore(timeline)");
+            this.timeline = pSem.get(0);
 
             long limit = Math.min(DEFAULT_LOCAL_SIZE, Math.min(maxInvocations, maxGroupSizeX));
             int pow2 = 1;
@@ -429,10 +464,16 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                 return "only supports Vulkan " + VK_VERSION_MAJOR(props.apiVersion()) + "." + VK_VERSION_MINOR(props.apiVersion()) + " (1.2 required)";
             if (findComputeQueueFamilyOrNeg(inner, pd) < 0)
                 return "has no compute queue";
-            VkPhysicalDeviceFeatures2 f = VkPhysicalDeviceFeatures2.calloc(inner).sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+            VkPhysicalDeviceVulkan12Features f12 = VkPhysicalDeviceVulkan12Features.calloc(inner)
+                    .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
+            VkPhysicalDeviceFeatures2 f = VkPhysicalDeviceFeatures2.calloc(inner)
+                    .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2)
+                    .pNext(f12.address());
             vkGetPhysicalDeviceFeatures2(pd, f);
             if (!f.features().shaderFloat64())
                 return "doesn't support shaderFloat64 (double precision)";
+            if (!f12.timelineSemaphore())
+                return "doesn't support timelineSemaphore";
             return null;
         }
     }
@@ -454,7 +495,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             }
         }
         if (best == null)
-            throw new RuntimeException("No Vulkan 1.2 device with compute and shaderFloat64 (double precision) support found");
+            throw new RuntimeException("No Vulkan 1.2 device with compute, shaderFloat64 (double precision) and timelineSemaphore support found");
         return best;
     }
 
@@ -655,15 +696,19 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         return allocate(length);
     }
 
-    /** Called by {@link VulkanResource#release()}: destroys now if idle, otherwise once every already-submitted command has finished. */
-    void retire(long buffer, long memory) {
+    /**
+     * Called by {@link VulkanResource#release()}: destroys now if the buffer's
+     * last operation ({@code serial}, 0 if none) has already finished, otherwise
+     * once the timeline semaphore reaches it.
+     */
+    void retire(long buffer, long memory, long serial) {
         synchronized (lock) {
             if (closed) return;
-            if (inFlight.isEmpty()) {
+            reap();
+            if (serial <= completedSerial)
                 destroyBuffer(buffer, memory);
-            } else {
-                graveyard.add(new Dead(buffer, memory, submitSerial));
-            }
+            else
+                graveyard.add(new Dead(buffer, memory, serial));
         }
     }
 
@@ -672,42 +717,100 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         vkFreeMemory(device, memory, null);
     }
 
-    private void ensureStaging(long needed) {
-        long want = Math.min(Math.max(needed, INITIAL_STAGING_BYTES), MAX_STAGING_BYTES);
-        if (stagingCapacity >= want)
-            return;
+    /** True once the submission with this serial (and so everything before it) has finished. Safe to call from any thread, with or without the lock. */
+    boolean isComplete(long serial) {
+        if (serial <= completedSerial || closed)
+            return true;
+        return counterValue() >= serial;
+    }
 
-        long cap = Math.max(INITIAL_STAGING_BYTES, Long.highestOneBit(want - 1) << 1); // next power of two >= want
-        cap = Math.min(cap, MAX_STAGING_BYTES);
-
-        // every transfer that used the staging buffer was blocking, and nothing else touches it, so it's idle here
-        releaseStaging();
-
-        long[] bm = createBuffer(cap, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-        stagingBuffer = bm[0];
-        stagingMemory = bm[1];
-        stagingCapacity = cap;
+    private long counterValue() {
         try (MemoryStack stack = stackPush()) {
-            PointerBuffer pData = stack.mallocPointer(1);
-            check(vkMapMemory(device, stagingMemory, 0, VK_WHOLE_SIZE, 0, pData), "vkMapMemory(staging)");
-            stagingPtr = pData.get(0);
+            LongBuffer pValue = stack.mallocLong(1);
+            check(vkGetSemaphoreCounterValue(device, timeline, pValue), "vkGetSemaphoreCounterValue");
+            return pValue.get(0);
         }
     }
 
-    private void releaseStaging() {
-        if (stagingBuffer == VK_NULL_HANDLE)
-            return;
-        vkUnmapMemory(device, stagingMemory);
-        destroyBuffer(stagingBuffer, stagingMemory);
-        stagingBuffer = VK_NULL_HANDLE;
-        stagingMemory = VK_NULL_HANDLE;
-        stagingPtr = 0;
-        stagingCapacity = 0;
+    /** Host-side wait until the timeline reaches {@code serial}. Needs no lock. */
+    private void waitTimeline(long serial) {
+        try (MemoryStack stack = stackPush()) {
+            VkSemaphoreWaitInfo info = VkSemaphoreWaitInfo.calloc(stack)
+                    .sType(VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO)
+                    .pSemaphores(stack.longs(timeline))
+                    .pValues(stack.longs(serial));
+            check(vkWaitSemaphores(device, info, Long.MAX_VALUE), "vkWaitSemaphores");
+        }
     }
 
-    private ByteBuffer stagingView(int bytes) {
-        return MemoryUtil.memByteBuffer(stagingPtr, bytes).order(ByteOrder.nativeOrder());
+    /** Blocks until {@code serial} has finished, then recycles whatever that frees up. Does not need the lock held; takes it for the bookkeeping. */
+    private void waitAndReap(long serial) {
+        if (serial <= 0 || serial <= completedSerial)
+            return;
+        waitTimeline(serial);
+        synchronized (lock) {
+            if (!closed)
+                reap();
+        }
+    }
+
+    // ---- staging pool
+
+    private @Nullable Staging takeFree(long needed) {
+        Staging best = null;
+        for (Staging s : freeStaging)
+            if (s.capacity() >= needed && (best == null || s.capacity() < best.capacity()))
+                best = s;
+        if (best != null)
+            freeStaging.remove(best);
+        return best;
+    }
+
+    /** A staging block of at least {@code needed} bytes ({@code <= MAX_STAGING_BYTES}), reusing a free one when possible. Lock held. */
+    private Staging acquireStaging(long needed) {
+        Staging hit = takeFree(needed);
+        if (hit != null)
+            return hit;
+
+        long cap = Math.max(INITIAL_STAGING_BYTES, Long.highestOneBit(needed - 1) << 1); // next power of two >= needed
+        cap = Math.min(cap, MAX_STAGING_BYTES);
+
+        if (stagingLive + cap > MAX_STAGING_TOTAL) {
+            // backpressure: let in-flight uploads finish so their blocks come back, instead of growing without bound
+            waitAndReap(submitSerial);
+            hit = takeFree(needed);
+            if (hit != null)
+                return hit;
+            for (Staging s : freeStaging) // idle blocks of the wrong size: free them to make room
+                destroyStaging(s);
+            freeStaging.clear();
+        }
+        return createStaging(cap);
+    }
+
+    private Staging createStaging(long cap) {
+        long[] bm = createBuffer(cap, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+        try (MemoryStack stack = stackPush()) {
+            PointerBuffer pData = stack.mallocPointer(1);
+            int r = vkMapMemory(device, bm[1], 0, VK_WHOLE_SIZE, 0, pData);
+            if (r != VK_SUCCESS) {
+                destroyBuffer(bm[0], bm[1]);
+                check(r, "vkMapMemory(staging)");
+            }
+            stagingLive += cap;
+            return new Staging(bm[0], bm[1], pData.get(0), cap);
+        }
+    }
+
+    private void destroyStaging(Staging s) {
+        vkUnmapMemory(device, s.memory());
+        destroyBuffer(s.buffer(), s.memory());
+        stagingLive -= s.capacity();
+    }
+
+    private static ByteBuffer view(Staging s, int bytes) {
+        return MemoryUtil.memByteBuffer(s.ptr(), bytes).order(ByteOrder.nativeOrder());
     }
 
     // ---------------------------------------------------------------- submission machinery
@@ -721,7 +824,6 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         reap();
         Submission s = idle.pollFirst();
         if (s != null) {
-            check(vkResetFences(device, s.fence), "vkResetFences");
             check(vkResetCommandBuffer(s.cb, 0), "vkResetCommandBuffer");
             return s;
         }
@@ -733,103 +835,113 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                 .commandBufferCount(1);
         PointerBuffer pCb = stack.mallocPointer(1);
         check(vkAllocateCommandBuffers(device, alloc, pCb), "vkAllocateCommandBuffers");
-
-        VkFenceCreateInfo fenceInfo = VkFenceCreateInfo.calloc(stack).sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
-        LongBuffer pFence = stack.mallocLong(1);
-        check(vkCreateFence(device, fenceInfo, null, pFence), "vkCreateFence");
-
-        return new Submission(new VkCommandBuffer(pCb.get(0), device), pFence.get(0));
+        return new Submission(new VkCommandBuffer(pCb.get(0), device));
     }
 
     /**
-     * Records {@code recorder}'s commands behind a global barrier, submits them, and optionally waits.
-     * {@code descriptorSet} (0 if none) is freed once this submission completes.
+     * Records {@code recorder}'s commands and submits them, returning the new submission's serial. Never blocks
+     * (callers that need the result wait on the returned serial themselves). Lock held.
+     *
+     * <p>{@code touched} are the buffers this operation reads or writes. If any of them still has unfinished work
+     * that no earlier barrier covers, the command buffer opens with a global memory barrier -- an execution +
+     * memory dependency on everything submitted before it, the Vulkan equivalent of putting those buffers'
+     * pending events in an OpenCL wait list. Otherwise no barrier is recorded and the work may overlap freely with
+     * other in-flight submissions. Afterwards this submission's serial is recorded as the pending event of every
+     * touched buffer.
+     *
+     * <p>{@code descriptorSet} (0 if none) is freed, and {@code staging} (if any) returned to the pool, once the
+     * submission completes.
      */
-    private void submit(Recorder recorder, long descriptorSet, boolean wait) {
+    private long submit(Recorder recorder, VulkanResource[] touched, long descriptorSet, @Nullable Staging staging) {
+        if (closed) throw new IllegalStateException("VulkanGpuExecutor is closed");
         try (MemoryStack stack = stackPush()) {
-            Submission s = acquireSubmission(stack);
+            Submission s = acquireSubmission(stack); // also refreshes completedSerial
+            final long serial = submitSerial + 1;
+
+            boolean needBarrier = false;
+            for (VulkanResource r : touched) {
+                long p = r.pendingSerial();
+                // unfinished, and not already behind a barrier that a later submission opened with
+                if (p > completedSerial && p >= barrierSerial) {
+                    needBarrier = true;
+                    break;
+                }
+            }
 
             VkCommandBufferBeginInfo begin = VkCommandBufferBeginInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
                     .flags(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             check(vkBeginCommandBuffer(s.cb, begin), "vkBeginCommandBuffer");
 
-            // Execution + memory dependency on everything submitted before (same queue, submission order):
-            // this is what makes the queue behave like an in-order one. HOST is in the source scope so
-            // staging writes made on the host before submit are visible to the transfer that reads them.
-            VkMemoryBarrier.Buffer barrier = VkMemoryBarrier.calloc(1, stack);
-            barrier.get(0)
-                    .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
-                    .srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT)
-                    .dstAccessMask(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT
-                            | VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
-            vkCmdPipelineBarrier(s.cb,
-                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_HOST_BIT,
-                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    0, barrier, null, null);
+            if (needBarrier) {
+                // Host writes into staging need no barrier: vkQueueSubmit already makes them visible.
+                VkMemoryBarrier.Buffer barrier = VkMemoryBarrier.calloc(1, stack);
+                barrier.get(0)
+                        .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
+                        .srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT)
+                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT
+                                | VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
+                vkCmdPipelineBarrier(s.cb,
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        0, barrier, null, null);
+            }
 
             recorder.record(s.cb, stack);
             check(vkEndCommandBuffer(s.cb), "vkEndCommandBuffer");
 
+            VkTimelineSemaphoreSubmitInfo timelineInfo = VkTimelineSemaphoreSubmitInfo.calloc(stack)
+                    .sType(VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO)
+                    .pSignalSemaphoreValues(stack.longs(serial));
             VkSubmitInfo submit = VkSubmitInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-                    .pCommandBuffers(stack.pointers(s.cb));
-            check(vkQueueSubmit(queue, submit, s.fence), "vkQueueSubmit");
+                    .pNext(timelineInfo.address())
+                    .pCommandBuffers(stack.pointers(s.cb))
+                    .pSignalSemaphores(stack.longs(timeline));
+            check(vkQueueSubmit(queue, submit, VK_NULL_HANDLE), "vkQueueSubmit");
 
-            s.serial = ++submitSerial;
+            submitSerial = serial;
+            if (needBarrier)
+                barrierSerial = serial;
+            s.serial = serial;
             if (descriptorSet != VK_NULL_HANDLE)
                 s.descriptorSets.add(descriptorSet);
+            s.staging = staging;
             inFlight.addLast(s);
 
-            if (wait)
-                waitFor(s);
+            VulkanEvent event = new VulkanEvent(serial);
+            for (VulkanResource r : touched)
+                r.recordEvent(event);
+            return serial;
         }
     }
 
-    /** Waits for {@code target} and everything submitted before it, then retires them. */
-    private void waitFor(Submission target) {
-        try (MemoryStack stack = stackPush()) {
-            for (Submission s : inFlight) {
-                check(vkWaitForFences(device, stack.longs(s.fence), true, Long.MAX_VALUE), "vkWaitForFences");
-                if (s == target)
-                    break;
-            }
-        }
-        reap();
-    }
-
-    private void waitAll() {
-        Submission last = inFlight.peekLast();
-        if (last != null)
-            waitFor(last);
-    }
-
-    /** Retires every finished submission (oldest first), freeing their descriptor sets and any buffers waiting on them. */
+    /** Reads the timeline, then retires every finished submission (oldest first): frees their descriptor sets, recycles their staging blocks and command buffers, and destroys buffers that were waiting on them. Lock held. */
     private void reap() {
-        while (!inFlight.isEmpty()) {
-            Submission s = inFlight.peekFirst();
-            int status = vkGetFenceStatus(device, s.fence);
-            if (status == VK_NOT_READY)
-                break;
-            check(status, "vkGetFenceStatus");
+        long counter = counterValue();
+        if (counter > completedSerial)
+            completedSerial = counter;
 
-            inFlight.pollFirst();
+        while (!inFlight.isEmpty() && inFlight.peekFirst().serial <= completedSerial) {
+            Submission s = inFlight.pollFirst();
             for (long set : s.descriptorSets)
                 vkFreeDescriptorSets(device, descriptorPool, set);
             s.descriptorSets.clear();
-            completedSerial = Math.max(completedSerial, s.serial);
+            if (s.staging != null) {
+                freeStaging.add(s.staging);
+                s.staging = null;
+            }
             idle.addLast(s);
         }
 
-        if (!graveyard.isEmpty()) {
+        if (!graveyard.isEmpty())
             graveyard.removeIf(dead -> {
-                if (inFlight.isEmpty() || dead.serial() <= completedSerial) {
+                if (dead.serial() <= completedSerial) {
                     destroyBuffer(dead.buffer(), dead.memory());
                     return true;
                 }
                 return false;
             });
-        }
     }
 
     // ---------------------------------------------------------------- dispatch
@@ -845,6 +957,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
         // gather buffer bindings + pack scalars into the push-constant block
         long[] buffers = new long[kernel.bindingCount];
+        List<VulkanResource> touched = new ArrayList<>(buffers.length);
         int bufferCount = 0;
         ByteBuffer push = MemoryUtil.memCalloc(VulkanKernel.PUSH_BYTES).order(ByteOrder.nativeOrder());
         try {
@@ -863,6 +976,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                             throw new IllegalArgumentException("Kernel '" + kernel.name() + "' declares " + buffers.length
                                     + " buffer bindings but was given more buffer arguments");
                         buffers[bufferCount++] = arg.buffer;
+                        touched.add(arg);
                     }
                     case IMMEDIATE -> {
                         offset = (offset + arg.width - 1) & -arg.width; // std430 scalar alignment == its size
@@ -889,6 +1003,8 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                 throw new IllegalArgumentException("globalSize " + globalSize + " needs more work-groups than this device can dispatch");
             final int gy = (int) gyLong;
 
+            final VulkanResource[] touchedArr = touched.toArray(new VulkanResource[0]);
+            final long serial;
             synchronized (lock) {
                 if (closed) throw new IllegalStateException("VulkanGpuExecutor is closed");
                 long pipeline = kernel.pipeline(local);
@@ -911,12 +1027,18 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     vkUpdateDescriptorSets(device, writes, null);
                 }
 
-                submit((cb, stack) -> {
+                serial = submit((cb, stack) -> {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
                     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, kernel.pipelineLayout, 0, stack.longs(set), null);
                     vkCmdPushConstants(cb, kernel.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push);
                     vkCmdDispatch(cb, gx, gy, 1);
-                }, set, blocking);
+                }, touchedArr, set, null);
+            }
+
+            if (blocking) { // wait outside the lock: other threads can keep enqueuing meanwhile
+                waitAndReap(serial);
+                for (VulkanResource r : touchedArr)
+                    r.settleThrough(serial);
             }
         } finally {
             MemoryUtil.memFree(push);
@@ -935,7 +1057,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             int r = vkAllocateDescriptorSets(device, info, pSet);
             if (r != VK_SUCCESS) {
                 // pool exhausted by in-flight work: let it drain (which frees their sets) and try once more
-                waitAll();
+                waitAndReap(submitSerial);
                 r = vkAllocateDescriptorSets(device, info, pSet);
             }
             check(r, "vkAllocateDescriptorSets");
@@ -943,7 +1065,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         }
     }
 
-    // ---------------------------------------------------------------- host transfers (blocking)
+    // ---------------------------------------------------------------- host transfers
 
     @FunctionalInterface
     private interface StageWriter {
@@ -963,54 +1085,87 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         return v;
     }
 
+    /**
+     * Host -> device. <b>Non-blocking:</b> the host bytes are copied into a pooled staging block, the device copy is
+     * submitted, and this returns -- the caller's array is immediately reusable, and the upload completes in the
+     * background. It is recorded as {@code dst}'s pending event, so anything that touches {@code dst} next is ordered
+     * after it device-side, while work on other buffers is unaffected.
+     */
     private void write(GpuResource dst, long dstByteOffset, long totalBytes, StageWriter writer) {
         if (totalBytes <= 0) return;
         VulkanResource target = res(dst);
+        final VulkanResource[] touched = {target};
         synchronized (lock) {
             long pos = 0;
             while (pos < totalBytes) {
                 int chunk = (int) Math.min(totalBytes - pos, MAX_STAGING_BYTES);
-                ensureStaging(chunk);
-                writer.write(stagingView(chunk), pos, chunk);
+                Staging st = acquireStaging(chunk);
+                try {
+                    writer.write(view(st, chunk), pos, chunk);
 
-                final long dstOffset = dstByteOffset + pos;
-                final int bytes = chunk;
-                submit((cb, stack) -> {
-                    VkBufferCopy.Buffer region = VkBufferCopy.calloc(1, stack).srcOffset(0).dstOffset(dstOffset).size(bytes);
-                    vkCmdCopyBuffer(cb, stagingBuffer, target.buffer, region);
-                }, VK_NULL_HANDLE, true);
+                    final long dstOffset = dstByteOffset + pos;
+                    final int bytes = chunk;
+                    submit((cb, stack) -> {
+                        VkBufferCopy.Buffer region = VkBufferCopy.calloc(1, stack).srcOffset(0).dstOffset(dstOffset).size(bytes);
+                        vkCmdCopyBuffer(cb, st.buffer(), target.buffer, region);
+                    }, touched, VK_NULL_HANDLE, st); // the submission now owns `st` and recycles it when done
+                } catch (RuntimeException | Error e) {
+                    freeStaging.add(st); // never reached the queue
+                    throw e;
+                }
                 pos += chunk;
             }
         }
     }
 
+    /**
+     * Device -> host. Necessarily blocking, but only on its own serial (everything it depends on is ordered before it
+     * device-side), and the wait happens outside the executor lock.
+     */
     private void read(GpuResource src, long srcByteOffset, long totalBytes, StageReader reader) {
         if (totalBytes <= 0) return;
         VulkanResource source = res(src);
-        synchronized (lock) {
-            long pos = 0;
-            while (pos < totalBytes) {
-                int chunk = (int) Math.min(totalBytes - pos, MAX_STAGING_BYTES);
-                ensureStaging(chunk);
+        final VulkanResource[] touched = {source};
+        long pos = 0;
+        while (pos < totalBytes) {
+            int chunk = (int) Math.min(totalBytes - pos, MAX_STAGING_BYTES);
+            final long srcOffset = srcByteOffset + pos;
+            final int bytes = chunk;
 
-                final long srcOffset = srcByteOffset + pos;
-                final int bytes = chunk;
-                submit((cb, stack) -> {
-                    VkBufferCopy.Buffer region = VkBufferCopy.calloc(1, stack).srcOffset(srcOffset).dstOffset(0).size(bytes);
-                    vkCmdCopyBuffer(cb, source.buffer, stagingBuffer, region);
+            final Staging st;
+            final long serial;
+            synchronized (lock) {
+                st = acquireStaging(chunk); // owned by this call, not by the submission: we read it after the wait
+                try {
+                    serial = submit((cb, stack) -> {
+                        VkBufferCopy.Buffer region = VkBufferCopy.calloc(1, stack).srcOffset(srcOffset).dstOffset(0).size(bytes);
+                        vkCmdCopyBuffer(cb, source.buffer, st.buffer(), region);
 
-                    // make the transfer's writes available to the host
-                    VkMemoryBarrier.Buffer toHost = VkMemoryBarrier.calloc(1, stack);
-                    toHost.get(0)
-                            .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
-                            .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                            .dstAccessMask(VK_ACCESS_HOST_READ_BIT);
-                    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, toHost, null, null);
-                }, VK_NULL_HANDLE, true);
-
-                reader.read(stagingView(chunk), pos, chunk);
-                pos += chunk;
+                        // make the transfer's writes available to the host
+                        VkMemoryBarrier.Buffer toHost = VkMemoryBarrier.calloc(1, stack);
+                        toHost.get(0)
+                                .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
+                                .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                                .dstAccessMask(VK_ACCESS_HOST_READ_BIT);
+                        vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, toHost, null, null);
+                    }, touched, VK_NULL_HANDLE, null);
+                } catch (RuntimeException | Error e) {
+                    freeStaging.add(st);
+                    throw e;
+                }
             }
+
+            try {
+                waitAndReap(serial);
+                source.settleThrough(serial);
+                reader.read(view(st, chunk), pos, chunk);
+            } finally {
+                synchronized (lock) {
+                    if (!closed)
+                        freeStaging.add(st);
+                }
+            }
+            pos += chunk;
         }
     }
 
@@ -1150,7 +1305,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         return out[0];
     }
 
-    // ---------------------------------------------------------------- copy / fill (non-blocking)
+    // ---------------------------------------------------------------- copy / fill (non-blocking, tracked like dispatches)
 
     @Override
     public void copyDoubleBuffer(GpuResource src, int srcOffset, GpuResource dst, int dstOffset, int length) {
@@ -1181,14 +1336,14 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             submit((cb, stack) -> {
                 VkBufferCopy.Buffer region = VkBufferCopy.calloc(1, stack).srcOffset(srcByteOffset).dstOffset(dstByteOffset).size(bytes);
                 vkCmdCopyBuffer(cb, s.buffer, d.buffer, region);
-            }, VK_NULL_HANDLE, false);
+            }, new VulkanResource[]{s, d}, VK_NULL_HANDLE, null);
         }
     }
 
     private void fill32(GpuResource buffer, long byteOffset, long bytes, int pattern) {
         VulkanResource b = res(buffer);
         synchronized (lock) {
-            submit((cb, stack) -> vkCmdFillBuffer(cb, b.buffer, byteOffset, bytes, pattern), VK_NULL_HANDLE, false);
+            submit((cb, stack) -> vkCmdFillBuffer(cb, b.buffer, byteOffset, bytes, pattern), new VulkanResource[]{b}, VK_NULL_HANDLE, null);
         }
     }
 
@@ -1255,13 +1410,15 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
 
     // ---------------------------------------------------------------- lifecycle
 
-    /** Blocks until every previously submitted operation has completed. */
+    /** Blocks until every previously submitted operation has completed. Waits outside the lock, so other threads keep enqueuing. */
     @Override
     public void finish() {
+        long last;
         synchronized (lock) {
-            check(vkQueueWaitIdle(queue), "vkQueueWaitIdle");
-            reap();
+            if (closed) return;
+            last = submitSerial;
         }
+        waitAndReap(last);
     }
 
     @Override
@@ -1280,11 +1437,12 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             for (Dead dead : graveyard)
                 destroyBuffer(dead.buffer(), dead.memory());
             graveyard.clear();
-            releaseStaging();
 
-            for (Submission s : idle)
-                vkDestroyFence(device, s.fence, null);
             idle.clear();
+            for (Staging s : freeStaging)
+                destroyStaging(s);
+            freeStaging.clear();
+            vkDestroySemaphore(device, timeline, null);
 
             vkDestroyDescriptorPool(device, descriptorPool, null);
             vkDestroyCommandPool(device, commandPool, null); // frees its command buffers

@@ -2,7 +2,7 @@ package com.rae.formicapi;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrix;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRMatrixD;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -10,13 +10,13 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
- * JMH benchmark for the CPU-parallel {@link CpuPaddedCSRMatrix}:
- * {@link CpuPaddedCSRMatrix#apply} (Ax) and
- * {@link CpuPaddedCSRMatrix#transposeApply} (Aᵀx).
+ * JMH benchmark for the CPU-parallel {@link CpuPaddedCSRMatrixD}:
+ * {@link CpuPaddedCSRMatrixD#apply} (Ax) and
+ * {@link CpuPaddedCSRMatrixD#transposeApply} (Aᵀx).
  *
  * <p>{@code apply} is a straightforward per-row parallel gather, but
  * {@code transposeApply} is a scatter-add: two different row ranges can write
- * the same output column, so {@link CpuPaddedCSRMatrix} routes it through
+ * the same output column, so {@link CpuPaddedCSRMatrixD} routes it through
  * {@link CpuExecutor#parallelForAccumulate}, which pays a fixed
  * {@code O(rows)} clear+reduce cost per call on top of the actual compute —
  * benchmarking both side by side is the point here, not just {@code apply}
@@ -53,9 +53,9 @@ public class CpuPaddedCSRMatrixParallelBenchmark {
     @Param({"4", "6", "8"})
     public int threads;
 
-    private CpuExecutor executor;
-    private CpuPaddedCSRMatrix matrix;
-    private CpuDoubleVector    x;
+    private CpuExecutor         executor;
+    private CpuPaddedCSRMatrixD matrix;
+    private CpuDoubleVector     x;
     private CpuDoubleVector    result;
 
     @Setup(Level.Trial)
@@ -97,11 +97,11 @@ public class CpuPaddedCSRMatrixParallelBenchmark {
         bh.consume(result);
     }
 
-    private CpuPaddedCSRMatrix createPaddedMatrix(Random random) {
+    private CpuPaddedCSRMatrixD createPaddedMatrix(Random random) {
 
         int rows = blocks * 4096;
 
-        CpuPaddedCSRMatrix matrix = new CpuPaddedCSRMatrix(rows, rows, 7);
+        CpuPaddedCSRMatrixD matrix = new CpuPaddedCSRMatrixD(rows, rows, 7);
 
         for (int b = 0; b < blocks; b++) {
 

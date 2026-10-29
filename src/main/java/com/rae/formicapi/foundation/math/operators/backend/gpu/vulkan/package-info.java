@@ -5,13 +5,10 @@
  * {@link com.rae.formicapi.foundation.math.operators.backend.gpu.vulkan.VulkanResource}.
  *
  * <p>Built on LWJGL ({@code lwjgl-vulkan}, {@code lwjgl-shaderc}); needs a
- * Vulkan 1.2 device with {@code shaderFloat64}. Select it with
+ * Vulkan 1.2 device with {@code shaderFloat64} and {@code timelineSemaphore}. Select it with
  * {@code APIChoice.setAPI(ImplementedAPI.Vulkan)}.
  */
-@ParametersAreNonnullByDefault
 @NonnullDefault
 package com.rae.formicapi.foundation.math.operators.backend.gpu.vulkan;
 
 import org.lwjgl.system.NonnullDefault;
-
-import javax.annotation.ParametersAreNonnullByDefault;

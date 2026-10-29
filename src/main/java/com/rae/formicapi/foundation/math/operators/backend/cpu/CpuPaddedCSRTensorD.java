@@ -14,14 +14,14 @@ import java.util.Arrays;
  * F_i(x) = sum(c * x[j1] * x[j2] * ... * x[jN-1])
  * </pre>
  *
- * <p>This mirrors {@link CpuPaddedCSRMatrix} and {@link CpuPaddedCSR3Tensor}:
+ * <p>This mirrors {@link CpuPaddedCSRMatrixD} and {@link CpuPaddedCSR3TensorD}:
  * storage/structure mutation ({@link #setRow}, {@link #add}, {@link #resize})
  * is identical to the plain tensor, but evaluation goes through
  * {@link Vector}s and is parallelized across equations via a
  * {@link CpuExecutor} once the row count crosses the executor's parallel
  * threshold.
  */
-public class CpuPaddedCSRTensor extends CpuExecutable {
+public class CpuPaddedCSRTensorD extends CpuExecutable {
 
     private final int termsPerEquation;
     private final int order;
@@ -39,7 +39,7 @@ public class CpuPaddedCSRTensor extends CpuExecutable {
      */
     private int[][] variableIndices;
 
-    public CpuPaddedCSRTensor(int order, int equations, int termsPerEquation) {
+    public CpuPaddedCSRTensorD(int order, int equations, int termsPerEquation) {
 
         if (order < 2)
             throw new IllegalArgumentException("Order must be > 1");

@@ -16,7 +16,7 @@ import java.util.Arrays;
  * F_i(x) = sum(c[i,j,k] * x[j] * x[k])
  * </pre>
  *
- * <p>This mirrors {@link CpuPaddedCSRMatrix}: storage/structure mutation
+ * <p>This mirrors {@link CpuPaddedCSRMatrixD}: storage/structure mutation
  * ({@link #setRow}, {@link #add}, {@link #resize}) is identical to the plain
  * tensor, but evaluation goes through {@link Vector}s and is parallelized
  * across equations via a {@link CpuExecutor} once the row count crosses the
@@ -26,7 +26,7 @@ import java.util.Arrays;
  * {@code PaddedCSR2Tensor}: a term-major layout would be preferable for a
  * GPU backend, but is fine here since threads/tasks are split by row range).
  */
-public class CpuPaddedCSR3Tensor extends CpuExecutable implements GeneralOperator {
+public class CpuPaddedCSR3TensorD extends CpuExecutable implements GeneralOperator {
 
     private final int      termsPerEquation;
     private       int      equations;
@@ -51,7 +51,7 @@ public class CpuPaddedCSR3Tensor extends CpuExecutable implements GeneralOperato
      * @param equations        number of output equations
      * @param termsPerEquation fixed number of quadratic terms per equation
      */
-    public CpuPaddedCSR3Tensor(int equations, int termsPerEquation) {
+    public CpuPaddedCSR3TensorD(int equations, int termsPerEquation) {
         this.equations = equations;
         this.termsPerEquation = termsPerEquation;
 

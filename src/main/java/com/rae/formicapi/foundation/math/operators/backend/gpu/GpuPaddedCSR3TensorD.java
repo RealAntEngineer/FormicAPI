@@ -1,13 +1,13 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3TensorD;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 
 /**
- * GPU backend for {@code PaddedCSR2Tensor} / {@link CpuPaddedCSR3Tensor}:
+ * GPU backend for {@code PaddedCSR2Tensor} / {@link CpuPaddedCSR3TensorD}:
  * {@code F_i(x) = sum(c[i,j,k] * x[j] * x[k])}. Kernels are static
  * constants defined right here (see {@link PortableKernel}'s class doc),
  * bound once in {@link #bindKernels}, dispatched via {@code .use()} --
@@ -170,7 +170,7 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
 
     /**
      * Replaces one equation's quadratic structure. See
-     * {@link CpuPaddedCSR3Tensor#setRow} for the full contract; behaves
+     * {@link CpuPaddedCSR3TensorD#setRow} for the full contract; behaves
      * identically here, plus syncing the row to the device buffer.
      */
     public void setRow(int equation, double[] newValues, int[] newVar1Index, int[] newVar2Index, int count) {
@@ -250,7 +250,7 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
 
     /**
      * Evaluates the Jacobian-vector product {@code result = J(x) * direction}
-     * on the device. See {@link CpuPaddedCSR3Tensor#multiplyJacobian} for the
+     * on the device. See {@link CpuPaddedCSR3TensorD#multiplyJacobian} for the
      * math (handles {@code j == k} correctly without a special case).
      */
     public void applyJacobian(Vector x, Vector direction, Vector result) {

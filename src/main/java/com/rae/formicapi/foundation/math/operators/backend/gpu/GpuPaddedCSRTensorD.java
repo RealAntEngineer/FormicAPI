@@ -1,13 +1,13 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRTensor;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSRTensorD;
 import com.rae.formicapi.foundation.math.operators.vectors.Vector;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 
 /**
- * GPU backend for {@code PaddedCSRTensor} / {@link CpuPaddedCSRTensor}:
+ * GPU backend for {@code PaddedCSRTensor} / {@link CpuPaddedCSRTensorD}:
  * {@code F_i(x) = sum(c * x[j1] * x[j2] * ... * x[jN-1])}. Kernels are
  * static constants defined right here, bound once in {@link #bindKernels},
  * dispatched via {@code .use()} -- replacing the
@@ -179,7 +179,7 @@ public class GpuPaddedCSRTensorD extends GpuExecutable implements AutoCloseable 
 
     /**
      * Overwrites one equation's structure and coefficients. See
-     * {@link CpuPaddedCSRTensor#setRow} for the full contract;
+     * {@link CpuPaddedCSRTensorD#setRow} for the full contract;
      * {@code varIndices} is still {@code [count][order-1]} here (flattened
      * into the host mirror internally).
      */

@@ -448,7 +448,7 @@ abstract class GpuContractTest {
 
     static final int ROWS = 60, NNZ = 5;
 
-    private void fillMatrices(CpuPaddedCSRMatrix cpu, GpuPaddedCSRMatrixD gpuM) {
+    private void fillMatrices(CpuPaddedCSRMatrixD cpu, GpuPaddedCSRMatrixD gpuM) {
         Random r = new Random(30);
         for (int row = 0; row < ROWS; row++) {
             int count = 1 + r.nextInt(NNZ); // padded rows too
@@ -462,7 +462,7 @@ abstract class GpuContractTest {
 
     @Test
     void csrMatvecMatchesCpu() {
-        CpuPaddedCSRMatrix cpu = new CpuPaddedCSRMatrix(ROWS, ROWS, NNZ);
+        CpuPaddedCSRMatrixD cpu = new CpuPaddedCSRMatrixD(ROWS, ROWS, NNZ);
         cpu.setExecutor(cpuEx);
         GpuPaddedCSRMatrixD g = new GpuPaddedCSRMatrixD(ROWS, ROWS, NNZ);
         g.setExecutor(ex);
@@ -481,7 +481,7 @@ abstract class GpuContractTest {
 
     @Test
     void csrTransposeMatvecMatchesCpu() {
-        CpuPaddedCSRMatrix cpu = new CpuPaddedCSRMatrix(ROWS, ROWS, NNZ);
+        CpuPaddedCSRMatrixD cpu = new CpuPaddedCSRMatrixD(ROWS, ROWS, NNZ);
         cpu.setExecutor(cpuEx);
         GpuPaddedCSRMatrixD g = new GpuPaddedCSRMatrixD(ROWS, ROWS, NNZ);
         g.setExecutor(ex);
@@ -516,8 +516,8 @@ abstract class GpuContractTest {
 
     @Test
     void quadraticTensorApplyAndJacobianMatchCpu() {
-        final int eq = 40, terms = 4;
-        CpuPaddedCSR3Tensor cpu = new CpuPaddedCSR3Tensor(eq, terms);
+        final int            eq  = 40, terms = 4;
+        CpuPaddedCSR3TensorD cpu = new CpuPaddedCSR3TensorD(eq, terms);
         cpu.setExecutor(cpuEx);
         GpuPaddedCSR3TensorD g = new GpuPaddedCSR3TensorD(eq, terms);
         g.setExecutor(ex);
@@ -552,8 +552,8 @@ abstract class GpuContractTest {
 
     @Test
     void orderNTensorApplyAndJacobianMatchCpu() {
-        final int order = 4, eq = 30, terms = 3;
-        CpuPaddedCSRTensor cpu = new CpuPaddedCSRTensor(order, eq, terms);
+        final int           order = 4, eq = 30, terms = 3;
+        CpuPaddedCSRTensorD cpu   = new CpuPaddedCSRTensorD(order, eq, terms);
         cpu.setExecutor(cpuEx);
         GpuPaddedCSRTensorD g = new GpuPaddedCSRTensorD(order, eq, terms);
         g.setExecutor(ex);

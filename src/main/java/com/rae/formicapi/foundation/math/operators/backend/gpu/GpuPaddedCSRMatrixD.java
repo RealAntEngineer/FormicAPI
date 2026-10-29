@@ -343,6 +343,8 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
     public void resize(int newRows, int newCols) {
         if (newRows < 0)
             throw new IllegalArgumentException("newRows < 0");
+        if (newCols < 0)
+            throw new IllegalArgumentException("newCols < 0");
 
         int newLength = newRows * nnzPerRow;
 

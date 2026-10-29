@@ -2,7 +2,7 @@ package com.rae.formicapi;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3Tensor;
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3TensorD;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -10,9 +10,9 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
- * JMH benchmark for the CPU-parallel {@link CpuPaddedCSR3Tensor}:
- * {@link CpuPaddedCSR3Tensor#apply} (F(x) = C:x:x) and
- * {@link CpuPaddedCSR3Tensor#multiplyJacobian} (J(x)*direction).
+ * JMH benchmark for the CPU-parallel {@link CpuPaddedCSR3TensorD}:
+ * {@link CpuPaddedCSR3TensorD#apply} (F(x) = C:x:x) and
+ * {@link CpuPaddedCSR3TensorD#multiplyJacobian} (J(x)*direction).
  *
  * <p>Compare against the plain (serial) {@code PaddedCSR2TensorBenchmark} to
  * see whether/where parallel dispatch actually pays for itself.
@@ -57,9 +57,9 @@ public class CpuPaddedCSR2TensorParallelBenchmark {
     @Param({"1", "4", "8"})
     public int threads;
 
-    private CpuExecutor         executor;
-    private CpuPaddedCSR3Tensor tensor;
-    private CpuDoubleVector     x;
+    private CpuExecutor          executor;
+    private CpuPaddedCSR3TensorD tensor;
+    private CpuDoubleVector      x;
     private CpuDoubleVector     direction;
     private CpuDoubleVector result;
 
@@ -69,7 +69,7 @@ public class CpuPaddedCSR2TensorParallelBenchmark {
 
         executor = new CpuExecutor(threads);
 
-        tensor = new CpuPaddedCSR3Tensor(equations, termsPerEquation);
+        tensor = new CpuPaddedCSR3TensorD(equations, termsPerEquation);
         tensor.setExecutor(executor);
 
         double[] rowValues = new double[termsPerEquation];
