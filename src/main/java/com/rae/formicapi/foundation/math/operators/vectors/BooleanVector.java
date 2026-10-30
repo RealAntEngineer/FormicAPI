@@ -18,6 +18,11 @@ public interface BooleanVector extends Vector {
      */
     BooleanVector set(boolean value, int idx);
 
+    /**
+     * Gets element {@code idx}
+     *
+     * @return the value of the element
+     */
     boolean get(int idx);
 
     /**

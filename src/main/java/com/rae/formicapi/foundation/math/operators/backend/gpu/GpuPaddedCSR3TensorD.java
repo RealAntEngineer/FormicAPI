@@ -1,7 +1,8 @@
 package com.rae.formicapi.foundation.math.operators.backend.gpu;
 
 import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuPaddedCSR3TensorD;
-import com.rae.formicapi.foundation.math.operators.vectors.Vector;
+import com.rae.formicapi.foundation.math.operators.nonlinear.PolynomialOperator;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
@@ -14,111 +15,101 @@ import java.util.Arrays;
  * replacing the {@code executor.launchCsr2Apply(...)}-style calls that no
  * longer exist on the executor itself.
  */
-public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable {
+public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable, PolynomialOperator {
 
     private static final PortableKernel APPLY = new PortableKernel("csr2_apply")
             .opencl("""
-            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-            __kernel void csr2_apply(__global const double* values, __global const int* var1Index,
-                                      __global const int* var2Index, const int termsPerEquation,
-                                      __global const double* x, __global double* result, const int equations) {
-                int row = get_global_id(0);
-                if (row >= equations) return;
-                double sum = 0.0;
-                int base = row * termsPerEquation;
-                for (int i = 0; i < termsPerEquation; i++) {
-                    int idx = base + i;
-                    sum += values[idx] * x[var1Index[idx]] * x[var2Index[idx]];
-                }
-                result[row] = sum;
-            }
-            """, "cl_khr_fp64")
+                    #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+                    __kernel void csr2_apply(__global const double* values, __global const int* var1Index,
+                                              __global const int* var2Index, const int termsPerEquation,
+                                              __global const double* x, __global double* result, const int equations) {
+                        int row = get_global_id(0);
+                        if (row >= equations) return;
+                        double sum = 0.0;
+                        int base = row * termsPerEquation;
+                        for (int i = 0; i < termsPerEquation; i++) {
+                            int idx = base + i;
+                            sum += values[idx] * x[var1Index[idx]] * x[var2Index[idx]];
+                        }
+                        result[row] = sum;
+                    }
+                    """, "cl_khr_fp64")
             .glsl("""
-            layout(std430, binding = 0) buffer V { double values[]; };
-            layout(std430, binding = 1) buffer V1 { int var1Index[]; };
-            layout(std430, binding = 2) buffer V2 { int var2Index[]; };
-            layout(std430, binding = 3) buffer X { double x[]; };
-            layout(std430, binding = 4) buffer R { double result[]; };
-            layout(push_constant) uniform PC { int gsz; int termsPerEquation; int equations; } pc;
-            void main() {
-                int row = int(GID);
-                if (row >= pc.equations) return;
-                double sum = 0.0LF;
-                int base = row * pc.termsPerEquation;
-                for (int i = 0; i < pc.termsPerEquation; i++) {
-                    int idx = base + i;
-                    sum += values[idx] * x[var1Index[idx]] * x[var2Index[idx]];
-                }
-                result[row] = sum;
-            }
-            """, "shaderFloat64");
+                    layout(std430, binding = 0) buffer V { double values[]; };
+                    layout(std430, binding = 1) buffer V1 { int var1Index[]; };
+                    layout(std430, binding = 2) buffer V2 { int var2Index[]; };
+                    layout(std430, binding = 3) buffer X { double x[]; };
+                    layout(std430, binding = 4) buffer R { double result[]; };
+                    layout(push_constant) uniform PC { int gsz; int termsPerEquation; int equations; } pc;
+                    void main() {
+                        int row = int(GID);
+                        if (row >= pc.equations) return;
+                        double sum = 0.0LF;
+                        int base = row * pc.termsPerEquation;
+                        for (int i = 0; i < pc.termsPerEquation; i++) {
+                            int idx = base + i;
+                            sum += values[idx] * x[var1Index[idx]] * x[var2Index[idx]];
+                        }
+                        result[row] = sum;
+                    }
+                    """, "shaderFloat64");
 
     private static final PortableKernel APPLY_JACOBIAN = new PortableKernel("csr2_apply_jacobian")
             .opencl("""
-            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-            __kernel void csr2_apply_jacobian(__global const double* values, __global const int* var1Index,
-                                               __global const int* var2Index, const int termsPerEquation,
-                                               __global const double* x, __global const double* direction,
-                                               __global double* result, const int equations) {
-                int row = get_global_id(0);
-                if (row >= equations) return;
-                double sum = 0.0;
-                int base = row * termsPerEquation;
-                for (int i = 0; i < termsPerEquation; i++) {
-                    int idx = base + i;
-                    double c = values[idx];
-                    int j = var1Index[idx];
-                    int k = var2Index[idx];
-                    // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k);
-                    // reduces to 2*c*x_j*dx_j automatically when j == k.
-                    sum += c * (direction[j] * x[k] + x[j] * direction[k]);
-                }
-                result[row] = sum;
-            }
-            """, "cl_khr_fp64")
+                    #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+                    __kernel void csr2_apply_jacobian(__global const double* values, __global const int* var1Index,
+                                                       __global const int* var2Index, const int termsPerEquation,
+                                                       __global const double* x, __global const double* direction,
+                                                       __global double* result, const int equations) {
+                        int row = get_global_id(0);
+                        if (row >= equations) return;
+                        double sum = 0.0;
+                        int base = row * termsPerEquation;
+                        for (int i = 0; i < termsPerEquation; i++) {
+                            int idx = base + i;
+                            double c = values[idx];
+                            int j = var1Index[idx];
+                            int k = var2Index[idx];
+                            // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k);
+                            // reduces to 2*c*x_j*dx_j automatically when j == k.
+                            sum += c * (direction[j] * x[k] + x[j] * direction[k]);
+                        }
+                        result[row] = sum;
+                    }
+                    """, "cl_khr_fp64")
             .glsl("""
-            layout(std430, binding = 0) buffer V { double values[]; };
-            layout(std430, binding = 1) buffer V1 { int var1Index[]; };
-            layout(std430, binding = 2) buffer V2 { int var2Index[]; };
-            layout(std430, binding = 3) buffer X { double x[]; };
-            layout(std430, binding = 4) buffer Dir { double direction[]; };
-            layout(std430, binding = 5) buffer R { double result[]; };
-            layout(push_constant) uniform PC { int gsz; int termsPerEquation; int equations; } pc;
-            void main() {
-                int row = int(GID);
-                if (row >= pc.equations) return;
-                double sum = 0.0LF;
-                int base = row * pc.termsPerEquation;
-                for (int i = 0; i < pc.termsPerEquation; i++) {
-                    int idx = base + i;
-                    double c = values[idx];
-                    int j = var1Index[idx];
-                    int k = var2Index[idx];
-                    // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k);
-                    // reduces to 2*c*x_j*dx_j automatically when j == k.
-                    sum += c * (direction[j] * x[k] + x[j] * direction[k]);
-                }
-                result[row] = sum;
-            }
-            """, "shaderFloat64");
-
-    @Override
-    protected void bindKernels(GpuExecutor executor) {
-        APPLY.bind(executor);
-        APPLY_JACOBIAN.bind(executor);
-    }
-
+                    layout(std430, binding = 0) buffer V { double values[]; };
+                    layout(std430, binding = 1) buffer V1 { int var1Index[]; };
+                    layout(std430, binding = 2) buffer V2 { int var2Index[]; };
+                    layout(std430, binding = 3) buffer X { double x[]; };
+                    layout(std430, binding = 4) buffer Dir { double direction[]; };
+                    layout(std430, binding = 5) buffer R { double result[]; };
+                    layout(push_constant) uniform PC { int gsz; int termsPerEquation; int equations; } pc;
+                    void main() {
+                        int row = int(GID);
+                        if (row >= pc.equations) return;
+                        double sum = 0.0LF;
+                        int base = row * pc.termsPerEquation;
+                        for (int i = 0; i < pc.termsPerEquation; i++) {
+                            int idx = base + i;
+                            double c = values[idx];
+                            int j = var1Index[idx];
+                            int k = var2Index[idx];
+                            // d(c*x_j*x_k)/dx . direction = c*(x_k*dx_j + x_j*dx_k);
+                            // reduces to 2*c*x_j*dx_j automatically when j == k.
+                            sum += c * (direction[j] * x[k] + x[j] * direction[k]);
+                        }
+                        result[row] = sum;
+                    }
+                    """, "shaderFloat64");
     private final int termsPerEquation;
     private       int equations;
-
     private double[] values;
     private int[]    var1Index;
     private int[]    var2Index;
-
     private @Nullable GpuResource dValues;
     private @Nullable GpuResource dVar1Index;
     private @Nullable GpuResource dVar2Index;
-
     public GpuPaddedCSR3TensorD(int equations, int termsPerEquation) {
         if (equations < 0)
             throw new IllegalArgumentException("equations < 0");
@@ -168,6 +159,12 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
         }
     }
 
+    @Override
+    protected void bindKernels(GpuExecutor executor) {
+        APPLY.bind(executor);
+        APPLY_JACOBIAN.bind(executor);
+    }
+
     /**
      * Replaces one equation's quadratic structure. See
      * {@link CpuPaddedCSR3TensorD#setRow} for the full contract; behaves
@@ -202,6 +199,11 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
         executor.uploadInts(dVar2Index, base, var2Index, base, termsPerEquation);
     }
 
+    private void checkEquation(int equation) {
+        if (equation < 0 || equation >= equations)
+            throw new IndexOutOfBoundsException("equation: " + equation);
+    }
+
     /**
      * Adds a coefficient to an existing quadratic term, found by a host-side
      * scan (no device round-trip) then synced back with a single-element
@@ -233,8 +235,11 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
         throw new IllegalStateException("Tensor entry does not exist: (" + equation + "," + var1 + "," + var2 + ")");
     }
 
-    /** Evaluates {@code result = F(x)} on the device. {@code result} is resized to {@link #equations()} first. */
-    public void apply(Vector x, Vector result) {
+    /**
+     * Evaluates {@code result = F(x)} on the device. {@code result} is resized to {@link #equations()} first.
+     */
+    @Override
+    public void apply(RealVector x, RealVector result) {
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -248,12 +253,23 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
                 gpuX.buffer(), gpuResult.buffer(), requireExecutor().scalar(equations));
     }
 
+    @Override
+    public int inputSize() {
+        return equations;
+    }
+
+    @Override
+    public int outputSize() {
+        return equations;
+    }
+
     /**
      * Evaluates the Jacobian-vector product {@code result = J(x) * direction}
      * on the device. See {@link CpuPaddedCSR3TensorD#multiplyJacobian} for the
      * math (handles {@code j == k} correctly without a special case).
      */
-    public void applyJacobian(Vector x, Vector direction, Vector result) {
+    @Override
+    public void multiplyJacobian(RealVector x, RealVector direction, RealVector result) {
         if (!(x instanceof GpuDoubleVector gpuX))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
 
@@ -268,14 +284,6 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
         APPLY_JACOBIAN.use(equations,
                 dValues, dVar1Index, dVar2Index, requireExecutor().scalar(termsPerEquation),
                 gpuX.buffer(), gpuDirection.buffer(), gpuResult.buffer(), requireExecutor().scalar(equations));
-    }
-
-    public void multiply(double[] x, double[] result) {
-        throw new UnsupportedOperationException("Use GPU DoubleVector operations instead");
-    }
-
-    public void multiplyJacobian(double[] x, double[] direction, double[] result) {
-        throw new UnsupportedOperationException("Use GPU DoubleVector operations instead");
     }
 
     public int equations() {
@@ -306,8 +314,8 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
         GpuExecutor executor = requireExecutor();
 
         GpuResource newValuesBuf = executor.allocateDoubleBuffer(Math.max(newLength, 1));
-        GpuResource newVar1Buf = executor.allocateIntBuffer(Math.max(newLength, 1));
-        GpuResource newVar2Buf = executor.allocateIntBuffer(Math.max(newLength, 1));
+        GpuResource newVar1Buf   = executor.allocateIntBuffer(Math.max(newLength, 1));
+        GpuResource newVar2Buf   = executor.allocateIntBuffer(Math.max(newLength, 1));
 
         if (newLength > 0) {
             executor.uploadDoubles(newValuesBuf, values, newLength);
@@ -339,11 +347,6 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
         return Arrays.copyOfRange(var2Index, row * termsPerEquation, (row + 1) * termsPerEquation);
     }
 
-    private void checkEquation(int equation) {
-        if (equation < 0 || equation >= equations)
-            throw new IndexOutOfBoundsException("equation: " + equation);
-    }
-
     public @Nullable GpuResource valuesBuffer() {
         return dValues;
     }
@@ -369,5 +372,10 @@ public class GpuPaddedCSR3TensorD extends GpuExecutable implements AutoCloseable
             dVar2Index.release();
             dVar2Index = null;
         }
+    }
+
+    @Override
+    public int order() {
+        return 2;
     }
 }

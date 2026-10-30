@@ -100,11 +100,52 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
             }
             """, "shaderFloat64", "shaderInt64", "shaderBufferInt64Atomics");
 
+    // Atomic-free fallback for devices without 64-bit buffer atomics: instead of every row scattering into
+    // result[col], every output column gathers the entries that point at it. The column -> entries index
+    // (transPtr/transEntry, CSR-style over flat indices into `values`) is built on the host and cached, see
+    // ensureTransposeIndex(). Deterministic (fixed summation order), needs no atomics, no result.clear().
+    private static final PortableKernel CSR_MATVEC_TRANSPOSE_GATHER = new PortableKernel("csr_matvec_transpose_gather")
+            .opencl("""
+            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+            __kernel void csr_matvec_transpose_gather(__global const double* values, __global const int* transPtr,
+                                                       __global const int* transEntry, __global const double* x,
+                                                       __global double* result, const int nnzPerRow, const int cols) {
+                int col = get_global_id(0);
+                if (col >= cols) return;
+                double sum = 0.0;
+                for (int k = transPtr[col]; k < transPtr[col + 1]; k++) {
+                    int e = transEntry[k];
+                    sum += values[e] * x[e / nnzPerRow];
+                }
+                result[col] = sum;
+            }
+            """, "cl_khr_fp64")
+            .glsl("""
+            layout(std430, binding = 0) buffer V { double values[]; };
+            layout(std430, binding = 1) buffer P { int transPtr[]; };
+            layout(std430, binding = 2) buffer E { int transEntry[]; };
+            layout(std430, binding = 3) buffer X { double x[]; };
+            layout(std430, binding = 4) buffer R { double result[]; };
+            layout(push_constant) uniform PC { int gsz; int nnzPerRow; int cols; } pc;
+            void main() {
+                int col = int(GID);
+                if (col >= pc.cols) return;
+                double sum = 0.0LF;
+                for (int k = transPtr[col]; k < transPtr[col + 1]; k++) {
+                    int e = transEntry[k];
+                    sum += values[e] * x[e / pc.nnzPerRow];
+                }
+                result[col] = sum;
+            }
+            """, "shaderFloat64");
+
     @Override
     protected void bindKernels(GpuExecutor executor) {
         CSR_MATVEC.bind(executor);
         if (executor.supports(CSR_MATVEC_TRANSPOSE))
             CSR_MATVEC_TRANSPOSE.bind(executor);
+        if (executor.supports(CSR_MATVEC_TRANSPOSE_GATHER))
+            CSR_MATVEC_TRANSPOSE_GATHER.bind(executor);
     }
 
     private final int nnzPerRow;
@@ -117,6 +158,12 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
 
     private @Nullable GpuResource dValues;
     private @Nullable GpuResource dColIndex;
+
+    // Column -> entries index for the atomic-free transposeApply fallback. Built lazily; only the sparsity
+    // pattern (colIndex) invalidates it -- set()/add() just change values, which the kernel reads by flat index.
+    private @Nullable GpuResource dTransPtr;
+    private @Nullable GpuResource dTransEntry;
+    private boolean transposeDirty = true;
 
     public GpuPaddedCSRMatrixD(int rows, int cols, int nnzPerRow) {
         if (rows < 0)
@@ -152,6 +199,7 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
 
             dValues = null;
             dColIndex = null;
+            releaseTransposeIndex();
         }
 
         if (executor == null)
@@ -197,10 +245,21 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
         if (x.size() != rows)
             throw new IllegalArgumentException("x.size() != A.rows()");
 
-        if (!executor.supports(CSR_MATVEC_TRANSPOSE))
-            throw new UnsupportedOperationException(
-                    "transposeApply(...) requires 64-bit integer atomics on buffers (OpenCL cl_khr_int64_base_atomics / " +
-                            "Vulkan shaderBufferInt64Atomics), which this device doesn't report");
+        if (!executor.supports(CSR_MATVEC_TRANSPOSE)) {
+            // No 64-bit buffer atomics on this device: gather per column instead of scattering per row.
+            if (!executor.supports(CSR_MATVEC_TRANSPOSE_GATHER))
+                throw new UnsupportedOperationException(
+                        "transposeApply(...) needs either 64-bit integer buffer atomics (OpenCL cl_khr_int64_base_atomics / " +
+                                "Vulkan shaderBufferInt64Atomics) or fp64 support for the gather fallback; this device has neither");
+
+            result.resize(cols);
+            ensureTransposeIndex(executor);
+            // every output element is assigned, so no clear() is needed
+            CSR_MATVEC_TRANSPOSE_GATHER.use(cols,
+                    dValues, dTransPtr, dTransEntry,
+                    gpuX.buffer(), gpuResult.buffer(), executor.scalar(nnzPerRow), executor.scalar(cols));
+            return;
+        }
 
         result.resize(cols);
         gpuResult.clear(); // atomically accumulated into below, so it must start at zero
@@ -211,6 +270,54 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
         CSR_MATVEC_TRANSPOSE.use(rows,
                 dValues, dColIndex, requireExecutor().scalar(nnzPerRow),
                 gpuX.buffer(), gpuResult.buffer(), requireExecutor().scalar(rows));
+    }
+
+    /**
+     * (Re)builds the column -> entries index used by the atomic-free {@code transposeApply}: for every column
+     * {@code c}, {@code transEntry[transPtr[c] .. transPtr[c+1])} lists the flat indices {@code e = row * nnzPerRow + i}
+     * of the entries whose column is {@code c} (a counting sort over {@link #colIndex}). Padding entries are included:
+     * their value is 0, so they contribute nothing. Entries with an out-of-range column are skipped.
+     */
+    private void ensureTransposeIndex(GpuExecutor executor) {
+        if (!transposeDirty && dTransPtr != null && dTransEntry != null)
+            return;
+        releaseTransposeIndex();
+
+        int length = rows * nnzPerRow;
+        int[] ptr = new int[cols + 1];
+        for (int e = 0; e < length; e++) {
+            int c = colIndex[e];
+            if (c >= 0 && c < cols)
+                ptr[c + 1]++;
+        }
+        for (int c = 0; c < cols; c++)
+            ptr[c + 1] += ptr[c];
+
+        int total = ptr[cols];
+        int[] entry = new int[Math.max(total, 1)];
+        int[] next = Arrays.copyOf(ptr, cols); // next free slot per column
+        for (int e = 0; e < length; e++) {
+            int c = colIndex[e];
+            if (c >= 0 && c < cols)
+                entry[next[c]++] = e;
+        }
+
+        dTransPtr = executor.allocateIntBuffer(cols + 1);
+        dTransEntry = executor.allocateIntBuffer(entry.length);
+        executor.uploadInts(dTransPtr, ptr, ptr.length);
+        if (total > 0)
+            executor.uploadInts(dTransEntry, entry, total);
+        transposeDirty = false;
+    }
+
+    private void releaseTransposeIndex() {
+        if (dTransPtr != null)
+            dTransPtr.release();
+        if (dTransEntry != null)
+            dTransEntry.release();
+        dTransPtr = null;
+        dTransEntry = null;
+        transposeDirty = true;
     }
 
     @Override
@@ -301,9 +408,12 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
             throw new IllegalArgumentException("rowCols too small");
 
         int base = row * nnzPerRow;
+        boolean patternChanged = false;
 
         for (int i = 0; i < count; i++) {
             values[base + i] = rowValues[i];
+            if (colIndex[base + i] != rowCols[i])
+                patternChanged = true;
             colIndex[base + i] = rowCols[i];
         }
 
@@ -312,8 +422,13 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
          */
         for (int i = count; i < nnzPerRow; i++) {
             values[base + i] = 0.0;
-            colIndex[base + i] = row < cols ? row : 0;
+            int pad = row < cols ? row : 0;
+            if (colIndex[base + i] != pad)
+                patternChanged = true;
+            colIndex[base + i] = pad;
         }
+        if (patternChanged)
+            transposeDirty = true;
 
         requireExecutor().uploadDoubles(dValues, base, values, base, nnzPerRow);
         requireExecutor().uploadInts(dColIndex, base, colIndex, base, nnzPerRow);
@@ -372,6 +487,7 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
         }
         dValues = newValues;
         dColIndex = newColIndex;
+        releaseTransposeIndex(); // shape/pattern changed
     }
 
     @Override
@@ -424,5 +540,7 @@ public class GpuPaddedCSRMatrixD extends GpuExecutable implements MutableMatrix 
             dColIndex.release();
             dColIndex = null;
         }
+
+        releaseTransposeIndex();
     }
 }

@@ -34,13 +34,13 @@ import static org.jocl.CL.*;
  * way. {@link #useBlocking} does the same, then additionally waits on this
  * one dispatch's event and settles the touched buffers.
  */
-public class OpenCLKernel implements Kernel {
+public final class OpenCLKernel implements Kernel {
 
     private static final Set<OpenCLKernel> kernels = ConcurrentHashMap.newKeySet();
 
-    protected final String   name;
-    protected final String   source;
-    protected final String[] requirements;
+    final String   name;
+    final String   source;
+    final String[] requirements;
 
     private @Nullable cl_kernel        id;
     //private @Nullable cl_command_queue queue;

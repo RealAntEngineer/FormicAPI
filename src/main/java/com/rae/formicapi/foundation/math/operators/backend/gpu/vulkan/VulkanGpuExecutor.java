@@ -33,12 +33,12 @@ import static org.lwjgl.vulkan.VK12.*;
  *
  * <h3>Execution model</h3>
  * <ul>
- *   <li><b>Serials and a timeline semaphore.</b> Every operation is its own
- *       one-time command buffer submitted to one queue, and gets the next
- *       value of a monotonically increasing serial, signalled on a single
- *       timeline semaphore when it finishes. A serial is this backend's
- *       {@link VulkanEvent}; the semaphore's counter says exactly which have
- *       completed, and the host can wait on any of them without a per-submission fence.</li>
+ *   <li><b>Serials and fences.</b> Every operation is its own one-time
+ *       command buffer submitted to one queue with its own fence, and gets the
+ *       next value of a monotonically increasing serial. A serial is this
+ *       backend's {@link VulkanEvent}; finished submissions are retired oldest
+ *       first, which yields a "completed up to serial N" watermark, and the
+ *       host can wait on any single serial through that submission's fence.</li>
  *   <li><b>Per-resource dependencies, like OpenCL's event wait lists.</b> Each
  *       buffer remembers the serial of the last operation that touched it
  *       ({@link VulkanResource#pendingEvents()}). A submission opens with a
@@ -59,14 +59,13 @@ import static org.lwjgl.vulkan.VK12.*;
  *   <li><b>Deferred destruction.</b> {@link GpuResource#release()} on a buffer
  *       can't free it while queued work still uses it, so destruction is
  *       queued behind that buffer's own last serial and carried out once the
- *       semaphore reaches it.</li>
+ *       completion watermark reaches it.</li>
  *   <li><b>Locking.</b> One queue means external synchronization: submission
  *       and bookkeeping happen under one monitor; host waits happen outside it.</li>
  * </ul>
  *
  * <h3>Requirements and limits</h3>
- * Vulkan 1.2 with the {@code timelineSemaphore} feature (selection fails
- * fast otherwise). {@code shaderFloat64} is <em>optional</em>: devices without
+ * Vulkan 1.2. {@code shaderFloat64} is <em>optional</em>: devices without
  * it work for the float/int API, and only double-precision kernels are
  * refused (see {@link #supportsFeature}); the double helpers throw
  * {@link UnsupportedOperationException} there. 64-bit buffer
@@ -127,15 +126,18 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     private final long commandPool;
     private final long descriptorPool;
 
-    // submission tracking: one serial per queue submission, signalled on a timeline semaphore
+    // submission tracking: one serial per queue submission, each with its own fence
     private static final class Submission {
         final VkCommandBuffer cb;
+        final long fence;
         final List<Long> descriptorSets = new ArrayList<>(2);
         @Nullable Staging staging; // upload staging block, handed back to the pool once this submission completes
         long serial;
+        int waiters; // host threads currently blocked on `fence`: it must not be reset/recycled until they leave (guarded by lock)
 
-        Submission(VkCommandBuffer cb) {
+        Submission(VkCommandBuffer cb, long fence) {
             this.cb = cb;
+            this.fence = fence;
         }
     }
 
@@ -146,8 +148,6 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     private record Dead(long buffer, long memory, long serial) {
     }
 
-    /** Timeline semaphore: reaching value N means submission N and everything submitted before it has finished. */
-    private long timeline;
     private final ArrayDeque<Submission> inFlight = new ArrayDeque<>();
     private final ArrayDeque<Submission> idle = new ArrayDeque<>();
     private final List<Dead> graveyard = new ArrayList<>();
@@ -211,9 +211,6 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             vkGetPhysicalDeviceFeatures2(chosen, supported);
 
 
-            if (!supported12.timelineSemaphore())
-                throw new RuntimeException("Vulkan device '" + deviceName + "' doesn't support timelineSemaphore (Vulkan 1.2 feature, needed for non-blocking resource dependencies)");
-
             //TODO add more, in case we need features in the future (yes I know that this implementation is against SOLID principles)
             this.hasInt64 = supported.features().shaderInt64();//That's longs -> we use 4 * 8 = 32 bits integers
             this.hasInt32 = true;
@@ -231,8 +228,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES)
                     .shaderBufferInt64Atomics(hasInt64Atomics)
                     .storageBuffer8BitAccess(has8BitStorage)
-                    .shaderInt8(hasInt8)
-                    .timelineSemaphore(true);
+                    .shaderInt8(hasInt8);
             VkPhysicalDeviceFeatures2 enable = VkPhysicalDeviceFeatures2.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2)
                     .pNext(enable12.address());
@@ -284,17 +280,6 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             check(vkCreateDescriptorPool(device, dpInfo, null, pDescPool), "vkCreateDescriptorPool");
             this.descriptorPool = pDescPool.get(0);
 
-            VkSemaphoreTypeCreateInfo typeInfo = VkSemaphoreTypeCreateInfo.calloc(stack)
-                    .sType(VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO)
-                    .semaphoreType(VK_SEMAPHORE_TYPE_TIMELINE)
-                    .initialValue(0);
-            VkSemaphoreCreateInfo semInfo = VkSemaphoreCreateInfo.calloc(stack)
-                    .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-                    .pNext(typeInfo.address());
-            LongBuffer pSem = stack.mallocLong(1);
-            check(vkCreateSemaphore(device, semInfo, null, pSem), "vkCreateSemaphore(timeline)");
-            this.timeline = pSem.get(0);
-
             long limit = Math.min(DEFAULT_LOCAL_SIZE, Math.min(maxInvocations, maxGroupSizeX));
             int pow2 = 1;
             while (pow2 * 2L <= limit) pow2 *= 2;
@@ -344,7 +329,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         try {
             uploadFloats(in, new float[]{10, 20, 30, 40}, 4);
             uploadInts(idx, new int[]{3, 2, 1, 0}, 4);
-            fillFloatBuffer(out, 0f, 4);
+            fillFloatBuffer(out, 0, 0f, 4);
             // three buffers + an int and a float push constant + an indexed read: the shape of every real kernel
             dispatch(selfTestKernel, 4, 0, new GpuResource[]{out, in, idx, scalar(7), scalar(0.5f)}, true);
 
@@ -464,14 +449,8 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                 return "only supports Vulkan " + VK_VERSION_MAJOR(props.apiVersion()) + "." + VK_VERSION_MINOR(props.apiVersion()) + " (1.2 required)";
             if (findComputeQueueFamilyOrNeg(inner, pd) < 0)
                 return "has no compute queue";
-            VkPhysicalDeviceVulkan12Features f12 = VkPhysicalDeviceVulkan12Features.calloc(inner)
-                    .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
-            VkPhysicalDeviceFeatures2 f = VkPhysicalDeviceFeatures2.calloc(inner)
-                    .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2)
-                    .pNext(f12.address());
+            VkPhysicalDeviceFeatures2 f = VkPhysicalDeviceFeatures2.calloc(inner).sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
             vkGetPhysicalDeviceFeatures2(pd, f);
-            if (!f12.timelineSemaphore())
-                return "doesn't support timelineSemaphore";
             return null;
         }
     }
@@ -493,7 +472,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             }
         }
         if (best == null)
-            throw new RuntimeException("No Vulkan 1.2 device with compute and timelineSemaphore support found");
+            throw new RuntimeException("No Vulkan 1.2 device with compute support found");
         return best;
     }
 
@@ -697,7 +676,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
     /**
      * Called by {@link VulkanResource#release()}: destroys now if the buffer's
      * last operation ({@code serial}, 0 if none) has already finished, otherwise
-     * once the timeline semaphore reaches it.
+     * once the completion watermark reaches it.
      */
     void retire(long buffer, long memory, long serial) {
         synchronized (lock) {
@@ -715,40 +694,48 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         vkFreeMemory(device, memory, null);
     }
 
-    /** True once the submission with this serial (and so everything before it) has finished. Safe to call from any thread, with or without the lock. */
+    /**
+     * True once the submission with this serial (and so everything before it) is known to have finished. Cheap and
+     * safe from any thread; it reflects the last retirement pass, so it can lag the device slightly (never lead it).
+     */
     boolean isComplete(long serial) {
-        if (serial <= completedSerial || closed)
-            return true;
-        return counterValue() >= serial;
+        return serial <= completedSerial || closed;
     }
 
-    private long counterValue() {
-        try (MemoryStack stack = stackPush()) {
-            LongBuffer pValue = stack.mallocLong(1);
-            check(vkGetSemaphoreCounterValue(device, timeline, pValue), "vkGetSemaphoreCounterValue");
-            return pValue.get(0);
-        }
-    }
-
-    /** Host-side wait until the timeline reaches {@code serial}. Needs no lock. */
-    private void waitTimeline(long serial) {
-        try (MemoryStack stack = stackPush()) {
-            VkSemaphoreWaitInfo info = VkSemaphoreWaitInfo.calloc(stack)
-                    .sType(VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO)
-                    .pSemaphores(stack.longs(timeline))
-                    .pValues(stack.longs(serial));
-            check(vkWaitSemaphores(device, info, Long.MAX_VALUE), "vkWaitSemaphores");
-        }
-    }
-
-    /** Blocks until {@code serial} has finished, then recycles whatever that frees up. Does not need the lock held; takes it for the bookkeeping. */
+    /**
+     * Blocks until {@code serial} has finished, then retires whatever that frees up. Needs no lock held: the wait
+     * itself happens outside it, so other threads keep enqueuing. The target's fence is pinned (waiters) so a
+     * concurrent retirement pass can't reset it while we are blocked on it.
+     */
     private void waitAndReap(long serial) {
         if (serial <= 0 || serial <= completedSerial)
             return;
-        waitTimeline(serial);
+        Submission target = null;
         synchronized (lock) {
-            if (!closed)
-                reap();
+            if (closed) return;
+            reap();
+            if (serial <= completedSerial)
+                return;
+            for (Submission s : inFlight) {
+                if (s.serial == serial) {
+                    target = s;
+                    break;
+                }
+            }
+            if (target == null)
+                throw new IllegalStateException("Submission " + serial + " is neither complete nor in flight");
+            target.waiters++;
+        }
+        try {
+            try (MemoryStack stack = stackPush()) {
+                check(vkWaitForFences(device, stack.longs(target.fence), true, Long.MAX_VALUE), "vkWaitForFences");
+            }
+        } finally {
+            synchronized (lock) {
+                target.waiters--;
+                if (!closed)
+                    reap();
+            }
         }
     }
 
@@ -822,6 +809,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         reap();
         Submission s = idle.pollFirst();
         if (s != null) {
+            check(vkResetFences(device, s.fence), "vkResetFences");
             check(vkResetCommandBuffer(s.cb, 0), "vkResetCommandBuffer");
             return s;
         }
@@ -833,7 +821,10 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                 .commandBufferCount(1);
         PointerBuffer pCb = stack.mallocPointer(1);
         check(vkAllocateCommandBuffers(device, alloc, pCb), "vkAllocateCommandBuffers");
-        return new Submission(new VkCommandBuffer(pCb.get(0), device));
+        VkFenceCreateInfo fenceInfo = VkFenceCreateInfo.calloc(stack).sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
+        LongBuffer pFence = stack.mallocLong(1);
+        check(vkCreateFence(device, fenceInfo, null, pFence), "vkCreateFence");
+        return new Submission(new VkCommandBuffer(pCb.get(0), device), pFence.get(0));
     }
 
     /**
@@ -888,15 +879,10 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
             recorder.record(s.cb, stack);
             check(vkEndCommandBuffer(s.cb), "vkEndCommandBuffer");
 
-            VkTimelineSemaphoreSubmitInfo timelineInfo = VkTimelineSemaphoreSubmitInfo.calloc(stack)
-                    .sType(VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO)
-                    .pSignalSemaphoreValues(stack.longs(serial));
             VkSubmitInfo submit = VkSubmitInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-                    .pNext(timelineInfo.address())
-                    .pCommandBuffers(stack.pointers(s.cb))
-                    .pSignalSemaphores(stack.longs(timeline));
-            check(vkQueueSubmit(queue, submit, VK_NULL_HANDLE), "vkQueueSubmit");
+                    .pCommandBuffers(stack.pointers(s.cb));
+            check(vkQueueSubmit(queue, submit, s.fence), "vkQueueSubmit");
 
             submitSerial = serial;
             if (needBarrier)
@@ -914,14 +900,26 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
         }
     }
 
-    /** Reads the timeline, then retires every finished submission (oldest first): frees their descriptor sets, recycles their staging blocks and command buffers, and destroys buffers that were waiting on them. Lock held. */
+    /**
+     * Retires finished submissions, oldest first: frees their descriptor sets, recycles their staging blocks and
+     * command buffers/fences, and destroys buffers that were waiting on them. Stopping at the first unfinished one
+     * is what makes {@code completedSerial} a true watermark ("everything up to N is done"). A finished submission
+     * that a host thread is still blocked on is counted as complete but not recycled until that thread leaves. Lock held.
+     */
     private void reap() {
-        long counter = counterValue();
-        if (counter > completedSerial)
-            completedSerial = counter;
+        while (!inFlight.isEmpty()) {
+            Submission s = inFlight.peekFirst();
+            int status = vkGetFenceStatus(device, s.fence);
+            if (status == VK_NOT_READY)
+                break;
+            check(status, "vkGetFenceStatus");
 
-        while (!inFlight.isEmpty() && inFlight.peekFirst().serial <= completedSerial) {
-            Submission s = inFlight.pollFirst();
+            if (s.serial > completedSerial)
+                completedSerial = s.serial;
+            if (s.waiters > 0)
+                break; // its fence can't be reset yet; the waiter calls reap() again on its way out
+
+            inFlight.pollFirst();
             for (long set : s.descriptorSets)
                 vkFreeDescriptorSets(device, descriptorPool, set);
             s.descriptorSets.clear();
@@ -1049,7 +1047,7 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                     .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                     .descriptorPool(descriptorPool)
                     .pSetLayouts(stack.longs(layout));
-            //.descriptorSetCount(1);
+                    //.descriptorSetCount(1);
             LongBuffer pSet = stack.mallocLong(1);
 
             int r = vkAllocateDescriptorSets(device, info, pSet);
@@ -1407,11 +1405,15 @@ public final class VulkanGpuExecutor implements GpuExecutor, AutoCloseable {
                 destroyBuffer(dead.buffer(), dead.memory());
             graveyard.clear();
 
+            for (Submission s : idle)
+                vkDestroyFence(device, s.fence, null);
             idle.clear();
+            for (Submission s : inFlight) // only non-empty if a waiter was still pinned; the device is idle, so safe
+                vkDestroyFence(device, s.fence, null);
+            inFlight.clear();
             for (Staging s : freeStaging)
                 destroyStaging(s);
             freeStaging.clear();
-            vkDestroySemaphore(device, timeline, null);
 
             vkDestroyDescriptorPool(device, descriptorPool, null);
             vkDestroyCommandPool(device, commandPool, null); // frees its command buffers

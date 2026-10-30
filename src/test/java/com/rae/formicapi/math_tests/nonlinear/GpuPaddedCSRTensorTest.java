@@ -138,7 +138,7 @@ class GpuPaddedCSRTensorTest extends GpuTestSupport {
         GpuDoubleVector direction = new GpuDoubleVector(executor, new double[]{1.0, 0.0, 0.5});
         GpuDoubleVector result = new GpuDoubleVector(executor, 0);
 
-        tensor.applyJacobian(x, direction, result);
+        tensor.multiplyJacobian(x, direction, result);
 
         assertEquals(2, result.size());
         assertArrayEquals(new double[]{36.0, 54.0}, result.download(), EPSILON);
