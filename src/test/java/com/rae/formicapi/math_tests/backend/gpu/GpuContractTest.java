@@ -140,7 +140,7 @@ abstract class GpuContractTest {
                 return new Quadratic() {
                     public void setRow(int e, double[] v, int[] v1, int[] v2, int n) { t.setRow(e, v, v1, v2, n); }
                     public void apply(RealVector x, RealVector out) { t.apply(x, out); }
-                    public void applyJacobian(RealVector x, RealVector d, RealVector out) { t.applyJacobian(x, d, out); }
+                    public void applyJacobian(RealVector x, RealVector d, RealVector out) { t.multiplyJacobian(x, d, out); }
                     public void close() { t.close(); }
                 };
             }
@@ -149,7 +149,7 @@ abstract class GpuContractTest {
             return new Quadratic() {
                 public void setRow(int e, double[] v, int[] v1, int[] v2, int n) { t.setRow(e, v, v1, v2, n); }
                 public void apply(RealVector x, RealVector out) { t.apply(x, out); }
-                public void applyJacobian(RealVector x, RealVector d, RealVector out) { t.applyJacobian(x, d, out); }
+                public void applyJacobian(RealVector x, RealVector d, RealVector out) { t.multiplyJacobian(x, d, out); }
                 public void close() { t.close(); }
             };
         }
@@ -161,7 +161,7 @@ abstract class GpuContractTest {
                 return new OrderN() {
                     public void setRow(int e, double[] v, int[][] vars, int n) { t.setRow(e, v, vars, n); }
                     public void apply(RealVector x, RealVector out) { t.apply(x, out); }
-                    public void applyJacobian(RealVector x, RealVector d, RealVector out) { t.applyJacobian(x, d, out); }
+                    public void applyJacobian(RealVector x, RealVector d, RealVector out) { t.multiplyJacobian(x, d, out); }
                     public void close() { t.close(); }
                 };
             }

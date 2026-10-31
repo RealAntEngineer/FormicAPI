@@ -330,7 +330,7 @@ public final class OpenCLGpuExecutor implements GpuExecutor, AutoCloseable {
         synchronized (queue) {
             cl_event[] wait = waitList(buffer);
             clEnqueueWriteBuffer(queue, mem(buffer), CL_TRUE, (long) elementOffset * Sizeof.cl_float,
-                    Sizeof.cl_float, Pointer.to(new double[]{value}), waitCount(wait), wait, null);
+                    Sizeof.cl_float, Pointer.to(new float[]{value}), waitCount(wait), wait, null);
             settle(buffer);
         }
     }

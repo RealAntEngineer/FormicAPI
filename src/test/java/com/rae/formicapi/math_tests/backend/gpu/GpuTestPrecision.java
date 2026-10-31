@@ -1,7 +1,15 @@
 package com.rae.formicapi.math_tests.backend.gpu;
 
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuExecutor;
-import com.rae.formicapi.foundation.math.operators.backend.gpu.GpuResource;
+import com.rae.formicapi.foundation.math.operators.backend.gpu.*;
+import com.rae.formicapi.foundation.math.operators.linear.MutableMatrix;
+import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
+import org.junit.jupiter.api.DynamicTest;
+
+import java.util.Arrays;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * The two floating-point flavours of every GPU class ({@code GpuDoubleVector}/{@code GpuFloatVector},
@@ -33,6 +41,17 @@ public enum GpuTestPrecision {
         return this == FLOAT;
     }
 
+    /**
+     * One dynamic test per precision for {@code body}, for use from a {@code @TestFactory}: this is how a contract written
+     * once runs for both flavours. Double is <em>skipped</em> (not failed) where {@code ex} has no fp64; float always runs.
+     */
+    public static Stream<DynamicTest> forEach(GpuExecutor ex, Consumer<GpuTestPrecision> body) {
+        return Arrays.stream(values()).map(p -> DynamicTest.dynamicTest(p.name(), () -> {
+            assumeTrue(p.available(ex), "device has no fp64, so the double classes can't run here");
+            body.accept(p);
+        }));
+    }
+
     /** Whether this flavour can run on {@code ex}: float always, double only on devices with fp64. */
     public boolean available(GpuExecutor ex) {
         return isFloat() || GpuTestBackends.supportsDouble(ex);
@@ -53,6 +72,42 @@ public enum GpuTestPrecision {
     /** Absolute tolerance for comparing one element against {@code expected}. */
     public double tolerance(double expected) {
         return elementTolerance * Math.max(1.0, Math.abs(expected));
+    }
+
+    // ------------------------------------------------------------------ GPU objects of this precision
+
+    /** A GPU vector holding {@code data} (which must already be rounded to this precision). */
+    public RealVector vector(GpuExecutor ex, double[] data) {
+        return isFloat() ? new GpuFloatVector(ex, toFloat(data)) : new GpuDoubleVector(ex, data.clone());
+    }
+
+    public RealVector vector(GpuExecutor ex, int n) {
+        return isFloat() ? new GpuFloatVector(ex, n) : new GpuDoubleVector(ex, n);
+    }
+
+    /** The contents of a GPU vector of either precision, widened to double. */
+    public static double[] read(RealVector v) {
+        if (v instanceof GpuFloatVector f)
+            return widen(f.download());
+        return ((GpuDoubleVector) v).download();
+    }
+
+    /** A padded-CSR matrix of this precision, already attached to {@code ex}. Release it with {@link #close(MutableMatrix)}. */
+    public MutableMatrix matrix(GpuExecutor ex, int rows, int cols, int nnzPerRow) {
+        if (isFloat()) {
+            GpuPaddedCSRMatrixF m = new GpuPaddedCSRMatrixF(rows, cols, nnzPerRow);
+            m.setExecutor(ex);
+            return m;
+        }
+        GpuPaddedCSRMatrixD m = new GpuPaddedCSRMatrixD(rows, cols, nnzPerRow);
+        m.setExecutor(ex);
+        return m;
+    }
+
+    /** {@code close()} is not on {@link MutableMatrix}, so releasing a matrix of either precision goes through here. */
+    public static void close(MutableMatrix m) {
+        if (m instanceof GpuPaddedCSRMatrixF f) f.close();
+        else if (m instanceof GpuPaddedCSRMatrixD d) d.close();
     }
 
     // ------------------------------------------------------------------ raw buffers (executor level)

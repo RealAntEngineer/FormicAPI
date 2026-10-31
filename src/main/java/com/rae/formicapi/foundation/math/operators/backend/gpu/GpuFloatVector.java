@@ -40,10 +40,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
     private static final int OP_MUL = 2;
     private static final int OP_DIV = 3;
 
-    private static final PortableKernel AXPY = new PortableKernel("axpy")
+    private static final PortableKernel AXPY = new PortableKernel("axpy_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void axpy(__global float* d, const float a, __global const float* x) {
+                    __kernel void axpy_float(__global float* d, const float a, __global const float* x) {
                         int i = get_global_id(0);
                         d[i] += a * x[i];
                     }
@@ -59,10 +59,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
                     }
                     """, "shaderFloat32");
 
-    private static final PortableKernel ADD_SCALAR = new PortableKernel("add_scalar")
+    private static final PortableKernel ADD_SCALAR = new PortableKernel("add_scalar_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void add_scalar(__global float* d, const float a) {
+                    __kernel void add_scalar_float(__global float* d, const float a) {
                         int i = get_global_id(0);
                         d[i] += a;
                     }
@@ -77,10 +77,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
                     }
                     """, "shaderFloat32");
 
-    private static final PortableKernel ADD_VECTOR = new PortableKernel("add_vector")
+    private static final PortableKernel ADD_VECTOR = new PortableKernel("add_vector_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void add_vector(__global float* d, __global const float* x) {
+                    __kernel void add_vector_float(__global float* d, __global const float* x) {
                         int i = get_global_id(0);
                         d[i] += x[i];
                     }
@@ -96,10 +96,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
                     }
                     """, "shaderFloat32");
 
-    private static final PortableKernel SCALE = new PortableKernel("scale")
+    private static final PortableKernel SCALE = new PortableKernel("scale_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void scale(__global float* d, const float a) {
+                    __kernel void scale_float(__global float* d, const float a) {
                         int i = get_global_id(0);
                         d[i] *= a;
                     }
@@ -115,10 +115,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
                     """, "shaderFloat32");
 
     /** {@code d[i] = d[i] <op> x[i]} for op in {@code SUB, MUL, DIV}; safe with {@code d == x} (each work-item only touches index i). */
-    private static final PortableKernel BINARY_OP = new PortableKernel("binary_op")
+    private static final PortableKernel BINARY_OP = new PortableKernel("binary_op_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void binary_op(__global float* d, __global const float* x, const int op) {
+                    __kernel void binary_op_float(__global float* d, __global const float* x, const int op) {
                         int i = get_global_id(0);
                         float a = d[i];
                         float b = x[i];
@@ -147,10 +147,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
      * does a plain read-modify-write per target: the caller must not pass
      * duplicate targets in {@code idx}.
      */
-    private static final PortableKernel SKIPPED_BINARY = new PortableKernel("skipped_binary")
+    private static final PortableKernel SKIPPED_BINARY = new PortableKernel("skipped_binary_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void skipped_binary(__global float* d, __global const float* x, __global const int* idx,
+                    __kernel void skipped_binary_float(__global float* d, __global const float* x, __global const int* idx,
                                                  const int op, const int thisSkip, const int otherSkip) {
                         int i = get_global_id(0);
                         int ti = thisSkip  != 0 ? idx[i] : i;
@@ -176,10 +176,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
                     }
                     """, "shaderFloat32");
 
-    private static final PortableKernel SKIPPED_AXPY = new PortableKernel("skipped_axpy")
+    private static final PortableKernel SKIPPED_AXPY = new PortableKernel("skipped_axpy_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void skipped_axpy(__global float* d, const float alpha, __global const float* x,
+                    __kernel void skipped_axpy_float(__global float* d, const float alpha, __global const float* x,
                                                __global const int* idx, const int thisSkip, const int otherSkip) {
                         int i = get_global_id(0);
                         int ti = thisSkip  != 0 ? idx[i] : i;
@@ -226,10 +226,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
     // group into `partials`. reduceSum(...) below sums the (small)
     // partials array on the host -- the kernel itself is an ordinary
     // Kernel, nothing reduction-specific about the abstraction.
-    private static final PortableKernel DOT_PARTIAL = new PortableKernel("dot_partial")
+    private static final PortableKernel DOT_PARTIAL = new PortableKernel("dot_partial_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void dot_partial(__global const float* a, __global const float* b,
+                    __kernel void dot_partial_float(__global const float* a, __global const float* b,
                                                __local float* scratch, __global float* partials, const int n) {
                         int gid = get_global_id(0);
                         int lid = get_local_id(0);
@@ -265,10 +265,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
                     """, "shaderFloat32");
 
     /** Reduced-space dot: {@code sum a[thisSkip ? idx[i] : i] * b[otherSkip ? idx[i] : i]} over {@code i in [0, n)}, {@code n = idx.size()}. */
-    private static final PortableKernel SKIPPED_DOT_PARTIAL = new PortableKernel("skipped_dot_partial")
+    private static final PortableKernel SKIPPED_DOT_PARTIAL = new PortableKernel("skipped_dot_partial_float")
             .opencl("""
                     #pragma OPENCL EXTENSION cl_khr_fp32 : enable
-                    __kernel void skipped_dot_partial(__global const float* a, __global const float* b,
+                    __kernel void skipped_dot_partial_float(__global const float* a, __global const float* b,
                                                        __global const int* idx,
                                                        __local float* scratch, __global float* partials, const int n,
                                                        const int thisSkip, const int otherSkip) {
@@ -441,7 +441,7 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
 
             // We're about to read the partials buffer this dispatch just
             // wrote to -- block on this specific command rather than relying
-            // on downloadDoubles's own blocking transfer to cover it implicitly.
+            // on downloadFloats's own blocking transfer to cover it implicitly.
             kernel.useBlocking(paddedGlobalSize, localSize, args);
 
             float[] partialsHost = new float[numGroups];
@@ -471,14 +471,14 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
         GpuIntegerVector gpuIdx = requireGpuIndex(unknowIdx);
 
         GpuExecutor ex = requireExecutor();
-        SKIPPED_AXPY.use(gpuIdx.size(), buffer, ex.scalar(alpha), vec.buffer, gpuIdx.buffer(),
+        SKIPPED_AXPY.use(gpuIdx.size(), buffer, ex.scalar((float) alpha), vec.buffer, gpuIdx.buffer(),
                 ex.scalar(thisSkipped ? 1 : 0), ex.scalar(otherSkipped ? 1 : 0));
         return this;
     }
 
     @Override
     public RealVector scale(double a) {
-        SCALE.use(size, buffer, requireExecutor().scalar(a));
+        SCALE.use(size, buffer, requireExecutor().scalar((float) a));
         return this;
     }
 
@@ -518,13 +518,13 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
     @Override
     public RealVector setAdd(double value, int idx) {
         GpuExecutor ex = requireExecutor();
-        ex.uploadDoubleAt(buffer, idx, ex.downloadDoubleAt(buffer, idx) + value);
+        ex.uploadFloatAt(buffer, idx, ex.downloadFloatAt(buffer, idx) + (float) value);
         return this;
     }
 
     @Override
     public RealVector add(double a) {
-        ADD_SCALAR.use(size, buffer, requireExecutor().scalar(a));
+        ADD_SCALAR.use(size, buffer, requireExecutor().scalar((float) a));
         return this;
     }
 
@@ -577,10 +577,10 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
             return this;
         }
 
-        GpuResource tmp = ex.allocateDoubleBuffer(n);
+        GpuResource tmp = ex.allocateFloatBuffer(n);
         try {
             GATHER.use(n, tmp, src.buffer, idx.buffer());
-            ex.copyDoubleBuffer(tmp, buffer, n);
+            ex.copyFloatBuffer(tmp, buffer, n);
         } finally {
             tmp.release(); // the backend defers destruction until the queued work using it is done
         }
@@ -614,7 +614,7 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
         if (!(idx instanceof GpuIntegerVector gpuIdx))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + idx.getClass());
         if (gpuIdx.executor != this.executor)
-            throw new UnsupportedOperationException("GpuDoubleVector and its index vector must share the same GpuExecutor");
+            throw new UnsupportedOperationException("GpuFloatVector and its index vector must share the same GpuExecutor");
         return gpuIdx;
     }
 
@@ -627,7 +627,7 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
         if (!(x instanceof GpuFloatVector vec))
             throw new UnsupportedOperationException("Unable to execute operation with a vector of class " + x.getClass());
         if (vec.executor != this.executor)
-            throw new UnsupportedOperationException("GpuDoubleVector operands must share the same GpuExecutor");
+            throw new UnsupportedOperationException("GpuFloatVector operands must share the same GpuExecutor");
         return vec;
     }
 
@@ -671,14 +671,14 @@ public final class GpuFloatVector extends GpuExecutable implements RealVector, A
     @Override
     public Vector copy() {
         GpuFloatVector out = new GpuFloatVector(requireExecutor(), size);
-        requireExecutor().copyDoubleBuffer(buffer, out.buffer, size);
+        requireExecutor().copyFloatBuffer(buffer, out.buffer, size);
         //requireExecutor().finish();
         return out;
     }
 
     @Override
     public RealVector clear() {
-        requireExecutor().fillDoubleBuffer(buffer, 0.0, size);
+        requireExecutor().fillFloatBuffer(buffer, 0.0f, size);
         //requireExecutor().finish();
         return this;
     }

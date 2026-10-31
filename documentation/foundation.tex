@@ -1,15 +1,282 @@
 %! Author = RealAntEngineer
 %! Date = 30/10/2026
 
-% Preamble
-\documentclass[11pt]{article}
-
-% Packages
-\usepackage{amsmath}
+% Preamble: shared with main.tex (compile this file alone or through main.tex)
+\documentclass[main.tex]{subfiles}
 
 % Document
 \begin{document}
 
+    % the table of contents lives in main.tex; keep one when this file is compiled on its own
+    \ifSubfilesClassLoaded{\tableofcontents}{}
 
+    \part{Math}
+
+
+    \chapter{Operators}
+
+    The operator package contains the classes for matrical operations like vectors, matrix and all the library for hardware acceleration
+
+    \section{Linear vs NonLinear}
+
+    here is the packages defining the default cpu serial implementations of matrices and polynomial operators
+
+    \section{Vector}
+
+    Interfaces for Integer and Real vectors. There is no generic Vector class on purpose, it would force the use of the wrapper and an array of Objects isn't contious in memory + it adds a pointer so it makes it 4 bytes heavier per elements. It would also create a lot of
+
+
+    \section{Backend}
+
+    where the library for cpu multithreading and gpu acceleration is defined.
+
+
+
+    \subsection{Gpu}
+
+    The GPU backend accelerates the vectors, the padded-CSR matrices and the polynomial tensors of the operator package. It sits behind one abstraction, \code{GpuExecutor}, with two implementations: \code{OpenCLGpuExecutor} and \code{VulkanGpuExecutor}. Everything that computes is written once and runs on either of them. Every numerical class exists in a double precision and a single precision flavour with the same public interface.
+
+    \paragraph{Building blocks.}
+    \begin{description}
+        \item[\code{GpuExecutor}] One device and one command queue. It allocates typed device buffers (double, float, int, byte), moves data in and out (ranges with offsets, or a single element), copies and fills buffers, creates kernels, and can wait for everything submitted so far (\code{finish()}). \code{supports(kernel)} tells whether a kernel can run on the device before it is compiled.
+        \item[\code{GpuExecutable}] Base class of every object that owns device data (vectors, matrices, tensors). \code{setExecutor} attaches it to a device and (re)creates its buffers; \code{bindKernels} binds the kernels the class declares to that executor.
+        \item[\code{PortableKernel}] A kernel is written twice, once in OpenCL~C and once in GLSL compute, together with the capabilities each version needs (an OpenCL extension, a Vulkan feature). It is declared as a static constant in the class that uses it and bound once per executor. \code{use(globalSize, args...)} enqueues it without waiting; \code{useBlocking} waits for it.
+        \item[\code{GpuResource}, \code{ResourceEvent}] A \code{GpuResource} is a kernel argument: a device buffer, or a scalar passed by value. A buffer remembers the last operation that touched it as a \code{ResourceEvent} (see \emph{Execution and ordering} below) and can be released.
+    \end{description}
+
+    \paragraph{Data classes.}
+    Table~\ref{tab:gpu-classes} lists the classes.
+    \begin{table}[ht]
+        \centering
+        \small
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}X@{}}
+            \toprule
+            Class & Interface & Holds \\
+            \midrule
+            \code{GpuDoubleVector}\newline \code{GpuFloatVector} & \code{RealVector} & $n$ real numbers \\
+            \code{GpuIntegerVector} & \code{IntegerVector} & $n$ 32-bit integers \\
+            \code{GpuBooleanVector} & \code{BooleanVector} & $n$ flags, one byte each \\
+            \code{GpuPaddedCSRMatrixD}\newline \code{GpuPaddedCSRMatrixF} & \code{MutableMatrix} & a sparse matrix with a fixed number of entries per row \\
+            \code{GpuPaddedCSR3TensorD}\newline \code{GpuPaddedCSR3TensorF} & --- & a quadratic form $F_i(x)$ \\
+            \code{GpuPaddedCSRTensorD}\newline \code{GpuPaddedCSRTensorF} & --- & a polynomial form $F_i(x)$ of any order \\
+            \bottomrule
+        \end{tabularx}
+        \caption{The GPU classes. The suffix \code{D} or \code{F} (and \code{Double} or \code{Float} for the vector) names the precision; the integer and boolean vectors have none.}
+        \label{tab:gpu-classes}
+    \end{table}
+
+    \paragraph{Padded CSR.}
+    A matrix with $m$ rows stores exactly $n$ entries per row (\code{nnzPerRow}). Entry $k$ of row $i$ has the value $v_{in+k}$ and the column $c_{in+k}$. A row with fewer than $n$ real entries is completed with padding: value $0$ and column $i$ (or $0$ when $i$ is outside the matrix). Padding adds nothing to a sum, so a kernel needs no per-row length: one thread handles one row and runs a loop with a fixed trip count,
+    \begin{equation}
+        y_i = \sum_{k=0}^{n-1} v_{in+k}\, x_{c_{in+k}} .
+    \end{equation}
+
+    \paragraph{Tensors.}
+    The quadratic form (\code{GpuPaddedCSR3Tensor}) gives each equation $i$ a list of terms $t$, each with a coefficient $c_{it}$ and two variable indices $j_{it}$, $k_{it}$:
+    \begin{equation}
+        F_i(x) = \sum_t c_{it}\, x_{j_{it}} x_{k_{it}}, \qquad
+        (J(x)\,\delta)_i = \sum_t c_{it}\left(\delta_{j_{it}}\, x_{k_{it}} + x_{j_{it}}\, \delta_{k_{it}}\right).
+    \end{equation}
+    The Jacobian--vector product needs no special case for $j=k$: it then reduces to $2c\,x_j\delta_j$ by itself. \code{GpuPaddedCSRTensor} generalises this to order $N$, with $d=N-1$ variable indices per term:
+    \begin{equation}
+        F_i(x) = \sum_t c_{it} \prod_{r=1}^{d} x_{j_{itr}}, \qquad
+        (J(x)\,\delta)_i = \sum_t c_{it} \sum_{m=1}^{d} \delta_{j_{itm}} \prod_{r \neq m} x_{j_{itr}} .
+    \end{equation}
+    In both cases one thread evaluates one equation.
+
+    \paragraph{Precision.}
+    The classes ending in \code{D} compute in double precision; those ending in \code{F}, and \code{GpuFloatVector}, in single precision. The public interface is the same and stays \code{double}-typed, like \code{RealVector}: a value given to a float class is rounded to \code{float} on the way in and widened on the way out, so a call site changes precision by changing a class name. The kernels of the two precisions have different names (the float ones end in \code{_float}), because the OpenCL profiler aggregates timings by kernel name and a shared name would merge the two.
+
+    Double precision is the only thing that needs the optional fp64 capability of a device. A double kernel declares it (\code{cl_khr_fp64} for OpenCL, \code{shaderFloat64} for Vulkan), so on a device without it \code{supports} answers \code{false} and binding fails cleanly with \code{UnsupportedOperationException}. The float kernels declare no optional capability and run on every Vulkan device. The OpenCL executor still requires \code{cl_khr_fp64} when it is created, so on OpenCL the float classes need an fp64-capable device for now.
+
+    \paragraph{Transposed product.}
+    For $y = A^{\top}x$ every entry is added to the column it points at,
+    \begin{equation}
+        y_c = \sum_{e \,:\, c_e = c} v_e \, x_{\lfloor e/n \rfloor}, \qquad e = in+k ,
+    \end{equation}
+    and there are two ways to evaluate it.
+    \begin{description}
+        \item[Scatter] One thread per row adds its contributions into $y_{c_e}$. Two rows can point at the same column, so the addition must be atomic, and core Vulkan and OpenCL have no atomic add on a floating-point buffer (extensions exist, but not on every device): it is emulated with a compare-and-swap loop on the bit pattern. For double precision that needs 64-bit buffer atomics (\code{cl_khr_int64_base_atomics}, \code{shaderBufferInt64Atomics}). The result must be cleared first, and the summation order changes from run to run.
+        \item[Gather] One thread per output column sums the entries that point at it, using an index $E(c)=\{e : c_e = c\}$ stored CSR-style over the flat entry numbers. It needs no atomics and no clearing, and it always sums in the same order, so its results are reproducible.
+    \end{description}
+    The float matrix always gathers. The double matrix scatters when the device has 64-bit atomics and gathers when it does not. The index is built on the host by a counting sort in $O(mn)$, uploaded once and cached. Only a change of the column pattern invalidates it (a \code{setRow} that changes a column, \code{resize}, a new executor). \code{set} and \code{add} change values only, and the kernel reads values through the flat entry number, so the cached index stays valid.
+
+    \paragraph{Execution and ordering.}
+    Dispatches, copies, fills and (on Vulkan) uploads return as soon as the work is submitted. Only a download, \code{useBlocking} and \code{finish()} wait (on OpenCL an upload does too, see \emph{Limits}). Correctness rests on one rule: \emph{an operation that touches a buffer is ordered after the last operation that touched that buffer, and nothing else is ordered.} A vector that is uploaded and then used in a matrix product does not hold up unrelated work, and the product starts only once its inputs are ready. The rule covers read-after-write, write-after-read and write-after-write alike. A buffer does not record whether its last access was a read or a write, so two reads of the same buffer are ordered as well; that is conservative, never wrong.
+
+    \begin{table}[ht]
+        \centering
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.1cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+                \toprule
+                & OpenCL & Vulkan \\
+                \midrule
+                Queue & out-of-order, with profiling & one in-order queue; every operation is its own command buffer with its own fence \\
+                Event & a \code{cl_event} & the serial number of a submission (\code{VulkanEvent}) \\
+                Dependency & the pending events of the arguments form the event wait list of the enqueue, so it is precise per buffer & a memory barrier opens the command buffer, only if a touched buffer has unfinished work (below) \\
+                Upload & blocking write & non-blocking, through a pool of staging buffers \\
+                Download & blocking read, after the buffer's events & waits for its own fence only, outside the executor lock \\
+                Release & the OpenCL runtime keeps a buffer alive until the queued commands that use it finish & destruction is queued behind the buffer's last serial \\
+                \bottomrule
+        \end{tabularx}
+        \caption{How the two backends implement the ordering rule.}
+        \label{tab:gpu-backends}
+    \end{table}
+
+    \paragraph{Vulkan: serials and barriers.}
+    Every submission receives the next value of a counter, its \emph{serial}. Finished submissions are retired oldest first, which yields a watermark $c$: every submission up to $c$ has completed. A buffer $r$ remembers the serial $p_r$ of the last submission that touched it ($p_r=0$ if none), and the executor remembers $b$, the serial of the latest submission that opened with a barrier. A new submission that touches the set of buffers $T$ opens with a global memory barrier if and only if
+    \begin{equation}
+        \exists\, r \in T :\quad p_r > c \;\;\wedge\;\; p_r \geq b .
+        \label{eq:gpu-barrier}
+    \end{equation}
+    The first condition says the earlier work may still be running. The second says no later barrier already orders it, since a barrier at $b$ makes every submission before $b$ finish first. When no touched buffer qualifies, no barrier is recorded and the submission may overlap with whatever else is in flight (figure~\ref{fig:gpu-barrier}). Afterwards the new serial becomes $p_r$ of every buffer in $T$. Only the newest serial is kept: a barrier orders everything submitted before it, so waiting for the newest covers all older ones.
+
+    \begin{figure}[ht]
+        \centering
+        \begin{tikzpicture}[
+            op/.style={draw, rounded corners=2pt, minimum height=7mm, inner sep=3pt, font=\small},
+            lane/.style={font=\small\itshape, anchor=east},
+            x=1cm, y=1cm]
+            \node[lane] at (0,1.0) {buffer $A$};
+            \node[lane] at (0,0.0) {buffer $B$};
+            \node[op, anchor=west, minimum width=2.6cm] (s1) at (0.2,1.0) {$s_1$: upload $A$};
+            \node[op, anchor=west, minimum width=3.4cm] (s2) at (0.8,0.0) {$s_2$: work on $B$};
+            \draw[dashed, thick] (4.6,-0.7) -- (4.6,1.7);
+            \node[font=\footnotesize, align=center] at (4.6,2.15) {barrier\\(opens $s_3$)};
+            \node[op, anchor=west, minimum width=3.0cm] (s3) at (4.8,1.0) {$s_3$: use $A$};
+            \draw[-{Stealth[length=2mm]}] (0.2,-1.0) -- (8.2,-1.0) node[right, font=\small] {time};
+        \end{tikzpicture}
+        \caption{$s_1$ and $s_2$ touch different buffers: no barrier, they overlap. $s_3$ uses $A$, whose last operation $s_1$ may still be running, so it opens with a barrier. A barrier cannot name a single buffer, so $s_3$ also waits for $s_2$, which it does not depend on.}
+        \label{fig:gpu-barrier}
+    \end{figure}
+
+    \paragraph{Vulkan: transfers.}
+    An upload copies the host data into a staging buffer taken from a pool, submits the device copy and returns, so the caller's array can be reused at once. The staging block returns to the pool when its submission completes. A block holds at least $1\,\mathrm{MiB}$ and at most $64\,\mathrm{MiB}$ (a larger transfer is split into chunks), and at most $256\,\mathrm{MiB}$ of staging memory exists at any time. Beyond that an upload waits for earlier ones to drain instead of allocating more; this is the only case where an upload blocks. A download submits a copy into a staging block and waits for that submission's fence alone. Everything it depends on is ordered before it on the device, so it does not wait for unrelated work.
+
+    \paragraph{Vulkan: lifetime and threads.}
+    A buffer cannot be freed while queued work still uses it, so \code{release()} queues the destruction behind the buffer's own serial $p_r$ and carries it out once the watermark reaches it, at once if the buffer is idle. On OpenCL the runtime does this by reference counting. Submission and bookkeeping run under one monitor of the executor and host waits run outside it, so other threads keep submitting while one waits for a download. Each buffer also has a small monitor of its own; the lock order is always executor first, buffer second. Scalar arguments travel in a $128$-byte push-constant block, a kernel has at most $8$ buffer bindings, and the pool holds $4096$ descriptor sets, recycled as their submissions retire; when it runs dry the executor waits for in-flight work to free some.
+
+    \paragraph{Limits.}
+    A Vulkan barrier cannot name a buffer: it orders all earlier work, so a dependent operation also waits for unrelated earlier work (figure~\ref{fig:gpu-barrier}). OpenCL, with an out-of-order queue and event wait lists, is precise here. There is one Vulkan queue; using several would require a serial per queue and semaphores for the dependencies between them. \code{pendingEvents()} on a Vulkan buffer reflects the last retirement pass, so it can lag the device slightly but never run ahead of it. On OpenCL, host-to-device writes are blocking.
+
+    \paragraph{Errors.}
+    Launches are validated before anything is submitted: \code{globalSize} must be a multiple of \code{localSize}, the number of buffer arguments must match the kernel, and a \code{null} or foreign resource is refused. Submitting work to an executor after \code{close()} throws \code{IllegalStateException}; closing twice and releasing a buffer twice are harmless.
+
+    \paragraph{Tests.}
+    The behaviour contract (\code{GpuContractTest}) is written once and runs for both backends and both precisions. Each result is compared with the CPU implementation in double precision; for the float classes the CPU side is given the float-rounded inputs, so the comparison measures the arithmetic of the GPU and not the loss of precision of the input. Table~\ref{tab:gpu-tolerances} gives the tolerances. The double flavour is skipped, not failed, on a device without fp64; the float flavour always runs.
+    \begin{table}[ht]
+        \centering
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{@{}lcc@{}}
+            \toprule
+            Comparison & Double & Float \\
+            \midrule
+            Element-wise result, relative to $\max(1,|y_i|)$ & $10^{-12}$ & $2\cdot 10^{-4}$ \\
+            Reduction (dot product, norm), relative & $10^{-10}$ & $10^{-4}$ \\
+            \bottomrule
+        \end{tabular}
+        \caption{Tolerances of the GPU tests against the CPU reference.}
+        \label{tab:gpu-tolerances}
+    \end{table}
+    Three more groups complete the suite. A test that needs no GPU compiles every kernel to SPIR-V, checks that kernel names are unique, that each OpenCL entry point carries its kernel's name, that a kernel declares fp64 exactly when it uses \code{double}, and that no float kernel does. The Vulkan executor tests make the host race the GPU on purpose: upload then use, read then overwrite, and overlapping writes must all give the result of the program order, and several threads share one executor. Running with \code{-Dformicapi.test.requireGpu=true} turns an unavailable device from a skip into a failure, for a machine that is supposed to have one.
+
+    \subsection{Cpu}
+
+The CPU backend provides the reference implementation of the operator interfaces and an optional shared thread-pool-like execution service for operations that benefit from data parallelism. Its design is deliberately simpler than the GPU backend: numerical data remains in ordinary Java primitive arrays, and a computation is expressed as a serial loop or as a task over contiguous index ranges. No device transfer or kernel compilation is involved.
+
+    \paragraph{Architecture and ownership.}
+    \code{CpuExecutable} is the common base class for the CPU data structures.
+    It contains an optional, nullable reference to a \code{CpuExecutor}, set through \code{setExecutor}. An object without an executor runs its supported operations serially. Attaching an executor does not move or copy its data: the vectors, matrices and tensors continue to own their primitive arrays on the host. Objects can share one executor, which is generally preferable to creating a separate worker set for every object.
+
+    \code{CpuExecutor} implements \code{BackendExecutor} and
+    \code{AutoCloseable}. It owns a fixed number of worker threads and one dispatcher thread. The dispatcher takes submitted jobs from a concurrent queue in submission order; workers execute the current job's assigned range. Calls are synchronous from the caller's point of view: the calling thread waits until the job has completed and, for reductions or accumulations, until its result has been combined. The computation itself runs on the workers. Multiple caller threads may share an executor, but their jobs are serialized by the single dispatcher rather than dispatched concurrently as independent jobs.
+
+    \paragraph{Job model and range partitioning.}
+    Every dispatch is represented by a job. A job defines the work performed by a worker over a half-open interval $[\code{start},\code{end})$ and the combination step, if any, performed after all workers finish. For a problem of size $N$ and $P$ workers, the executor uses a fixed contiguous partition with chunk size
+    \begin{equation}
+        C = \left\lceil \frac{N}{P} \right\rceil,
+        \qquad
+        I_p = [pC,\,\min(N,(p+1)C)).
+    \end{equation}
+    Empty ranges are skipped. This partition is simple and gives each worker one contiguous region, which is suitable for the array-oriented loops used throughout the backend. It is not a work-stealing scheduler: a worker that finishes its range does not take work from another worker.
+
+    The executor exposes four task forms:
+    \begin{description}
+        \item[\code{parallelFor(size, task)}] Runs a range task for each non-empty worker interval. It is intended for independent writes, such as applying an element-wise vector operation or evaluating separate matrix rows.
+        \item[\code{parallelReduceDouble(size, task)}] Runs a double-valued partial reduction per worker, then adds the partial results on the dispatcher thread.
+        \item[\code{parallelReduceFloat(size, task)}] The corresponding float reduction, with float partial results and a float final sum.
+        \item[\code{parallelForAccumulate(size, output, task)}] Gives each worker a private accumulation array and combines those arrays into the output after the parallel phase. This is intended for scatter operations where different input elements can contribute to the same output index.
+    \end{description}
+
+    The reduction methods return zero for a non-positive size, and the range and accumulation methods do no work for a non-positive size. The final reduction is a sum of the per-worker partial values. Since the grouping of floating-point additions differs from a serial left-to-right loop, a parallel reduction can differ slightly in its last bits even when the mathematical operation is unchanged.
+
+    \paragraph{Worker lifecycle and dispatch overhead.}
+    Workers are persistent for the lifetime of the executor; dispatch does not create new threads. To reduce latency between successive jobs, the dispatcher, workers and waiting callers briefly busy-spin, then park when idle. The default spin interval is \code{DEFAULT_SPIN_NANOS} ($20\,\mu\mathrm{s}$) and can be changed with \code{setSpinNanos}. This trades a small amount of CPU activity during short idle periods for lower wake-up latency. Setting the interval to zero parks immediately.
+
+    Parallel execution is not automatically beneficial. The executor exposes \code{DEFAULT_PARALLEL_THRESHOLD} (4096), \code{getParallelThreshold()}, \code{setParallelThreshold(...)} and \code{shouldUseParallel(size)}. The threshold is a workload heuristic,not a hardware guarantee: the crossover depends on processor, memory bandwidth, worker count and the cost of the operation. The static \code{calibrateThreshold(threads)} method measures serial and parallel range loops over a set of candidate sizes and returns the first candidate at which parallel execution wins (or the largest candidate if it never wins during the sweep). The overload accepting candidate sizes allows a caller to choose the sweep. Calibration is best treated as a machine- and workload-specific starting point, not a permanent universal optimum.
+
+    The executor's \code{parallelFor} methods always perform a dispatch; the decision to stay serial is made by the data structure before calling them. Most vector operations use \code{shouldUseParallel}, while the padded matrix and tensor implementations compare their row/equation count with \code{getParallelThreshold()} directly. Code using the executor should therefore apply the threshold at the call site rather than assume that every executor method silently falls back to a serial loop.
+
+    \paragraph{Avoiding write races: accumulation.}
+    A range task is safe when workers write to disjoint output locations. A transpose sparse-matrix product is different: several matrix rows can contain entries for the same output column, so parallel row processing would race if every worker updated the shared result array directly. \code{parallelForAccumulate} avoids atomics by allocating one private double array per worker. Each worker writes only to its own array during the parallel phase. Once all workers finish, a second parallel range job folds the private arrays into the caller's output and resets the scratch entries to zero. The scratch arrays are retained and reused across calls when the output length is unchanged. This removes contention during the scatter phase, at the cost of $O(PM)$ scratch storage and clearing/folding work for an output of length $M$, even if relatively few entries are touched.
+
+    \paragraph{CPU data structures.}
+    The concrete implementations present in the backend are summarised in table~\ref{tab:cpu-classes}.
+    \begin{table}[ht]
+        \centering
+        \small
+        \renewcommand{\arraystretch}{1.2}
+        \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{3.0cm}X@{}}
+            \toprule
+            Class & Interface & Storage and role \\
+            \midrule
+            \code{CpuDoubleVector} & \code{RealVector} & Double-precision primitive array; vector arithmetic and reductions. \\
+            \code{CpuFloatVector} & \code{RealVector} & Float-precision primitive array with the real-vector interface. \\
+            \code{CpuIntegerVector} & \code{IntegerVector} & 32-bit integer primitive array. \\
+            \code{CpuBooleanVector} & \code{BooleanVector} & Boolean primitive array. \\
+            \code{CpuPaddedCSRMatrixD} & \code{MutableMatrix} & Double-precision sparse matrix with a fixed number of storage slots per row. \\
+            \code{CpuPaddedCSR3TensorD} & \code{GeneralOperator} & Fixed-capacity quadratic polynomial operator. \\
+            \code{CpuPaddedCSRTensorD} & --- & Fixed-capacity polynomial operator of configurable order. \\
+            \bottomrule
+        \end{tabularx}
+        \caption{CPU backend implementations present in the source tree.}
+        \label{tab:cpu-classes}
+    \end{table}
+
+    The vector classes use primitive arrays rather than boxed values. The double and float real-vector implementations contain parallel paths for element-wise arithmetic, indexed operations, dot products and reductions; the float implementation mirrors the double implementation while retaining float storage and float partial sums. Integer-vector operations are currently serial. Boolean-vector operations are also mostly serial,with parallel indexed gather when an executor is attached and the input size crosses the threshold. The implementation deliberately leaves operations such as \code{System.arraycopy} and \code{Arrays.fill}serial: these are already highly optimised JVM intrinsics and splitting them among workers is not expected to improve their throughput.
+
+    \paragraph{Sparse matrix execution.}
+    \code{CpuPaddedCSRMatrixD} stores a fixed number $q$ of slots per row in flat value and column-index arrays. For row $i$, slot $k$ is stored at $iq+k$; unused slots are zero-valued. Matrix-vector multiplication assigns complete rows to workers, so each worker writes distinct result entries and no synchronisation is needed. The transposed product instead uses the private-buffer accumulation described above, because multiple rows may contribute to the same output column. The current CPU matrix implementation is double precision; the source tree also contains standalone padded CSR matrix representations outside this backend.
+
+    \paragraph{Polynomial tensor execution.}
+    \code{CpuPaddedCSR3TensorD} stores a fixed number of quadratic terms per equation. Each term contains a coefficient and two variable indices.
+    \code{CpuPaddedCSRTensorD} generalises the representation to a configurable polynomial order, storing the variable indices for each term. Evaluation assigns equations to workers, so each worker writes a disjoint range of result entries. The Jacobian--vector product follows the same equation-wise partition: the input vector and direction are read-only, and each equation's output is written once. As with the matrix,small equation counts use a serial range loop and larger ones use the attached executor.
+
+    \paragraph{Numerical and memory considerations.}
+    The CPU backend is the reference path against which accelerated implementations can be compared, but parallel execution is not necessarily bitwise identical to serial execution for reductions because floating-point addition is not associative. Range-based element-wise operations preserve the per-element arithmetic order. The accumulation strategy also has a defined two-phase structure, although the order in which worker-local sums are folded differs from a serial scatter order.
+
+    Vector constructors that accept primitive arrays retain the supplied array rather than making an unconditional defensive copy, and the \code{array()} accessors expose the backing storage. Callers should therefore treat those arrays as shared mutable state: external mutation is visible to the vector, and concurrent mutation while an operation is running is not made safe by the executor. The executor synchronises job dispatch and completion, not arbitrary access to data structures from application threads.
+
+    \paragraph{Lifecycle and typical use.}
+    The executor owns long-lived worker and dispatcher threads and should be closed when the application no longer needs it. It implements \code{AutoCloseable}, so try-with-resources is the preferred pattern. Shutdown is intended after callers have finished submitting work; it is not designed as a cancellation mechanism for concurrently active clients. Data structures do not own the executor and may share it, so the code that creates the executor should also own its lifetime.
+
+%    \begin{lstlisting}[language=Java]
+%    try (CpuExecutor executor = new CpuExecutor(Runtime.getRuntime().availableProcessors())) {
+%        CpuDoubleVector x = new CpuDoubleVector(values);
+%        CpuDoubleVector y = new CpuDoubleVector(values.length);
+%        x.setExecutor(executor);
+%        y.setExecutor(executor);
+%
+%        x.axpy(2.0, y); // serial or parallel according to the threshold
+%        double product = x.dot(y);
+%    }
+%    \end{lstlisting}
+
+    A single executor can be attached to several vectors and operators. The caller remains responsible for ensuring that the objects and their backing arrays are not mutated concurrently in ways that conflict with the operation being executed.
+
+    \chapter{Solvers}
+
+    bigstab, cg, newton, small solvers
 
 \end{document}

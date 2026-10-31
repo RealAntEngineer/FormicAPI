@@ -2,14 +2,62 @@
 %! Date = 30/10/2026
 
 % Preamble
-\documentclass[11pt]{article}
+% `report` rather than `article`: the chapters in foundation.tex use \chapter.
+\documentclass[11pt]{report}
 
 % Packages
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}   % tables
+\usepackage{tabularx}
+\usepackage{tikz}       % the ordering figure in the GPU section
+\usepackage{listings}
+\usepackage{float}
+\usepackage{geometry}
 
+
+\usetikzlibrary{arrows.meta, positioning, calc}
+
+% Chapters live in their own files. `subfiles` lets each of them also be compiled on its
+% own (it borrows this preamble) while \subfile{...} below pulls in only its body.
+\usepackage{subfiles}
+
+% hyperref last
+\usepackage[hidelinks]{hyperref}
+
+% Shows \subsubsection in the table of contents (the Gpu / Cpu parts of foundation.tex)
+\setcounter{tocdepth}{3}
+
+% Code identifiers: monospaced, safe with underscores, and allowed to wrap at an underscore, after an opening
+% parenthesis, or at a lower-to-upper case change (GpuPaddedCSRMatrixD -> Gpu|Padded|CSR|Matrix|D) instead of overflowing
+% the line or being hyphenated. Needs nothing beyond the LaTeX kernel (expl3).
+\ExplSyntaxOn
+\tl_new:N \l__code_tl
+\NewDocumentCommand{\code}{m}
+{
+    \tl_set:Nn \l__code_tl {#1}
+    \regex_replace_all:nnN { _ } { \c{_}\c{allowbreak} } \l__code_tl
+    \regex_replace_all:nnN { ([a-z0-9])([A-Z]) } { \1\c{allowbreak}\2 } \l__code_tl
+    \regex_replace_all:nnN { \( } { ( \c{allowbreak} } \l__code_tl
+    \texttt{\l__code_tl}
+}
+\ExplSyntaxOff
+
+
+\newcommand{\sectionbreak}{\clearpage}
+
+\geometry{a4paper, margin=1in}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+}
 % Document
 \begin{document}
 
+    \tableofcontents
 
+    \subfile{foundation}
 
 \end{document}
