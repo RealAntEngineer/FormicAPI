@@ -216,10 +216,10 @@ public class LeastSquareTest {
                 {3, 1},
                 {1, 2}
         };
-        double[] b = {0, 0};
-        double[] x = new double[2];
+        CpuDoubleVector b = new CpuDoubleVector(new double[]{0.0,0.0});
+        CpuDoubleVector x = new CpuDoubleVector(new double[2]);
         LeastSquare.solve(denseToSparce(A),  b, x,MAX_ITER, TOL);
-        assertVectorEquals(new double[]{0, 0}, x, 1e-9, "zero RHS");
+        assertVectorEquals(new double[]{0, 0}, x.array(), 1e-9, "zero RHS");
     }
 
     @Test
@@ -229,12 +229,12 @@ public class LeastSquareTest {
                 {1, 3}
         };
         double[] x_exact = {2, 1};
-        double[] b = multiply(A, x_exact);
-        double[] x = x_exact.clone();
+        CpuDoubleVector b = new CpuDoubleVector(multiply(A, x_exact));
+        CpuDoubleVector x = new CpuDoubleVector(x_exact.clone());
 
         // Pass exact solution as initial guess — should converge in 0 iterations
         LeastSquare.solve(denseToSparce(A), b, x, MAX_ITER, TOL);
-        assertVectorEquals(x_exact, x, 1e-9, "initial guess is solution");
+        assertVectorEquals(x_exact, x.array(), 1e-9, "initial guess is solution");
     }
 
     @Test

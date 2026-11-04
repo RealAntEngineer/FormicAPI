@@ -1,5 +1,6 @@
 package com.rae.formicapi.foundation.math.operators.linear;
 
+import com.rae.formicapi.foundation.math.operators.backend.cpu.CpuDoubleVector;
 import com.rae.formicapi.foundation.math.operators.vectors.IntegerVector;
 import com.rae.formicapi.foundation.math.operators.vectors.RealVector;
 
@@ -135,11 +136,28 @@ public class CSRMatrixD implements Matrix {
      * @param x      input vector of length {@link #rows()}
      * @param result output vector of length {@link #cols()}, overwritten with Aᵀx
      */
-    public void transposeMultiply(double[] x, double[] result) {
-        Arrays.fill(result, 0.0);
-        for (int r = 0; r < rows; r++)
-            for (int k = rowPtr[r]; k < rowPtr[r + 1]; k++)
-                result[colIndex[k]] += values[k] * x[r];
+    @Override
+    public void transposeApply(RealVector x, RealVector result) {
+        if (x instanceof CpuDoubleVector xCpu && result instanceof CpuDoubleVector resCpu) {
+            double[] result1 = resCpu.array();
+            Arrays.fill(result1, 0.0);
+            for (int r = 0; r < rows; r++)
+                for (int k = rowPtr[r]; k < rowPtr[r + 1]; k++)
+                    result1[colIndex[k]] += values[k] * xCpu.array()[r];
+            return;
+        }
+
+        throw new UnsupportedOperationException(
+                "Matrix.transposeApply(...) default implementation only supports CpuDoubleVector operands; got x="
+                        + x.getClass().getSimpleName() + ", result=" + result.getClass().getSimpleName()
+                        + ". A backend-specific Matrix implementation should override transposeApply() directly instead of relying on this default.");
+
+        //transposeApply(new CpuDoubleVector(x), new CpuDoubleVector(result));
+
+        /*Arrays.fill(result, 0.0);
+
+
+         */
     }
 
     @Override

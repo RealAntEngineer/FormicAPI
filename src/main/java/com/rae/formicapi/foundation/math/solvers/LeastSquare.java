@@ -66,12 +66,14 @@ public class LeastSquare {
 
         // u = b / ||b||
 
-        u.copy(b);
-        //System.out.println("b norm : "+ b.norm());
-        double beta = u.norm();
-        //System.out.println("beta = " + beta);
+        // u = b - A*x
+        A.apply(x, u);
+        u.scale(-1.0);
+        u.add(b);
 
-        if (beta == 0)
+        double beta = u.norm();
+
+        if (beta < tol)
             return 0;
 
         u.scale(1.0 / beta);

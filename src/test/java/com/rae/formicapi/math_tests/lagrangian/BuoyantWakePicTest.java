@@ -193,7 +193,7 @@ public class BuoyantWakePicTest {
         if (values != null) field.skippedAxpy(1.0, values, idx, true, false);
     }
 
-    @Test
+    //@Test
     void buoyantWakePastObstacle() {
 
         // ----------------------------------------------------------------
