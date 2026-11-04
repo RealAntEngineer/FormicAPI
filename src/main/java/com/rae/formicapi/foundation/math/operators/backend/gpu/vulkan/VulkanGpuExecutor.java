@@ -30,8 +30,7 @@ import static org.lwjgl.vulkan.VK12.*;
  * fills, copies and compute dispatch. Like {@code OpenCLGpuExecutor} it owns
  * no kernel source -- those live as {@code PortableKernel} constants next to
  * the {@code Gpu*Vector}/{@code Gpu*Matrix} classes that use them.
- *
- * <h1>Execution model</h1>
+ * <h2>Execution model</h2>
  * <ul>
  *   <li><b>Serials and fences.</b> Every operation is its own one-time
  *       command buffer submitted to one queue with its own fence, and gets the
@@ -64,7 +63,7 @@ import static org.lwjgl.vulkan.VK12.*;
  *       and bookkeeping happen under one monitor; host waits happen outside it.</li>
  * </ul>
  *
- * <h3>Requirements and limits</h3>
+ * <h2>Requirements and limits</h2>
  * Vulkan 1.2. {@code shaderFloat64} is <em>optional</em>: devices without
  * it work for the float/int API, and only double-precision kernels are
  * refused (see {@link #supportsFeature}); the double helpers throw
