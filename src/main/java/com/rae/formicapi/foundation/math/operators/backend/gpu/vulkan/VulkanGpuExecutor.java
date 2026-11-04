@@ -31,7 +31,7 @@ import static org.lwjgl.vulkan.VK12.*;
  * no kernel source -- those live as {@code PortableKernel} constants next to
  * the {@code Gpu*Vector}/{@code Gpu*Matrix} classes that use them.
  *
- * <h3>Execution model</h3>
+ * <h1>Execution model</h1>
  * <ul>
  *   <li><b>Serials and fences.</b> Every operation is its own one-time
  *       command buffer submitted to one queue with its own fence, and gets the

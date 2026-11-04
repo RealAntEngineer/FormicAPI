@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * executor it was bound to last. Native kernels are cached per executor, so
  * re-binding to an executor already seen is a cheap lookup, not a recompile.
  *
- * <h3>GLSL conventions (Vulkan)</h3>
+ * <h1>GLSL conventions (Vulkan)</h1>
  * Write only the body of the shader -- no {@code #version}, no
  * {@code local_size}, no {@code #extension}; the Vulkan backend adds those
  * (extensions are derived from the feature names given to {@link #glsl}).
