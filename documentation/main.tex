@@ -11,19 +11,25 @@
 \usepackage{booktabs}   % tables
 \usepackage{tabularx}
 \usepackage{tikz}       % the ordering figure in the GPU section
-\usepackage{listings}
-\usepackage{float}
-\usepackage{geometry}
-
-
 \usetikzlibrary{arrows.meta, positioning, calc}
 
 % Chapters live in their own files. `subfiles` lets each of them also be compiled on its
 % own (it borrows this preamble) while \subfile{...} below pulls in only its body.
 \usepackage{subfiles}
 
+% code listings (the CPU usage example) and visible draft markers
+\usepackage{listings}
+\lstset{language=Java, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true,
+    frame=single, breaklines=true, showstringspaces=false}
+\usepackage{xcolor}
+% Something the text cannot state yet because it could not be checked against the code.
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+
 % hyperref last
 \usepackage[hidelinks]{hyperref}
+
+% Long code names cannot hyphenate; let TeX stretch spaces a little before it gives up on a line.
+\setlength{\emergencystretch}{2em}
 
 % Shows \subsubsection in the table of contents (the Gpu / Cpu parts of foundation.tex)
 \setcounter{tocdepth}{3}
@@ -43,16 +49,6 @@
 }
 \ExplSyntaxOff
 
-
-\newcommand{\sectionbreak}{\clearpage}
-
-\geometry{a4paper, margin=1in}
-
-\lstset{
-    basicstyle=\ttfamily\small,
-    breaklines=true,
-    frame=single,
-}
 % Document
 \begin{document}
 

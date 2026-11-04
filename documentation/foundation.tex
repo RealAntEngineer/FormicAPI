@@ -138,14 +138,14 @@
             op/.style={draw, rounded corners=2pt, minimum height=7mm, inner sep=3pt, font=\small},
             lane/.style={font=\small\itshape, anchor=east},
             x=1cm, y=1cm]
-            \node[lane] at (0,1.0) {buffer $A$};
-            \node[lane] at (0,0.0) {buffer $B$};
-            \node[op, anchor=west, minimum width=2.6cm] (s1) at (0.2,1.0) {$s_1$: upload $A$};
-            \node[op, anchor=west, minimum width=3.4cm] (s2) at (0.8,0.0) {$s_2$: work on $B$};
-            \draw[dashed, thick] (4.6,-0.7) -- (4.6,1.7);
-            \node[font=\footnotesize, align=center] at (4.6,2.15) {barrier\\(opens $s_3$)};
-            \node[op, anchor=west, minimum width=3.0cm] (s3) at (4.8,1.0) {$s_3$: use $A$};
-            \draw[-{Stealth[length=2mm]}] (0.2,-1.0) -- (8.2,-1.0) node[right, font=\small] {time};
+                \node[lane] at (0,1.0) {buffer $A$};
+                \node[lane] at (0,0.0) {buffer $B$};
+                \node[op, anchor=west, minimum width=2.6cm] (s1) at (0.2,1.0) {$s_1$: upload $A$};
+                \node[op, anchor=west, minimum width=3.4cm] (s2) at (0.8,0.0) {$s_2$: work on $B$};
+                \draw[dashed, thick] (4.6,-0.7) -- (4.6,1.7);
+                \node[font=\footnotesize, align=center] at (4.6,2.15) {barrier\\(opens $s_3$)};
+                \node[op, anchor=west, minimum width=3.0cm] (s3) at (4.8,1.0) {$s_3$: use $A$};
+                \draw[-{Stealth[length=2mm]}] (0.2,-1.0) -- (8.2,-1.0) node[right, font=\small] {time};
         \end{tikzpicture}
         \caption{$s_1$ and $s_2$ touch different buffers: no barrier, they overlap. $s_3$ uses $A$, whose last operation $s_1$ may still be running, so it opens with a barrier. A barrier cannot name a single buffer, so $s_3$ also waits for $s_2$, which it does not depend on.}
         \label{fig:gpu-barrier}
@@ -183,17 +183,15 @@
 
     \subsection{Cpu}
 
-The CPU backend provides the reference implementation of the operator interfaces and an optional shared thread-pool-like execution service for operations that benefit from data parallelism. Its design is deliberately simpler than the GPU backend: numerical data remains in ordinary Java primitive arrays, and a computation is expressed as a serial loop or as a task over contiguous index ranges. No device transfer or kernel compilation is involved.
+    The CPU backend provides the reference implementation of the operator interfaces and an optional shared execution service for operations that benefit from data parallelism. Its design is deliberately simpler than the GPU backend: numerical data remains in ordinary Java primitive arrays, and a computation is expressed as a serial loop or as a task over contiguous index ranges. No device transfer or kernel compilation is involved.
 
     \paragraph{Architecture and ownership.}
-    \code{CpuExecutable} is the common base class for the CPU data structures.
-    It contains an optional, nullable reference to a \code{CpuExecutor}, set through \code{setExecutor}. An object without an executor runs its supported operations serially. Attaching an executor does not move or copy its data: the vectors, matrices and tensors continue to own their primitive arrays on the host. Objects can share one executor, which is generally preferable to creating a separate worker set for every object.
+    \code{CpuExecutable} is the common base class for the CPU data structures. It contains an optional, nullable reference to a \code{CpuExecutor}, set through \code{setExecutor}. An object without an executor runs its supported operations serially. Attaching an executor does not move or copy its data: the vectors, matrices and tensors continue to own their primitive arrays on the host. Objects can share one executor, which is generally preferable to creating a separate worker set for every object.
 
-    \code{CpuExecutor} implements \code{BackendExecutor} and
-    \code{AutoCloseable}. It owns a fixed number of worker threads and one dispatcher thread. The dispatcher takes submitted jobs from a concurrent queue in submission order; workers execute the current job's assigned range. Calls are synchronous from the caller's point of view: the calling thread waits until the job has completed and, for reductions or accumulations, until its result has been combined. The computation itself runs on the workers. Multiple caller threads may share an executor, but their jobs are serialized by the single dispatcher rather than dispatched concurrently as independent jobs.
+    \code{CpuExecutor} implements \code{BackendExecutor} and \code{AutoCloseable}. It owns a fixed number of worker threads and one dispatcher thread. The dispatcher takes submitted jobs from a concurrent queue in submission order; workers execute the current job's assigned range. Calls are synchronous from the caller's point of view: the calling thread waits until the job has completed and, for reductions or accumulations, until its result has been combined. The computation itself runs on the workers. Multiple caller threads may share an executor, but their jobs are serialized by the single dispatcher rather than dispatched concurrently as independent jobs.
 
     \paragraph{Job model and range partitioning.}
-    Every dispatch is represented by a job. A job defines the work performed by a worker over a half-open interval $[\code{start},\code{end})$ and the combination step, if any, performed after all workers finish. For a problem of size $N$ and $P$ workers, the executor uses a fixed contiguous partition with chunk size
+    Every dispatch is represented by a job. A job defines the work performed by a worker over a half-open interval $[\mathit{start},\mathit{end})$ and the combination step, if any, performed after all workers finish. For a problem of size $N$ and $P$ workers, the executor uses a fixed contiguous partition with chunk size
     \begin{equation}
         C = \left\lceil \frac{N}{P} \right\rceil,
         \qquad
@@ -214,7 +212,7 @@ The CPU backend provides the reference implementation of the operator interfaces
     \paragraph{Worker lifecycle and dispatch overhead.}
     Workers are persistent for the lifetime of the executor; dispatch does not create new threads. To reduce latency between successive jobs, the dispatcher, workers and waiting callers briefly busy-spin, then park when idle. The default spin interval is \code{DEFAULT_SPIN_NANOS} ($20\,\mu\mathrm{s}$) and can be changed with \code{setSpinNanos}. This trades a small amount of CPU activity during short idle periods for lower wake-up latency. Setting the interval to zero parks immediately.
 
-    Parallel execution is not automatically beneficial. The executor exposes \code{DEFAULT_PARALLEL_THRESHOLD} (4096), \code{getParallelThreshold()}, \code{setParallelThreshold(...)} and \code{shouldUseParallel(size)}. The threshold is a workload heuristic,not a hardware guarantee: the crossover depends on processor, memory bandwidth, worker count and the cost of the operation. The static \code{calibrateThreshold(threads)} method measures serial and parallel range loops over a set of candidate sizes and returns the first candidate at which parallel execution wins (or the largest candidate if it never wins during the sweep). The overload accepting candidate sizes allows a caller to choose the sweep. Calibration is best treated as a machine- and workload-specific starting point, not a permanent universal optimum.
+    Parallel execution is not automatically beneficial. The executor exposes \code{DEFAULT_PARALLEL_THRESHOLD} (4096), \code{getParallelThreshold()}, \code{setParallelThreshold(...)} and \code{shouldUseParallel(size)}. The threshold is a workload heuristic, not a hardware guarantee: the crossover depends on processor, memory bandwidth, worker count and the cost of the operation. The static \code{calibrateThreshold(threads)} method measures serial and parallel range loops over a set of candidate sizes and returns the first candidate at which parallel execution wins (or the largest candidate if it never wins during the sweep). The overload accepting candidate sizes allows a caller to choose the sweep. Calibration is best treated as a machine- and workload-specific starting point, not a permanent universal optimum. An executor is created with a worker count, \code{new CpuExecutor(threads)}, or with a worker count and a threshold, \code{new CpuExecutor(threads, threshold)}; the tests use a very small threshold so that tiny systems still take the parallel path.
 
     The executor's \code{parallelFor} methods always perform a dispatch; the decision to stay serial is made by the data structure before calling them. Most vector operations use \code{shouldUseParallel}, while the padded matrix and tensor implementations compare their row/equation count with \code{getParallelThreshold()} directly. Code using the executor should therefore apply the threshold at the call site rather than assume that every executor method silently falls back to a serial loop.
 
@@ -244,14 +242,13 @@ The CPU backend provides the reference implementation of the operator interfaces
         \label{tab:cpu-classes}
     \end{table}
 
-    The vector classes use primitive arrays rather than boxed values. The double and float real-vector implementations contain parallel paths for element-wise arithmetic, indexed operations, dot products and reductions; the float implementation mirrors the double implementation while retaining float storage and float partial sums. Integer-vector operations are currently serial. Boolean-vector operations are also mostly serial,with parallel indexed gather when an executor is attached and the input size crosses the threshold. The implementation deliberately leaves operations such as \code{System.arraycopy} and \code{Arrays.fill}serial: these are already highly optimised JVM intrinsics and splitting them among workers is not expected to improve their throughput.
+    The vector classes use primitive arrays rather than boxed values. The double and float real-vector implementations contain parallel paths for element-wise arithmetic, indexed operations, dot products and reductions; the float implementation mirrors the double implementation while retaining float storage and float partial sums. Integer-vector operations are currently serial. Boolean-vector operations are also mostly serial, with parallel indexed gather when an executor is attached and the input size crosses the threshold. The implementation deliberately leaves operations such as \code{System.arraycopy} and \code{Arrays.fill} serial: these are already highly optimised JVM intrinsics and splitting them among workers is not expected to improve their throughput.
 
     \paragraph{Sparse matrix execution.}
     \code{CpuPaddedCSRMatrixD} stores a fixed number $q$ of slots per row in flat value and column-index arrays. For row $i$, slot $k$ is stored at $iq+k$; unused slots are zero-valued. Matrix-vector multiplication assigns complete rows to workers, so each worker writes distinct result entries and no synchronisation is needed. The transposed product instead uses the private-buffer accumulation described above, because multiple rows may contribute to the same output column. The current CPU matrix implementation is double precision; the source tree also contains standalone padded CSR matrix representations outside this backend.
 
     \paragraph{Polynomial tensor execution.}
-    \code{CpuPaddedCSR3TensorD} stores a fixed number of quadratic terms per equation. Each term contains a coefficient and two variable indices.
-    \code{CpuPaddedCSRTensorD} generalises the representation to a configurable polynomial order, storing the variable indices for each term. Evaluation assigns equations to workers, so each worker writes a disjoint range of result entries. The Jacobian--vector product follows the same equation-wise partition: the input vector and direction are read-only, and each equation's output is written once. As with the matrix,small equation counts use a serial range loop and larger ones use the attached executor.
+    \code{CpuPaddedCSR3TensorD} stores a fixed number of quadratic terms per equation. Each term contains a coefficient and two variable indices. \code{CpuPaddedCSRTensorD} generalises the representation to a configurable polynomial order, storing the variable indices for each term. Evaluation assigns equations to workers, so each worker writes a disjoint range of result entries. The Jacobian--vector product follows the same equation-wise partition: the input vector and direction are read-only, and each equation's output is written once. As with the matrix, small equation counts use a serial range loop and larger ones use the attached executor.
 
     \paragraph{Numerical and memory considerations.}
     The CPU backend is the reference path against which accelerated implementations can be compared, but parallel execution is not necessarily bitwise identical to serial execution for reductions because floating-point addition is not associative. Range-based element-wise operations preserve the per-element arithmetic order. The accumulation strategy also has a defined two-phase structure, although the order in which worker-local sums are folded differs from a serial scatter order.
@@ -259,24 +256,136 @@ The CPU backend provides the reference implementation of the operator interfaces
     Vector constructors that accept primitive arrays retain the supplied array rather than making an unconditional defensive copy, and the \code{array()} accessors expose the backing storage. Callers should therefore treat those arrays as shared mutable state: external mutation is visible to the vector, and concurrent mutation while an operation is running is not made safe by the executor. The executor synchronises job dispatch and completion, not arbitrary access to data structures from application threads.
 
     \paragraph{Lifecycle and typical use.}
-    The executor owns long-lived worker and dispatcher threads and should be closed when the application no longer needs it. It implements \code{AutoCloseable}, so try-with-resources is the preferred pattern. Shutdown is intended after callers have finished submitting work; it is not designed as a cancellation mechanism for concurrently active clients. Data structures do not own the executor and may share it, so the code that creates the executor should also own its lifetime.
+    The executor owns long-lived worker and dispatcher threads and should be closed when the application no longer needs it. It implements \code{AutoCloseable}, so try-with-resources is the preferred pattern (the benchmarks also call \code{shutdown()} directly). Shutdown is intended after callers have finished submitting work; it is not designed as a cancellation mechanism for concurrently active clients. Data structures do not own the executor and may share it, so the code that creates the executor should also own its lifetime.
 
-%    \begin{lstlisting}[language=Java]
-%    try (CpuExecutor executor = new CpuExecutor(Runtime.getRuntime().availableProcessors())) {
-%        CpuDoubleVector x = new CpuDoubleVector(values);
-%        CpuDoubleVector y = new CpuDoubleVector(values.length);
-%        x.setExecutor(executor);
-%        y.setExecutor(executor);
-%
-%        x.axpy(2.0, y); // serial or parallel according to the threshold
-%        double product = x.dot(y);
-%    }
-%    \end{lstlisting}
+    \begin{lstlisting}
+try (CpuExecutor executor = new CpuExecutor(Runtime.getRuntime().availableProcessors())) {
+    CpuDoubleVector x = new CpuDoubleVector(values);
+    CpuDoubleVector y = new CpuDoubleVector(values.length);
+    x.setExecutor(executor);
+    y.setExecutor(executor);
+
+    x.axpy(2.0, y);           // serial or parallel according to the threshold
+    double product = x.dot(y);
+}
+    \end{lstlisting}
 
     A single executor can be attached to several vectors and operators. The caller remains responsible for ensuring that the objects and their backing arrays are not mutated concurrently in ways that conflict with the operation being executed.
 
+    \paragraph{Comparison with the GPU backend.}
+    Both backends implement the same interfaces, so a solver does not know which one it runs on; table~\ref{tab:cpu-vs-gpu} lists what differs underneath.
+    \begin{table}[ht]
+        \centering
+        \small
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+            \toprule
+            & CPU & GPU \\
+            \midrule
+            Data & primitive arrays on the host & device buffers, with a host mirror in the matrices and tensors \\
+            Execution & synchronous: a call returns when the result is ready & asynchronous: a call returns once the work is submitted, ordered per buffer \\
+            Transposed product & private accumulation array per worker, folded afterwards & atomic scatter, or a gather through a cached column index \\
+            Reproducibility & row-wise products are bit-identical to the serial loop; sums over several workers can differ in the last bits & the gather is reproducible; the atomic scatter is not \\
+            Precision & double, with float vectors & double and float classes with the same interface \\
+            \bottomrule
+        \end{tabularx}
+        \caption{The CPU and GPU backends side by side.}
+        \label{tab:cpu-vs-gpu}
+    \end{table}
+
+    \paragraph{Tests.}
+    \code{ParallelCpuTest} runs the same random 7-point-stencil matrix ($64^3$ rows) through the serial reference \code{PaddedCSRMatrixD} and through \code{CpuPaddedCSRMatrixD} on a four-worker executor. The matrix--vector product is compared with a tolerance of exactly zero: each row is summed in the same order, so the parallel result must be bit-identical. The transposed product is compared with a tolerance of $10^{-9}$ because the order of the accumulation differs; that test is currently commented out and should be re-enabled. The CPU classes also serve as the reference in the GPU contract tests, where the executor is created with two workers and a threshold of 16 so that small systems exercise the parallel path.
+
     \chapter{Solvers}
 
-    bigstab, cg, newton, small solvers
+    The solvers turn the operators of the previous chapter into answers. They are matrix-free: a solver never looks inside a matrix, it only asks for products ($Ax$, and $A^{\top}x$ for least squares), so the same algorithm runs on any operator that provides them. The vector-based entry points are written against the \code{Matrix} and \code{RealVector} interfaces. The CPU and GPU benchmarks call the same \code{LeastSquare.solve} with CPU and with GPU objects. Array-based entry points take and return \code{double[]} and are meant for small systems and tests.
+
+    Table~\ref{tab:solvers} gives an overview. All iterative solvers take an iteration limit and a tolerance, and are warm-started: the initial guess is the vector given in, and a system that is already solved returns at once.
+    \begin{table}[ht]
+        \centering
+        \small
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{3.7cm}>{\raggedright\arraybackslash}X@{}}
+            \toprule
+            Solver & Solves & Requires \\
+            \midrule
+            \code{ConjugateGradient} & $Ax=b$ & $A$ symmetric positive definite \\
+            \code{BiCGStab} & $Ax=b$, also with fixed unknowns & $A$ square, any structure \\
+            \code{LeastSquare} & $\min_x \lVert Ax-b\rVert_2$ & any shape, needs $A$ and $A^{\top}$ products \\
+            \code{NewtonKrylov} & $C(x)+Ax=b$ & quadratic term $C$ with a Jacobian--vector product \\
+            \code{SimpleSolvers} & $\min_x f(x)$, one variable & a scalar function \\
+            \bottomrule
+        \end{tabularx}
+        \caption{The solver package.}
+        \label{tab:solvers}
+    \end{table}
+
+    \paragraph{Working buffers.}
+    The vector-based solvers allocate nothing per iteration. The caller hands them a \code{WorkingBuffer}, a fixed set of scratch vectors, built either from an array of vectors or from a count and a factory, for instance \code{new WorkingBuffer<>(7, () -> new CpuDoubleVector(n))}. Because the caller creates the vectors, they belong to the backend of the caller's choice: CPU vectors with an executor attached, or GPU vectors.
+
+    \section{Conjugate gradient}
+    For a symmetric positive definite matrix, \code{ConjugateGradient} computes the iterate $x_k \in x_0 + \mathcal{K}_k(A,r_0)$, with $r_0=b-Ax_0$ and $\mathcal{K}_k(A,r_0)=\mathrm{span}\{r_0,Ar_0,\dots,A^{k-1}r_0\}$, that minimises the error $\lVert x_\star - x_k\rVert_A$. It does so with the short recurrence
+    \begin{equation}
+        \begin{aligned}
+            \alpha_k &= \frac{r_k^{\top}r_k}{p_k^{\top}Ap_k}, &
+            x_{k+1} &= x_k+\alpha_kp_k, &
+            r_{k+1} &= r_k-\alpha_kAp_k, \\
+            \beta_k &= \frac{r_{k+1}^{\top}r_{k+1}}{r_k^{\top}r_k}, &
+            p_{k+1} &= r_{k+1}+\beta_kp_k , & &
+        \end{aligned}
+    \end{equation}
+    with $p_0=r_0$: one product with $A$, two dot products and three vector updates per iteration, and in exact arithmetic termination after at most $n$ steps. The entry point is \code{ConjugateGradient.solve(A, x0, b, maxIter, tol)}, which returns the solution as a new array. It must only be used with a symmetric positive definite matrix; on other matrices it can stall or diverge.
+
+    \section{BiCGStab}
+    For a square matrix without symmetry, \code{BiCGStab} is the stabilised bi-conjugate gradient method. It needs two products with $A$ per iteration and none with $A^{\top}$, which makes it usable with operators that can only be applied forwards. The entry points are \code{BiCGStab.solve(A, b, maxIter, tol)}, which starts from zero, and \code{BiCGStab.solve(A, x0, b, maxIter, tol)}, which starts from the given guess.
+
+    \paragraph{Fixed unknowns.}
+    \code{BiCGStab.solveConstrained(A, x, fixed, b, maxIter, tol)} solves for the unknowns with \code{fixed[i] == false} and keeps the others at the values in \code{x}. The columns of the fixed unknowns are moved to the right-hand side,
+    \begin{equation}
+        A_{:,F}\,x_F = b - A_{:,D}\,x_D ,
+    \end{equation}
+    where $F$ is the set of free unknowns and $D$ the set of fixed ones; the reduced system must be square. For $A=\begin{pmatrix}2&1&0\\1&3&4\end{pmatrix}$, $b=(4,13)^{\top}$ and $x_2=2$ held fixed, the free unknowns are $x_0=1.4$ and $x_1=1.2$. This is how prescribed values (boundary conditions) are imposed without changing the matrix.
+
+    \section{Least squares}
+    \code{LeastSquare} minimises $\lVert Ax-b\rVert_2$ for a matrix of any shape: square, overdetermined (the least-squares solution when no exact solution exists) or underdetermined. The method is LSQR of Paige and Saunders, built on the Golub--Kahan bidiagonalisation
+    \begin{equation}
+        \beta_{k+1}u_{k+1}=Av_k-\alpha_ku_k,
+        \qquad
+        \alpha_{k+1}v_{k+1}=A^{\top}u_{k+1}-\beta_{k+1}v_k ,
+    \end{equation}
+    with $\beta_1u_1=b$ and $\alpha_1v_1=A^{\top}u_1$. It is mathematically equivalent to conjugate gradients on the normal equations $A^{\top}Ax=A^{\top}b$, but it never forms $A^{\top}A$, which would square the condition number. Each iteration costs one product with $A$ and one with $A^{\top}$, which is why the matrix interface offers \code{transposeApply} and why that operation is optimised on both backends. The working buffers hold two vectors of the length of $b$ and three of the length of $x$.
+
+    \code{LeastSquare.solve(A, b, x, maxIter, tol)} exists for arrays and for vectors, and the vector form with two working buffers returns the number of iterations used. The vector $x$ is the initial guess on entry and the solution on exit. A right-hand side or a guess of the wrong length raises \code{IllegalArgumentException}. A zero right-hand side gives the zero solution, and an initial guess that is already the solution is accepted without iterating.
+
+    \section{Newton--Krylov}
+    \code{NewtonKrylov} solves the nonlinear system
+    \begin{equation}
+        F(x) = C(x) + Ax - b = 0,
+        \qquad
+        C_i(x)=\sum_t c_{it}\,x_{j_{it}}x_{k_{it}} ,
+    \end{equation}
+    where $C$ is a quadratic form stored in a padded-CSR tensor (the \emph{Tensors} paragraph of the Gpu part) and $A$ is any matrix. Each Newton step $x\leftarrow x+\delta$ requires the linear system
+    \begin{equation}
+        J(x)\,\delta = -F(x),
+        \qquad
+        J(x)\,\delta = C'(x)\,\delta + A\,\delta ,
+    \end{equation}
+    and the Jacobian is never formed. Only its action on a vector is needed, and the tensor classes provide the exact Jacobian--vector product $C'(x)\delta$ for this purpose. The step is computed only approximately by a Krylov method, which is what makes the method an inexact Newton method. Near a root where $J$ is nonsingular, Newton's method converges quadratically; the inexactness of the inner solve lowers the rate.
+
+    The call is \code{NewtonKrylov.solve(C, A, x, b, n1, n2, t1, t2, null, null, null, buffer7, buffer3)}. Here $x$ is both the initial guess and the result, two iteration limits and two tolerances control the nonlinear and the linear iteration, and the two working buffers hold $7$ and $3$ vectors. \todo{say which limit and tolerance belongs to which iteration, which Krylov method solves the step, whether a line search is used, and what the three optional arguments (null in every test) are}
+
+    The tests solve $x_0^2+x_1=3,\ x_1^2+x_0=5$ (root $(1,2)$), a coupled quadratic system started from $(0.1,0.1)$, and a quadratic term with a nonzero linear part started far from its root, at $(5,5)$, each to $10^{-8}$. A nonlinear system can have several roots; the one found depends on the initial guess.
+
+    \section{Scalar minimisation}
+    \code{SimpleSolvers.gradientDecent} minimises a function of one real variable by gradient descent, in single precision. It takes the function, a starting point and two float parameters (the tests use $0.1$ and $0.01$), and returns the minimiser. The tests minimise $x^2$ from $-1$ and $|\cos x|$ from $10^{-3}$, whose minimum $\pi/2$ is a kink where the derivative does not exist, each to $10^{-6}$. \todo{name the two float parameters and the stopping rule, and note that the method name is spelled \code{gradientDecent} in the code}
+
+    \section{Choosing a solver}
+    For a symmetric positive definite system use \code{ConjugateGradient}: it is the cheapest, with one product per iteration. For a square system without symmetry use \code{BiCGStab}. When the matrix is rectangular, singular, or the system has no exact solution, use \code{LeastSquare}; it is also the safe choice when nothing is known about the matrix, at the price of a transposed product per iteration. For the nonlinear system $C(x)+Ax=b$ use \code{NewtonKrylov}.
+
+    \paragraph{Tolerances and stopping.}
+    \todo{state whether the tolerance is absolute or relative to $\lVert b\rVert$, which norm is tested, and what is returned when the iteration limit is reached without convergence}
+
+    \paragraph{Tests.}
+    The solvers are tested against systems with known answers. \code{ConjugateGradient} on a symmetric positive definite $3\times 3$ matrix. \code{BiCGStab} on a $2\times 2$ and two nonsymmetric $3\times 3$ systems, the identity, an already-solved warm start, a constrained solve, and an ill-conditioned diagonal matrix with entries from $10^{-6}$ to $10^{6}$ (accuracy $10^{-6}$). \code{LeastSquare} on identity, diagonal, symmetric, general square, consistent and inconsistent overdetermined and Hilbert systems; for the inconsistent system it checks optimality by perturbing the solution in several directions and verifying that the residual never decreases. \code{NewtonKrylov} on the three quadratic systems above.
 
 \end{document}

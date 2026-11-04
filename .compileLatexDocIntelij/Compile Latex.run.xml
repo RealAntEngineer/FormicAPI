@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Compile Latex" type="LATEX_RUN_CONFIGURATION" factoryName="LaTeX configuration factory">
+    <option name="auxilPath" value="{projectDir}\out" />
+    <option name="beforeRunCode" />
+    <option name="latexDistribution" value="MiKTeX" />
+    <option name="mainFilePath" value="documentation/main.tex" />
+    <option name="outputPath" value="{projectDir}\documentation\output" />
+    <steps>
+      <latexCompile id="f1cc61bf-247f-4fae-a4f1-728fbe7f4e9c" />
+      <pdfViewer id="9fb2e0ca-ec45-43ae-81ae-ddc2a8e811c3">
+        <selectedOptions>
+          <option name="viewer.requireFocus" />
+        </selectedOptions>
+      </pdfViewer>
+    </steps>
+    <method v="2" />
+  </configuration>
+</component>
